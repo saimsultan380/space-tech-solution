@@ -17,6 +17,7 @@ import {
   Settings,
   X,
   Zap,
+  CalendarDays,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -29,6 +30,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Clock,
   BarChart3,
   Settings,
+  CalendarDays,
 };
 
 interface SidebarProps {

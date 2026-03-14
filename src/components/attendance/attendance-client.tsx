@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -17,8 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
-import type { UserRole } from "@/lib/types";
-import { Clock, CalendarDays, Users, TrendingUp } from "lucide-react";
+import type { UserRole, Leave } from "@/lib/types";
+import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface AttendanceRecord {
   id: string;
@@ -27,6 +29,11 @@ interface AttendanceRecord {
   date: string;
   user: { id: string; full_name: string; role: string } | null;
 }
+
+type DailyRow = AttendanceRecord & {
+  isLeaveOnly?: boolean;
+  leaveStatus?: "approved" | "rejected";
+};
 
 interface MonthlySummary {
   userId: string;
@@ -44,6 +51,8 @@ interface AttendanceClientProps {
   users: Array<{ id: string; full_name: string; role: string }>;
   userRole: UserRole;
   monthlySummary: MonthlySummary[];
+  leaves: Leave[];
+  initialMonth?: string | null;
 }
 
 export function AttendanceClient({
@@ -51,21 +60,81 @@ export function AttendanceClient({
   users,
   userRole,
   monthlySummary,
+  leaves,
+  initialMonth,
 }: AttendanceClientProps) {
-  const [dateFilter, setDateFilter] = useState("");
   const [userFilter, setUserFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("daily");
   const [roleFilter, setRoleFilter] = useState<"all" | "super_admin" | "sales_agent" | "processor">("all");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const monthParam = searchParams.get("month") ?? currentMonth;
 
-  const filtered = attendance.filter((a) => {
-    const matchesDate = !dateFilter || a.date === dateFilter;
+  const handleMonthChange = (value: string) => {
+    if (!value) return;
+    router.push(`/dashboard/attendance?month=${value}`);
+  };
+
+  const monthStart = `${monthParam}-01`;
+  const monthEndDate = new Date(monthParam + "-01");
+  monthEndDate.setMonth(monthEndDate.getMonth() + 1);
+  const monthEnd = monthEndDate.toISOString().split("T")[0];
+
+  const attendanceSet = new Set(
+    attendance.map((a) => `${a.user?.id ?? ""}-${a.date}`)
+  );
+
+  const leaveOnlyRows: DailyRow[] = [];
+  leaves.forEach((leave) => {
+    if ((leave.status !== "approved" && leave.status !== "rejected") || !leave.user)
+      return;
+    const start = leave.start_date;
+    const end = leave.end_date || leave.start_date;
+    for (let d = new Date(start); ; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split("T")[0];
+      if (dateStr >= monthEnd || dateStr > end) break;
+      if (dateStr < monthStart) continue;
+      const key = `${leave.user_id}-${dateStr}`;
+      if (!attendanceSet.has(key)) {
+        leaveOnlyRows.push({
+          id: `leave-${leave.id}-${dateStr}`,
+          check_in: "",
+          check_out: null,
+          date: dateStr,
+          user: leave.user as { id: string; full_name: string; role: string },
+          isLeaveOnly: true,
+          leaveStatus: leave.status,
+        });
+      }
+    }
+  });
+
+  const allDailyRows: DailyRow[] = [
+    ...attendance.map((a) => ({ ...a, isLeaveOnly: false })),
+    ...leaveOnlyRows,
+  ].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+
+  const filtered = allDailyRows.filter((a) => {
     const matchesUser = userFilter === "all" || a.user?.id === userFilter;
     const matchesRole =
       userRole !== "super_admin" ||
       roleFilter === "all" ||
       (a.user?.role as UserRole | undefined) === roleFilter;
-    return matchesDate && matchesUser && matchesRole;
+    return matchesUser && matchesRole;
   });
+
+  const isOnLeave = (userId: string | undefined, date: string) => {
+    if (!userId) return false;
+    return leaves.some((leave) => {
+      if (leave.status !== "approved" || leave.user_id !== userId) return false;
+      const start = leave.start_date;
+      const end = leave.end_date || leave.start_date;
+      return start <= date && date <= end;
+    });
+  };
+
 
   const calculateHours = (checkIn: string, checkOut: string | null) => {
     if (!checkOut) return "In progress";
@@ -75,14 +144,91 @@ export function AttendanceClient({
     return `${hours}h ${minutes}m`;
   };
 
+  const countLeaveDaysInMonth = (
+    userId: string,
+    status: "approved" | "rejected"
+  ) => {
+    let count = 0;
+    leaves.forEach((leave) => {
+      if (leave.status !== status || leave.user_id !== userId) return;
+      const start = leave.start_date;
+      const end = leave.end_date || leave.start_date;
+      for (let d = new Date(start); ; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split("T")[0];
+        if (dateStr >= monthEnd || dateStr > end) break;
+        if (dateStr >= monthStart) count++;
+      }
+    });
+    return count;
+  };
+
   const filteredSummary = monthlySummary.filter((s) => {
-    const matchesUser = userFilter === "all" || s.userId === userFilter;
+    const matchesUser =
+      userFilter === "all" && selectedEmployeeId === "all"
+        ? true
+        : selectedEmployeeId !== "all"
+        ? s.userId === selectedEmployeeId
+        : userFilter === "all" || s.userId === userFilter;
     const matchesRole =
       userRole !== "super_admin" ||
       roleFilter === "all" ||
       (s.role as UserRole | undefined) === roleFilter;
     return matchesUser && matchesRole;
   });
+
+  const roleSummary = monthlySummary.reduce<
+    Record<
+      string,
+      {
+        employees: number;
+        avgAttendanceRate: number;
+        totalHours: number;
+      }
+    >
+  >((acc, item) => {
+    const key = item.role;
+    if (!acc[key]) {
+      acc[key] = { employees: 0, avgAttendanceRate: 0, totalHours: 0 };
+    }
+    acc[key].employees += 1;
+    acc[key].avgAttendanceRate += item.attendanceRate;
+    acc[key].totalHours += item.totalHours;
+    return acc;
+  }, {});
+
+  const selectedEmployeeSummary =
+    selectedEmployeeId === "all"
+      ? null
+      : monthlySummary.find((m) => m.userId === selectedEmployeeId) || null;
+
+  const handleDownloadSheet = () => {
+    const headers = [
+      "Employee",
+      "Role",
+      "Days Present",
+      "Working Days",
+      "Attendance %",
+      "Total Hours",
+      "Avg Hours/Day",
+    ];
+    const rows = filteredSummary.map((emp) => [
+      emp.name,
+      ROLE_LABELS[emp.role] || emp.role,
+      String(emp.daysPresent),
+      String(emp.workingDays),
+      `${emp.attendanceRate}%`,
+      `${emp.totalHours}`,
+      String(emp.avgHoursPerDay),
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `attendance-report-${monthParam}.csv`);
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -97,6 +243,104 @@ export function AttendanceClient({
         </div>
       </div>
 
+      {userRole === "super_admin" && (
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-3">
+          {Object.entries(roleSummary).map(([role, stats]) => {
+            const label = ROLE_LABELS[role] || role;
+            const avgRate =
+              stats.employees > 0 ? Math.round((stats.avgAttendanceRate / stats.employees) * 10) / 10 : 0;
+            const isActiveRole = roleFilter === role;
+
+            const handleRoleClick = () => {
+              if (isActiveRole) {
+                setRoleFilter("all");
+              } else {
+                setRoleFilter(role as "super_admin" | "sales_agent" | "processor");
+                setSelectedEmployeeId("all");
+              }
+            };
+
+            return (
+              <button
+                key={role}
+                type="button"
+                onClick={handleRoleClick}
+                className="text-left"
+              >
+                <Card
+                  className={`relative overflow-hidden border bg-card shadow-sm transition-all ${
+                    isActiveRole ? "border-primary ring-1 ring-primary/40 scale-[1.01]" : "border-border/60"
+                  }`}
+                >
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.08),transparent_55%)]" />
+                  <CardContent className="relative py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </p>
+                        <p className="mt-1 text-xl font-bold">
+                          {stats.employees} employee{stats.employees !== 1 ? "s" : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {Math.round(stats.totalHours)} total hours logged this month
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                          {avgRate}% avg attendance
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {stats.employees > 0
+                            ? isActiveRole
+                              ? "Showing this role below"
+                              : "Click to filter by role"
+                            : "No activity yet"}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {selectedEmployeeSummary && (
+        <Card className="border border-primary/30 bg-primary/5 shadow-sm">
+          <CardContent className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Selected Employee
+              </p>
+              <p className="text-lg font-bold">{selectedEmployeeSummary.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {ROLE_LABELS[selectedEmployeeSummary.role] || selectedEmployeeSummary.role}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Days Present</p>
+                <p className="font-semibold">{selectedEmployeeSummary.daysPresent}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Attendance</p>
+                <p className="font-semibold">{selectedEmployeeSummary.attendanceRate}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Hours</p>
+                <p className="font-semibold">{selectedEmployeeSummary.totalHours}h</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Avg Hours / Day</p>
+                <p className="font-semibold">{selectedEmployeeSummary.avgHoursPerDay}h</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="daily">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
@@ -109,7 +353,7 @@ export function AttendanceClient({
           </TabsList>
 
           {userRole === "super_admin" && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Select
                 options={[
                   { value: "all", label: "All Roles" },
@@ -127,9 +371,29 @@ export function AttendanceClient({
                   { value: "all", label: "All Employees" },
                   ...users.map((u) => ({ value: u.id, label: u.full_name })),
                 ]}
-                value={userFilter}
-                onChange={(e) => setUserFilter(e.target.value)}
+                value={selectedEmployeeId}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedEmployeeId(value);
+                  setUserFilter("all");
+                }}
               />
+              {(roleFilter !== "all" || selectedEmployeeId !== "all") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setRoleFilter("all");
+                    setSelectedEmployeeId("all");
+                    setUserFilter("all");
+                  }}
+                  className="shrink-0"
+                >
+                  <ListFilter className="mr-1.5 h-3.5 w-3.5" />
+                  Show all
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -137,13 +401,18 @@ export function AttendanceClient({
         <TabsContent value="daily">
           <Card>
             <CardHeader>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="w-auto"
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3 sm:mr-4">
+                  <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                    Month
+                  </label>
+                  <Input
+                    type="month"
+                    value={monthParam}
+                    onChange={(e) => handleMonthChange(e.target.value)}
+                    className="w-[160px]"
+                  />
+                </div>
                 <CardTitle className="ml-auto text-sm text-muted-foreground">
                   {filtered.length} record{filtered.length !== 1 ? "s" : ""}
                 </CardTitle>
@@ -166,8 +435,12 @@ export function AttendanceClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((record) => (
-                      <TableRow key={record.id}>
+                    {filtered.map((record) => {
+                      const leaveOnly = record.isLeaveOnly === true;
+                      const onLeave =
+                        leaveOnly || isOnLeave(record.user?.id, record.date);
+                      return (
+                  <TableRow key={record.id}>
                         <TableCell className="font-medium">
                           {record.user?.full_name || "N/A"}
                         </TableCell>
@@ -177,18 +450,35 @@ export function AttendanceClient({
                           </Badge>
                         </TableCell>
                         <TableCell>{formatDate(record.date)}</TableCell>
-                        <TableCell>{formatDateTime(record.check_in)}</TableCell>
                         <TableCell>
-                          {record.check_out ? formatDateTime(record.check_out) : "-"}
+                          {leaveOnly ? "-" : formatDateTime(record.check_in)}
                         </TableCell>
-                        <TableCell>{calculateHours(record.check_in, record.check_out)}</TableCell>
                         <TableCell>
-                          <Badge variant={record.check_out ? "success" : "warning"}>
-                            {record.check_out ? "Completed" : "Active"}
-                          </Badge>
+                          {leaveOnly
+                            ? "-"
+                            : record.check_out
+                              ? formatDateTime(record.check_out)
+                              : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {leaveOnly
+                            ? "—"
+                            : calculateHours(record.check_in, record.check_out)}
+                        </TableCell>
+                        <TableCell>
+                          {record.leaveStatus === "rejected" ? (
+                            <Badge variant="destructive">Leave Rejected</Badge>
+                          ) : onLeave ? (
+                            <Badge variant="secondary">On Leave</Badge>
+                          ) : (
+                            <Badge variant={record.check_out ? "success" : "warning"}>
+                              {record.check_out ? "Completed" : "Active"}
+                            </Badge>
+                          )}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -217,6 +507,8 @@ export function AttendanceClient({
                       <TableHead>Employee</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Days Present</TableHead>
+                      <TableHead>Days on Leave</TableHead>
+                      <TableHead>Days Rejected</TableHead>
                       <TableHead>Working Days</TableHead>
                       <TableHead>Attendance %</TableHead>
                       <TableHead>Total Hours</TableHead>
@@ -231,6 +523,12 @@ export function AttendanceClient({
                           <Badge variant="secondary">{ROLE_LABELS[emp.role] || emp.role}</Badge>
                         </TableCell>
                         <TableCell>{emp.daysPresent}</TableCell>
+                        <TableCell>
+                          {countLeaveDaysInMonth(emp.userId, "approved")}
+                        </TableCell>
+                        <TableCell>
+                          {countLeaveDaysInMonth(emp.userId, "rejected")}
+                        </TableCell>
                         <TableCell>{emp.workingDays}</TableCell>
                         <TableCell>
                           <Badge

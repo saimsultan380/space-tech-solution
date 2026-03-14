@@ -6,11 +6,12 @@ import { requireAuth } from "@/lib/auth";
 export async function getDashboardStats() {
   const supabase = await createClient();
 
-  const [salesRes, customersRes, chargebacksRes, usersRes] = await Promise.all([
+  const [salesRes, customersRes, chargebacksRes, usersRes, leavesRes] = await Promise.all([
     supabase.from("sales").select("id, status, charged_amount, agent_id, sale_type, created_at"),
     supabase.from("customers").select("id", { count: "exact", head: true }),
     supabase.from("chargebacks").select("id, status", { count: "exact" }),
     supabase.from("users").select("id, role", { count: "exact" }),
+    supabase.from("leaves").select("id, status, start_date, end_date"),
   ]);
 
   const sales = salesRes.data || [];
@@ -24,6 +25,15 @@ export async function getDashboardStats() {
   const totalChargebacks = chargebacksRes.count || 0;
   const openChargebacks = (chargebacksRes.data || []).filter((c) => c.status === "open").length;
 
+  const leaves = leavesRes.data || [];
+  const pendingLeaves = leaves.filter((l) => l.status === "pending").length;
+  const today = new Date().toISOString().split("T")[0];
+  const todayOnLeave = leaves.filter((l) => {
+    const start = l.start_date;
+    const end = l.end_date || l.start_date;
+    return start <= today && today <= end && l.status === "approved";
+  }).length;
+
   return {
     totalSales: sales.length,
     totalRevenue,
@@ -33,6 +43,8 @@ export async function getDashboardStats() {
     rejectedSales,
     totalChargebacks,
     openChargebacks,
+    pendingLeaves,
+    todayOnLeave,
     conversionRate: sales.length > 0 ? ((approvedSales / sales.length) * 100).toFixed(1) : "0",
   };
 }

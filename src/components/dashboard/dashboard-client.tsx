@@ -19,6 +19,7 @@ import {
   BarChart3,
   Eye,
   EyeOff,
+  CalendarDays,
 } from "lucide-react";
 
 interface DashboardClientProps {
@@ -33,6 +34,8 @@ interface DashboardClientProps {
     totalChargebacks: number;
     openChargebacks: number;
     conversionRate: string;
+    pendingLeaves: number;
+    todayOnLeave: number;
   };
   todayAttendance: {
     id: string;
@@ -125,6 +128,13 @@ export function DashboardClient({
           icon={<AlertTriangle className="h-5 w-5" />}
           description={`${stats.totalChargebacks} total chargebacks`}
           colorClass="bg-rose-500"
+        />
+        <StatCard
+          title="Pending Leave Requests"
+          value={stats.pendingLeaves}
+          icon={<CalendarDays className="h-5 w-5" />}
+          description={`${stats.todayOnLeave} employees on leave today`}
+          colorClass="bg-indigo-500"
         />
         <AttendanceWidget todayAttendance={todayAttendance} />
       </div>

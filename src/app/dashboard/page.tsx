@@ -22,6 +22,8 @@ const defaultStats = {
   rejectedSales: 0,
   totalChargebacks: 0,
   openChargebacks: 0,
+  pendingLeaves: 0,
+  todayOnLeave: 0,
   conversionRate: "0",
 };
 

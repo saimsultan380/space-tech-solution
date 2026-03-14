@@ -1,0 +1,297 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState, Spinner } from "@/components/ui/loading";
+import { ROLE_LABELS, LEAVE_STATUSES } from "@/lib/constants";
+import type { Leave } from "@/lib/types";
+import { updateLeaveStatus } from "@/lib/actions/leaves";
+import { formatDate } from "@/lib/utils";
+import { CheckCircle2, XCircle, CalendarDays, FileText, Clock, CheckCircle } from "lucide-react";
+
+interface LeavesAdminClientProps {
+  leaves: Leave[];
+}
+
+const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
+  pending: "warning",
+  approved: "success",
+  rejected: "destructive",
+};
+
+function getMonthStartEnd(monthStr: string) {
+  const monthStart = `${monthStr}-01`;
+  const nextMonth = new Date(monthStart);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const monthEnd = nextMonth.toISOString().split("T")[0];
+  return { monthStart, monthEnd };
+}
+
+export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
+  const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [monthFilter, setMonthFilter] = useState(currentMonth);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">(
+    "all"
+  );
+  const [roleFilter, setRoleFilter] = useState<"all" | "super_admin" | "sales_agent" | "processor">(
+    "all"
+  );
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+
+  const { monthStart, monthEnd } = getMonthStartEnd(monthFilter);
+  const leavesInMonth = leaves.filter((leave) => {
+    const d = leave.start_date;
+    return d >= monthStart && d < monthEnd;
+  });
+
+  const stats = useMemo(() => ({
+    total: leavesInMonth.length,
+    pending: leavesInMonth.filter((l) => l.status === "pending").length,
+    approved: leavesInMonth.filter((l) => l.status === "approved").length,
+    rejected: leavesInMonth.filter((l) => l.status === "rejected").length,
+  }), [leavesInMonth]);
+
+  const filtered = leavesInMonth.filter((leave) => {
+    const matchesStatus = statusFilter === "all" || leave.status === statusFilter;
+    const role = leave.user?.role;
+    const matchesRole = roleFilter === "all" || role === roleFilter;
+    return matchesStatus && matchesRole;
+  });
+
+  const handleUpdate = async (id: string, status: "approved" | "rejected") => {
+    const key = `${id}-${status}`;
+    setUpdatingKey(key);
+    try {
+      await updateLeaveStatus(id, status);
+    } catch {
+      // handled by UI error boundaries or toast in higher-level layout
+    }
+    setUpdatingKey(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Leave Requests</h1>
+          <p className="text-muted-foreground">
+            Review and manage leave applications from your team
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CalendarDays className="h-4 w-4" />
+          {filtered.length} request{filtered.length !== 1 ? "s" : ""} shown
+        </div>
+      </div>
+
+      {/* Month filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-sm font-medium text-muted-foreground">Month</label>
+        <Input
+          type="month"
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="w-[180px]"
+        />
+      </div>
+
+      {/* Stats cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.06),transparent_50%)]" />
+          <CardContent className="relative flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Total requests</p>
+              <p className="text-xl font-bold">{stats.total}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.08),transparent_50%)]" />
+          <CardContent className="relative flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
+              <Clock className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Pending</p>
+              <p className="text-xl font-bold">{stats.pending}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.08),transparent_50%)]" />
+          <CardContent className="relative flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Approved</p>
+              <p className="text-xl font-bold">{stats.approved}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.06),transparent_50%)]" />
+          <CardContent className="relative flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+              <XCircle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Rejected</p>
+              <p className="text-xl font-bold">{stats.rejected}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-sm text-muted-foreground">
+              {leavesInMonth.length} total request{leavesInMonth.length !== 1 ? "s" : ""} this month
+            </CardTitle>
+            <div className="flex gap-2">
+              <Select
+                options={[
+                  { value: "all", label: "All Statuses" },
+                  ...LEAVE_STATUSES,
+                ]}
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")
+                }
+              />
+              <Select
+                options={[
+                  { value: "all", label: "All Roles" },
+                  { value: "super_admin", label: "Super Admin" },
+                  { value: "sales_agent", label: "Sales Agent" },
+                  { value: "processor", label: "Processor" },
+                ]}
+                value={roleFilter}
+                onChange={(e) =>
+                  setRoleFilter(
+                    e.target.value as "all" | "super_admin" | "sales_agent" | "processor"
+                  )
+                }
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="No leave requests"
+              description="Leave applications from employees will appear here"
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Applied</TableHead>
+                  <TableHead>Approver Notes</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((leave) => (
+                  <TableRow key={leave.id}>
+                    <TableCell className="font-medium">
+                      {leave.user?.full_name || "Unknown"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {ROLE_LABELS[leave.user?.role || ""] || leave.user?.role || "N/A"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatDate(leave.start_date)}
+                      {leave.end_date && leave.end_date !== leave.start_date
+                        ? ` - ${formatDate(leave.end_date)}`
+                        : ""}
+                    </TableCell>
+                    <TableCell className="capitalize">{leave.type || "N/A"}</TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={leave.reason}>
+                      {leave.reason}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant[leave.status] || "default"} className="capitalize">
+                        {leave.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(leave.created_at)}</TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={leave.approver_notes || ""}>
+                      {leave.approver_notes || "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {leave.status === "pending" ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              updatingKey === `${leave.id}-approved` ||
+                              updatingKey === `${leave.id}-rejected`
+                            }
+                            onClick={() => handleUpdate(leave.id, "approved")}
+                          >
+                            {updatingKey === `${leave.id}-approved` ? (
+                              <Spinner />
+                            ) : (
+                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />
+                            )}
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={
+                              updatingKey === `${leave.id}-approved` ||
+                              updatingKey === `${leave.id}-rejected`
+                            }
+                            onClick={() => handleUpdate(leave.id, "rejected")}
+                          >
+                            {updatingKey === `${leave.id}-rejected` ? (
+                              <Spinner />
+                            ) : (
+                              <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                            )}
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No actions</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+

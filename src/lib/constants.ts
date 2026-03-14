@@ -53,6 +53,19 @@ export const CHARGEBACK_STATUSES = [
   { value: "disputed", label: "Disputed" },
 ];
 
+export const LEAVE_STATUSES = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
+export const LEAVE_TYPES = [
+  { value: "sick", label: "Sick Leave" },
+  { value: "casual", label: "Casual Leave" },
+  { value: "annual", label: "Annual Leave" },
+  { value: "other", label: "Other" },
+];
+
 export const PAYMENT_METHODS = [
   { value: "card", label: "Credit/Debit Card" },
   { value: "bank", label: "Bank Transfer" },
@@ -78,6 +91,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard/payments", label: "Payments", icon: "CreditCard" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
+    { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },
     { href: "/dashboard/reports", label: "Reports", icon: "BarChart3" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
@@ -86,6 +100,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard/customers", label: "Customers", icon: "Contact" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
+    { href: "/dashboard/leaves", label: "My Leaves", icon: "CalendarDays" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
   processor: [
@@ -93,6 +108,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard/sales", label: "Sales Queue", icon: "TrendingUp" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
+    { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
 };

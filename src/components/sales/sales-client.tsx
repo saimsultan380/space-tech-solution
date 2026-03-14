@@ -20,7 +20,7 @@ import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
 import { bulkUpdateSaleStatus } from "@/lib/actions/sales";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, CheckCircle, XCircle, Loader2, Eye } from "lucide-react";
+import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Download } from "lucide-react";
 import Link from "next/link";
 
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
@@ -51,6 +51,7 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [amountFilter, setAmountFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const { currency } = useCurrency();
@@ -61,7 +62,13 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
       s.company_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || s.status === statusFilter;
     const matchesType = typeFilter === "all" || s.sale_type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesAmount =
+      amountFilter === "all" ||
+      (amountFilter === "lt_100" && s.charged_amount < 100) ||
+      (amountFilter === "100_500" && s.charged_amount >= 100 && s.charged_amount < 500) ||
+      (amountFilter === "500_1000" && s.charged_amount >= 500 && s.charged_amount < 1000) ||
+      (amountFilter === "gte_1000" && s.charged_amount >= 1000);
+    return matchesSearch && matchesStatus && matchesType && matchesAmount;
   });
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
@@ -86,6 +93,55 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
     } else {
       setSelected(new Set(pendingIds));
     }
+  };
+
+  const handleDownloadReport = () => {
+    if (filtered.length === 0) return;
+
+    const headers = [
+      "Customer",
+      "Type",
+      "Subtype",
+      "Company",
+      "Charged Amount",
+      "Status",
+      "Agent",
+      "Created At",
+    ];
+
+    const rows = filtered.map((sale) => [
+      sale.customer?.name || "",
+      sale.sale_type,
+      sale.subtype,
+      sale.company_name,
+      sale.charged_amount.toString(),
+      sale.status,
+      sale.agent?.full_name || "",
+      sale.created_at,
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((value) => {
+            const v = value ?? "";
+            const needsQuotes = /[",\n]/.test(v);
+            const escaped = v.replace(/"/g, '""');
+            return needsQuotes ? `"${escaped}"` : escaped;
+          })
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "sales-report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleBulkAction = async (status: "approved" | "rejected") => {
@@ -113,13 +169,19 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
             {userRole === "processor" ? "Process and manage sales" : "Track your sales pipeline"}
           </p>
         </div>
-        {canCreate && (
-          <Link href="/dashboard/sales/new">
-            <Button>
-              <Plus className="h-4 w-4" /> New Sale
-            </Button>
-          </Link>
-        )}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleDownloadReport}>
+            <Download className="h-4 w-4" />
+            <span className="ml-2">Download Sales Report</span>
+          </Button>
+          {canCreate && (
+            <Link href="/dashboard/sales/new">
+              <Button>
+                <Plus className="h-4 w-4" /> New Sale
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -143,6 +205,17 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
               options={[{ value: "all", label: "All Types" }, ...SALE_TYPES]}
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
+            />
+            <Select
+              options={[
+                { value: "all", label: "All Amounts" },
+                { value: "lt_100", label: "< $100" },
+                { value: "100_500", label: "$100 - $500" },
+                { value: "500_1000", label: "$500 - $1,000" },
+                { value: "gte_1000", label: "≥ $1,000" },
+              ]}
+              value={amountFilter}
+              onChange={(e) => setAmountFilter(e.target.value)}
             />
           </div>
 

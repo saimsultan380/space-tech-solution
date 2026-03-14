@@ -4,6 +4,7 @@ export type SaleType = "utility" | "insurance";
 export type SaleSubtype = "new" | "bill" | "premium" | "cancellation";
 export type SaleStatus = "pending" | "approved" | "rejected";
 export type ChargebackStatus = "open" | "resolved" | "disputed";
+export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PaymentMethod = "card" | "bank";
 
 export interface AppUser {
@@ -108,6 +109,22 @@ export interface Chargeback {
   status: ChargebackStatus;
   created_at: string;
   sale?: Sale;
+}
+
+export interface Leave {
+  id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  type: string;
+  reason: string;
+  status: LeaveStatus;
+  approver_id: string | null;
+  approver_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  user?: AppUser;
+  approver?: AppUser;
 }
 
 export interface Note {

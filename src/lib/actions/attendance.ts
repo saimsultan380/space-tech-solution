@@ -3,8 +3,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { notifySuperAdmins, createNotification } from "@/lib/actions/notifications";
 
-export async function getAttendance(filters?: { date?: string; user_id?: string }) {
+export async function getAttendance(filters?: {
+  date?: string;
+  user_id?: string;
+  month?: string;
+}) {
   const supabase = await createClient();
   let query = supabase
     .from("attendance")
@@ -13,6 +18,13 @@ export async function getAttendance(filters?: { date?: string; user_id?: string 
 
   if (filters?.date) {
     query = query.eq("date", filters.date);
+  }
+  if (filters?.month) {
+    const monthStart = `${filters.month}-01`;
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const monthEnd = nextMonth.toISOString().split("T")[0];
+    query = query.gte("date", monthStart).lt("date", monthEnd);
   }
   if (filters?.user_id && filters.user_id !== "all") {
     query = query.eq("user_id", filters.user_id);
@@ -46,6 +58,13 @@ export async function checkIn() {
   });
 
   if (error) throw new Error(error.message);
+
+  await notifySuperAdmins({
+    title: "Employee checked in",
+    body: `${user.full_name} checked in on ${today}.`,
+    type: "attendance",
+  });
+
   revalidatePath("/dashboard/attendance");
 }
 
@@ -75,6 +94,14 @@ export async function checkOut() {
     .eq("id", record.id);
 
   if (error) throw new Error(error.message);
+
+  await createNotification({
+    user_id: user.id,
+    title: "Check-out recorded",
+    body: `Your check-out for ${today} was recorded successfully.`,
+    type: "attendance",
+  });
+
   revalidatePath("/dashboard/attendance");
 }
 
