@@ -1,30 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/loading";
-import { CURRENCIES } from "@/lib/constants";
+import { CURRENCIES, NAV_ITEMS, ROLE_LABELS } from "@/lib/constants";
 import type { AppUser } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { updateProfile, updatePreferences, changePassword } from "@/lib/actions/profile";
+import { updateUserAllowedModules } from "@/lib/actions/users";
 import {
   User,
   Image as ImageIcon,
   Globe2,
   Lock,
+  PanelLeft,
   UploadCloud,
   CheckCircle2,
 } from "lucide-react";
 
 interface SettingsClientProps {
   user: AppUser;
+  manageableUsers: Array<{
+    id: string;
+    full_name: string;
+    email: string;
+    role: "super_admin" | "sales_agent" | "processor";
+    allowed_modules: string[] | null;
+  }>;
 }
 
-export function SettingsClient({ user }: SettingsClientProps) {
+export function SettingsClient({ user, manageableUsers }: SettingsClientProps) {
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -39,6 +48,53 @@ export function SettingsClient({ user }: SettingsClientProps) {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [managedUsersState, setManagedUsersState] = useState(manageableUsers);
+  const [selectedManagedUserId, setSelectedManagedUserId] = useState(
+    manageableUsers[0]?.id ?? ""
+  );
+  const [moduleDraft, setModuleDraft] = useState<string[]>([]);
+  const [moduleLoading, setModuleLoading] = useState(false);
+  const [moduleMessage, setModuleMessage] = useState<string | null>(null);
+  const [moduleError, setModuleError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setManagedUsersState(manageableUsers);
+  }, [manageableUsers]);
+
+  useEffect(() => {
+    if (user.role !== "super_admin") return;
+    if (managedUsersState.length === 0) {
+      setSelectedManagedUserId("");
+      return;
+    }
+    const exists = managedUsersState.some((entry) => entry.id === selectedManagedUserId);
+    if (!exists) {
+      setSelectedManagedUserId(managedUsersState[0].id);
+    }
+  }, [managedUsersState, selectedManagedUserId, user.role]);
+
+  const selectedManagedUser = useMemo(
+    () => managedUsersState.find((entry) => entry.id === selectedManagedUserId) ?? null,
+    [managedUsersState, selectedManagedUserId]
+  );
+
+  const selectedRoleModules = useMemo(() => {
+    if (!selectedManagedUser) return [];
+    return NAV_ITEMS[selectedManagedUser.role].map((item) => ({
+      value: item.href,
+      label: item.label,
+    }));
+  }, [selectedManagedUser]);
+
+  useEffect(() => {
+    if (!selectedManagedUser) {
+      setModuleDraft([]);
+      return;
+    }
+    setModuleDraft(selectedManagedUser.allowed_modules ?? []);
+    setModuleMessage(null);
+    setModuleError(null);
+  }, [selectedManagedUserId, selectedManagedUser]);
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -134,6 +190,29 @@ export function SettingsClient({ user }: SettingsClientProps) {
     }
   };
 
+  const handleSaveModuleAccess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedManagedUser) return;
+    setModuleLoading(true);
+    setModuleMessage(null);
+    setModuleError(null);
+    try {
+      await updateUserAllowedModules(selectedManagedUser.id, moduleDraft);
+      setManagedUsersState((prev) =>
+        prev.map((entry) =>
+          entry.id === selectedManagedUser.id
+            ? { ...entry, allowed_modules: moduleDraft.length > 0 ? moduleDraft : null }
+            : entry
+        )
+      );
+      setModuleMessage("Sidebar visibility updated successfully.");
+    } catch (err) {
+      setModuleError(err instanceof Error ? err.message : "Failed to update sidebar visibility.");
+    } finally {
+      setModuleLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -144,7 +223,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList>
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
           <TabsTrigger value="profile">
             <User className="mr-1.5 h-4 w-4" />
             Profile
@@ -157,6 +236,12 @@ export function SettingsClient({ user }: SettingsClientProps) {
             <Lock className="mr-1.5 h-4 w-4" />
             Security
           </TabsTrigger>
+          {user.role === "super_admin" && (
+            <TabsTrigger value="sidebar">
+              <PanelLeft className="mr-1.5 h-4 w-4" />
+              Sidebar Access
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="mt-4 space-y-4">
@@ -303,6 +388,100 @@ export function SettingsClient({ user }: SettingsClientProps) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {user.role === "super_admin" && (
+          <TabsContent value="sidebar" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PanelLeft className="h-4 w-4" />
+                  Sidebar Visibility
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveModuleAccess} className="space-y-4">
+                  <Select
+                    label="Employee"
+                    value={selectedManagedUserId}
+                    options={managedUsersState.map((entry) => ({
+                      value: entry.id,
+                      label: `${entry.full_name} (${ROLE_LABELS[entry.role] || entry.role})`,
+                    }))}
+                    onChange={(e) => setSelectedManagedUserId(e.target.value)}
+                  />
+                  {selectedManagedUser && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedManagedUser.email}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setModuleDraft(selectedRoleModules.map((item) => item.value))}
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setModuleDraft([])}
+                    >
+                      Use Role Defaults
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {selectedRoleModules.map((mod) => {
+                      const checked = moduleDraft.includes(mod.value);
+                      return (
+                        <label
+                          key={mod.value}
+                          className="flex items-center gap-2 rounded-[6px] border border-border/60 bg-muted/30 px-3 py-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border text-primary"
+                            checked={checked}
+                            onChange={(e) =>
+                              setModuleDraft((prev) =>
+                                e.target.checked
+                                  ? [...prev, mod.value]
+                                  : prev.filter((value) => value !== mod.value)
+                              )
+                            }
+                          />
+                          <span>{mod.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {moduleDraft.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Role defaults are active. All sidebar items for this role remain visible.
+                    </p>
+                  )}
+
+                  {moduleError && <p className="text-sm text-destructive">{moduleError}</p>}
+                  {moduleMessage && !moduleError && (
+                    <p className="text-sm text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 className="h-4 w-4" />
+                      {moduleMessage}
+                    </p>
+                  )}
+
+                  <Button type="submit" disabled={moduleLoading || !selectedManagedUser}>
+                    {moduleLoading ? <Spinner /> : "Save Sidebar Visibility"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

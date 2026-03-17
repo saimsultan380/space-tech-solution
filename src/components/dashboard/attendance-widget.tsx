@@ -45,26 +45,26 @@ export function AttendanceWidget({ todayAttendance }: AttendanceWidgetProps) {
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[13px] font-medium text-muted-foreground">Today&apos;s Attendance</p>
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500 text-white shadow-lg">
-          <Clock className="h-5 w-5" />
+    <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm font-semibold text-[#111827]">Today&apos;s Attendance</p>
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF3FF]">
+          <Clock className="h-5 w-5 text-[#3B6EF8]" />
         </div>
       </div>
 
       {hasCheckedIn && (
         <div className="mb-4 space-y-2">
-          <div className="flex items-center justify-between rounded-lg bg-success/5 px-3 py-2">
-            <span className="text-xs font-medium text-muted-foreground">Check In</span>
-            <span className="text-xs font-semibold text-success">
+          <div className="flex items-center justify-between rounded-md bg-[#F0FDF4] px-3 py-2">
+            <span className="text-xs font-medium text-[#6B7280]">Check In</span>
+            <span className="text-xs font-semibold text-[#16A34A]">
               {formatDateTime(todayAttendance.check_in)}
             </span>
           </div>
           {hasCheckedOut && (
-            <div className="flex items-center justify-between rounded-lg bg-primary/5 px-3 py-2">
-              <span className="text-xs font-medium text-muted-foreground">Check Out</span>
-              <span className="text-xs font-semibold text-primary">
+            <div className="flex items-center justify-between rounded-md bg-[#EEF3FF] px-3 py-2">
+              <span className="text-xs font-medium text-[#6B7280]">Check Out</span>
+              <span className="text-xs font-semibold text-[#3B6EF8]">
                 {formatDateTime(todayAttendance.check_out!)}
               </span>
             </div>
@@ -73,30 +73,46 @@ export function AttendanceWidget({ todayAttendance }: AttendanceWidgetProps) {
       )}
 
       {error && (
-        <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          <div className="h-1.5 w-1.5 rounded-full bg-destructive" />
+        <div className="mb-3 flex items-center gap-1.5 rounded-md bg-[#FEF2F2] px-3 py-2 text-xs text-[#EF4444]">
+          <div className="h-1.5 w-1.5 rounded-full bg-[#EF4444]" />
           {error}
         </div>
       )}
 
       {!hasCheckedIn && (
-        <Button size="sm" onClick={handleCheckIn} disabled={loading} className="w-full h-10 rounded-xl shadow-sm shadow-primary/20 font-semibold">
+        <Button
+          size="sm"
+          onClick={handleCheckIn}
+          disabled={loading}
+          className="h-10 w-full rounded-lg bg-[#3B6EF8] font-semibold text-white hover:bg-[#2F5DE0]"
+        >
           {loading ? <Spinner /> : <><LogIn className="h-4 w-4" /> Check In</>}
         </Button>
       )}
 
       {hasCheckedIn && !hasCheckedOut && (
-        <Button size="sm" variant="outline" onClick={handleCheckOut} disabled={loading} className="w-full h-10 rounded-xl font-semibold">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleCheckOut}
+          disabled={loading}
+          className="h-10 w-full rounded-lg border-[#E5E7EB] font-semibold text-[#374151] hover:bg-[#F8F9FB]"
+        >
           {loading ? <Spinner /> : <><LogOut className="h-4 w-4" /> Check Out</>}
         </Button>
       )}
 
       {hasCheckedOut && (
-        <div className="flex items-center gap-2 text-sm font-semibold text-success">
+        <div className="flex items-center gap-2 text-sm font-semibold text-[#16A34A]">
           <CheckCircle2 className="h-4 w-4" />
           Shift completed
         </div>
       )}
+
+      <p className="mt-4 flex items-center gap-1.5 text-xs font-medium text-[#9CA3AF]">
+        <Clock className="h-3.5 w-3.5" />
+        Shift window: 09:00 AM - 06:00 PM
+      </p>
     </div>
   );
 }

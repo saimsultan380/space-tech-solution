@@ -31,7 +31,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
       <div
         ref={overlayRef}
         className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-[fade-in_0.15s_ease-out]"
@@ -39,7 +39,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
       />
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg rounded-2xl border border-border/50 bg-card p-6 shadow-2xl animate-[scale-in_0.2s_ease-out]",
+          "relative z-50 my-4 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border/50 bg-card p-4 shadow-2xl animate-[scale-in_0.2s_ease-out] sm:my-6 sm:p-6",
           className
         )}
       >

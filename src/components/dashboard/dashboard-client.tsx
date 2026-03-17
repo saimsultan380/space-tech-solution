@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { StatCard } from "@/components/ui/stat-card";
 import { AttendanceWidget } from "./attendance-widget";
 import { RevenueChart } from "@/components/reports/charts/revenue-chart";
 import { SalesPerAgentChart } from "@/components/reports/charts/sales-per-agent-chart";
 import { ConversionChart } from "@/components/reports/charts/conversion-chart";
+import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
-import type { AppUser } from "@/lib/types";
+import type { AppUser, Payslip } from "@/lib/types";
 import {
   DollarSign,
   ShoppingCart,
@@ -20,6 +20,7 @@ import {
   Eye,
   EyeOff,
   CalendarDays,
+  type LucideIcon,
 } from "lucide-react";
 
 interface DashboardClientProps {
@@ -44,6 +45,7 @@ interface DashboardClientProps {
   } | null;
   salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }>;
   revenueData: Array<{ date: string; revenue: number }>;
+  recentPayslips: Payslip[];
 }
 
 export function DashboardClient({
@@ -52,26 +54,28 @@ export function DashboardClient({
   todayAttendance,
   salesPerAgent,
   revenueData,
+  recentPayslips,
 }: DashboardClientProps) {
   const [showCharts, setShowCharts] = useState(true);
   const { currency } = useCurrency();
+  const revenueTrend = getRevenueTrend(revenueData);
+  const conversionValue = Number(stats.conversionRate || 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-primary">Good {getGreeting()}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+          <p className="text-sm font-medium text-[#6B7280]">Good {getGreeting()}</p>
+          <h1 className="mt-1 text-[28px] font-bold tracking-tight text-[#111827]">
             Welcome back, {user.full_name}
           </h1>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-1 text-sm font-medium text-[#9CA3AF]">
             Here&apos;s an overview of your business today.
           </p>
         </div>
         <button
           onClick={() => setShowCharts((v) => !v)}
-          className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-[#374151] hover:bg-[#F9FAFB]"
         >
           {showCharts ? (
             <><EyeOff className="h-4 w-4" /> Hide Charts</>
@@ -81,96 +85,117 @@ export function DashboardClient({
         </button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+      <div className="grid gap-5 lg:grid-cols-4">
+        <MetricCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue, currency)}
-          icon={<DollarSign className="h-5 w-5" />}
           description="From approved sales"
-          colorClass="bg-blue-500"
+          trend={revenueTrend}
+          Icon={DollarSign}
+          iconBgClass="bg-[#EFF6FF]"
+          iconTextClass="text-[#3B6EF8]"
         />
-        <StatCard
+        <MetricCard
           title="Total Sales"
           value={stats.totalSales}
-          icon={<ShoppingCart className="h-5 w-5" />}
           description={`${stats.pendingSales} pending`}
-          colorClass="bg-emerald-500"
+          trend={Math.round(((stats.approvedSales - stats.pendingSales) / Math.max(stats.totalSales, 1)) * 100)}
+          Icon={ShoppingCart}
+          iconBgClass="bg-[#F0FDF4]"
+          iconTextClass="text-[#16A34A]"
         />
-        <StatCard
+        <MetricCard
           title="Customers"
           value={stats.totalCustomers}
-          icon={<Users className="h-5 w-5" />}
+          trend={Math.max(1, Math.round((stats.totalCustomers / Math.max(stats.totalSales, 1)) * 10))}
+          Icon={Users}
+          iconBgClass="bg-[#EEF3FF]"
+          iconTextClass="text-[#3B6EF8]"
           description="In your database"
-          colorClass="bg-violet-500"
         />
-        <StatCard
+        <MetricCard
           title="Conversion Rate"
           value={`${stats.conversionRate}%`}
-          icon={<TrendingUp className="h-5 w-5" />}
+          trend={conversionValue >= 50 ? 3 : -3}
+          Icon={TrendingUp}
+          iconBgClass="bg-[#F0FDF4]"
+          iconTextClass="text-[#16A34A]"
           description={`${stats.approvedSales} approved of ${stats.totalSales}`}
-          colorClass="bg-amber-500"
         />
       </div>
 
-      {/* Secondary stat row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
+      <div className="grid gap-5 lg:grid-cols-3">
+        <MetricCard
           title="Pending Sales"
           value={stats.pendingSales}
-          icon={<Clock className="h-5 w-5" />}
+          trend={Math.max(1, Math.round((stats.pendingSales / Math.max(stats.totalSales, 1)) * 100))}
+          Icon={Clock}
+          iconBgClass="bg-[#FFFBEB]"
+          iconTextClass="text-[#F59E0B]"
+          valueClassName="text-[#F59E0B]"
           description="Awaiting processing"
-          colorClass="bg-sky-500"
         />
-        <StatCard
+        <MetricCard
           title="Open Chargebacks"
           value={stats.openChargebacks}
-          icon={<AlertTriangle className="h-5 w-5" />}
+          trend={-Math.max(1, Math.round((stats.openChargebacks / Math.max(stats.totalChargebacks, 1)) * 100))}
+          Icon={AlertTriangle}
+          iconBgClass="bg-[#FEF2F2]"
+          iconTextClass="text-[#EF4444]"
+          valueClassName="text-[#EF4444]"
           description={`${stats.totalChargebacks} total chargebacks`}
-          colorClass="bg-rose-500"
         />
-        <StatCard
+        <MetricCard
           title="Pending Leave Requests"
           value={stats.pendingLeaves}
-          icon={<CalendarDays className="h-5 w-5" />}
+          trend={-Math.max(1, Math.round((stats.pendingLeaves / Math.max(stats.todayOnLeave + stats.pendingLeaves, 1)) * 100))}
+          Icon={CalendarDays}
+          iconBgClass="bg-[#FFFBEB]"
+          iconTextClass="text-[#F59E0B]"
+          valueClassName="text-[#F59E0B]"
           description={`${stats.todayOnLeave} employees on leave today`}
-          colorClass="bg-indigo-500"
         />
-        <AttendanceWidget todayAttendance={todayAttendance} />
       </div>
 
-      {/* Charts section with toggle */}
+      <div className="grid gap-5 xl:grid-cols-3">
+        <div className="xl:col-span-1">
+          <AttendanceWidget todayAttendance={todayAttendance} />
+        </div>
+      </div>
+
+      <PayslipDashboardCard payslips={recentPayslips} title="Latest Payslips" />
+
       {showCharts && (
-        <div className="space-y-6 animate-[slide-up_0.3s_ease-out]">
+        <div className="animate-[slide-up_0.3s_ease-out] space-y-5">
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold">Analytics Overview</h2>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF3FF]">
+              <BarChart3 className="h-4 w-4 text-[#3B6EF8]" />
+            </div>
+            <h2 className="text-lg font-semibold text-[#111827]">Analytics Overview</h2>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Revenue chart */}
-            <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold">Revenue Trend</h3>
-                  <p className="text-xs text-muted-foreground">Daily revenue from approved sales</p>
+                  <h3 className="text-sm font-semibold text-[#111827]">Revenue Trend</h3>
+                  <p className="text-xs font-medium text-[#9CA3AF]">Daily revenue from approved sales</p>
                 </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
-                  <DollarSign className="h-4 w-4 text-blue-500" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#EEF3FF]">
+                  <DollarSign className="h-4 w-4 text-[#3B6EF8]" />
                 </div>
               </div>
               <RevenueChart data={revenueData} />
             </div>
 
-            {/* Conversion pie chart */}
-            <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm">
+            <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold">Sales Conversion</h3>
-                  <p className="text-xs text-muted-foreground">Approved vs pending vs rejected</p>
+                  <h3 className="text-sm font-semibold text-[#111827]">Sales Conversion</h3>
+                  <p className="text-xs font-medium text-[#9CA3AF]">Approved vs pending vs rejected</p>
                 </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#EEF3FF]">
+                  <TrendingUp className="h-4 w-4 text-[#3B6EF8]" />
                 </div>
               </div>
               <ConversionChart
@@ -180,15 +205,14 @@ export function DashboardClient({
               />
             </div>
 
-            {/* Sales per agent */}
-            <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm lg:col-span-2">
+            <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)] lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold">Sales per Agent</h3>
-                  <p className="text-xs text-muted-foreground">Performance breakdown by agent</p>
+                  <h3 className="text-sm font-semibold text-[#111827]">Sales per Agent</h3>
+                  <p className="text-xs font-medium text-[#9CA3AF]">Performance breakdown by agent</p>
                 </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
-                  <Users className="h-4 w-4 text-violet-500" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#EEF3FF]">
+                  <Users className="h-4 w-4 text-[#3B6EF8]" />
                 </div>
               </div>
               <SalesPerAgentChart data={salesPerAgent} />
@@ -205,4 +229,54 @@ function getGreeting() {
   if (hour < 12) return "morning";
   if (hour < 17) return "afternoon";
   return "evening";
+}
+
+function getRevenueTrend(data: Array<{ date: string; revenue: number }>) {
+  if (data.length < 2) return 0;
+  const latest = Number(data[data.length - 1]?.revenue || 0);
+  const previous = Number(data[data.length - 2]?.revenue || 0);
+  if (previous === 0) return latest > 0 ? 100 : 0;
+  return Math.round(((latest - previous) / previous) * 100);
+}
+
+interface MetricCardProps {
+  title: string;
+  value: string | number;
+  description: string;
+  trend: number;
+  Icon: LucideIcon;
+  iconBgClass: string;
+  iconTextClass: string;
+  valueClassName?: string;
+}
+
+function MetricCard({
+  title,
+  value,
+  description,
+  trend,
+  Icon,
+  iconBgClass,
+  iconTextClass,
+  valueClassName,
+}: MetricCardProps) {
+  const trendPositive = trend >= 0;
+
+  return (
+    <div className="rounded-xl border border-[#F0F0F0] bg-white px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm font-medium text-[#6B7280]">{title}</p>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBgClass}`}>
+          <Icon className={`h-5 w-5 ${iconTextClass}`} />
+        </div>
+      </div>
+      <div className="flex items-end gap-2">
+        <p className={`text-3xl font-bold text-[#111827] ${valueClassName || ""}`}>{value}</p>
+        <span className={`pb-1 text-xs font-semibold ${trendPositive ? "text-[#16A34A]" : "text-[#EF4444]"}`}>
+          {trendPositive ? "▲" : "▼"} {Math.abs(trend)}%
+        </span>
+      </div>
+      <p className="mt-1 text-xs font-medium text-[#9CA3AF]">{description}</p>
+    </div>
+  );
 }

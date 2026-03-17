@@ -29,10 +29,14 @@ export function DashboardShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 1023px)");
+  const isCompactDesktop = useMediaQuery("(max-width: 1279px)");
+  const effectiveSidebarCollapsed = isMobile ? sidebarCollapsed : isCompactDesktop || sidebarCollapsed;
 
   const handleToggleSidebar = () => {
     if (isMobile) {
       setMobileMenuOpen((v) => !v);
+    } else if (isCompactDesktop) {
+      return;
     } else {
       setSidebarCollapsed((v) => !v);
     }
@@ -42,13 +46,13 @@ export function DashboardShell({
 
   return (
     <CurrencyProvider currency={currency}>
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
         <Sidebar
           role={role}
           userName={userName}
           userAvatarUrl={userAvatarUrl}
           allowedModules={allowedModules}
-          collapsed={sidebarCollapsed}
+          collapsed={effectiveSidebarCollapsed}
           mobileOpen={mobileMenuOpen}
           onCloseMobile={closeMobileMenu}
         />
@@ -57,11 +61,12 @@ export function DashboardShell({
             userName={userName}
             userAvatarUrl={userAvatarUrl}
             userId={userId}
-            collapsed={sidebarCollapsed}
+            role={role}
+            collapsed={effectiveSidebarCollapsed}
             onToggleSidebar={handleToggleSidebar}
             isMobile={isMobile}
           />
-          <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+          <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-4 sm:p-5 lg:p-6">
             <div className="mx-auto w-full max-w-7xl animate-[fade-in_0.3s_ease-out]">
               {children}
             </div>

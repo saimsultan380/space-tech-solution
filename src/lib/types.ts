@@ -6,6 +6,7 @@ export type SaleStatus = "pending" | "approved" | "rejected";
 export type ChargebackStatus = "open" | "resolved" | "disputed";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PaymentMethod = "card" | "bank";
+export type PayslipStatus = "draft" | "sent";
 
 export interface AppUser {
   id: string;
@@ -146,6 +147,28 @@ export interface Notification {
   type: string;
   is_read: boolean;
   created_at: string;
+}
+
+export interface Payslip {
+  id: string;
+  user_id: string;
+  generated_by: string | null;
+  period_start: string;
+  period_end: string;
+  pay_date: string;
+  basic_salary: number;
+  allowances: number;
+  deductions: number;
+  bonus: number;
+  net_pay: number;
+  currency: string;
+  notes: string;
+  status: PayslipStatus;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+  user?: Pick<AppUser, "id" | "full_name" | "role" | "email"> | null;
+  generator?: Pick<AppUser, "id" | "full_name"> | null;
 }
 
 export interface DashboardFilters {

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/loading";
-import { createSale, updateSaleDetails } from "@/lib/actions/sales";
+import { createSale, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
 import {
   SALE_TYPES,
   UTILITY_SUBTYPES,
@@ -90,20 +90,20 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
     e.preventDefault();
     setLoading(true);
     setError("");
+    const payload: CreateSaleInput = {
+      ...form,
+      amount: Number(form.amount),
+      discount: Number(form.discount),
+    };
     try {
       if (mode === "edit" && saleId) {
-        await updateSaleDetails({
-          ...form,
+        const editPayload: UpdateSaleInput = {
+          ...payload,
           id: saleId,
-          amount: Number(form.amount),
-          discount: Number(form.discount),
-        } as any);
+        };
+        await updateSaleDetails(editPayload);
       } else {
-        await createSale({
-          ...form,
-          amount: Number(form.amount),
-          discount: Number(form.discount),
-        } as any);
+        await createSale(payload);
       }
       router.push("/dashboard/sales");
     } catch (err) {

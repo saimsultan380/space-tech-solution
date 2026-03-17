@@ -34,15 +34,17 @@ export function RevenueChart({ data }: RevenueChartProps) {
       <AreaChart data={data}>
         <defs>
           <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0} />
+            <stop offset="0%" stopColor="#3B6EF8" stopOpacity={0.28} />
+            <stop offset="100%" stopColor="#3B6EF8" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <CartesianGrid vertical={false} stroke="#F3F4F6" strokeDasharray="4 4" />
         <XAxis
           dataKey="date"
           className="text-xs"
-          tick={{ fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fill: "#9CA3AF" }}
+          tickLine={false}
+          axisLine={{ stroke: "#F3F4F6" }}
           tickFormatter={(v) => {
             const parts = v.split("-");
             return parts.length === 3 ? `${parts[1]}/${parts[2]}` : v;
@@ -50,27 +52,27 @@ export function RevenueChart({ data }: RevenueChartProps) {
         />
         <YAxis
           className="text-xs"
-          tick={{ fill: "hsl(var(--muted-foreground))" }}
-          // Show compact numeric ticks (e.g. 200, 1.2K) to avoid long
-          // currency prefixes getting visually cut off on the left.
+          tick={{ fill: "#9CA3AF" }}
           tickFormatter={(v) => compact.format(Number(v ?? 0))}
           allowDecimals={false}
+          tickLine={false}
+          axisLine={false}
         />
         <Tooltip
           formatter={(value) => [formatCurrency(Number(value ?? 0), currency || "USD"), "Revenue"]}
           contentStyle={{
-            backgroundColor: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E5E7EB",
             borderRadius: "8px",
           }}
         />
         <Area
           type="monotone"
           dataKey="revenue"
-          stroke="hsl(221, 83%, 53%)"
+          stroke="#3B6EF8"
           fillOpacity={1}
           fill="url(#revenueGrad)"
-          strokeWidth={2}
+          strokeWidth={2.5}
         />
       </AreaChart>
     </ResponsiveContainer>

@@ -89,6 +89,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard/customers", label: "Customers", icon: "Contact" },
     { href: "/dashboard/sales", label: "Sales", icon: "TrendingUp" },
     { href: "/dashboard/payments", label: "Payments", icon: "CreditCard" },
+    { href: "/dashboard/payslips", label: "Payslips", icon: "ReceiptText" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },
@@ -99,6 +100,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/customers", label: "Customers", icon: "Contact" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
+    { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "My Leaves", icon: "CalendarDays" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
@@ -106,6 +108,7 @@ export const NAV_ITEMS = {
   processor: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/sales", label: "Sales Queue", icon: "TrendingUp" },
+    { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },

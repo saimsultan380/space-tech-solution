@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AttendanceWidget } from "./attendance-widget";
+import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { updateSaleStatus } from "@/lib/actions/sales";
-import type { AppUser, SaleStatus } from "@/lib/types";
+import type { AppUser, SaleStatus, Payslip } from "@/lib/types";
 import {
   DollarSign,
   CheckCircle,
@@ -48,6 +49,7 @@ interface ProcessorDashboardProps {
     agent_name: string;
   }>;
   todayAttendance: { id: string; check_in: string; check_out: string | null } | null;
+  recentPayslips: Payslip[];
 }
 
 export function ProcessorDashboard({
@@ -55,6 +57,7 @@ export function ProcessorDashboard({
   stats,
   pendingSales,
   todayAttendance,
+  recentPayslips,
 }: ProcessorDashboardProps) {
   const [processing, setProcessing] = useState<string | null>(null);
   const { currency } = useCurrency();
@@ -229,6 +232,8 @@ export function ProcessorDashboard({
           )}
         </CardContent>
       </Card>
+
+      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" />
     </div>
   );
 }

@@ -4,9 +4,10 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceWidget } from "./attendance-widget";
+import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
-import type { AppUser } from "@/lib/types";
+import type { AppUser, Payslip } from "@/lib/types";
 import {
   DollarSign,
   ShoppingCart,
@@ -48,9 +49,16 @@ interface AgentDashboardProps {
     customer_name: string;
   }>;
   todayAttendance: { id: string; check_in: string; check_out: string | null } | null;
+  recentPayslips: Payslip[];
 }
 
-export function AgentDashboard({ user, stats, recentSales, todayAttendance }: AgentDashboardProps) {
+export function AgentDashboard({
+  user,
+  stats,
+  recentSales,
+  todayAttendance,
+  recentPayslips,
+}: AgentDashboardProps) {
   const { currency } = useCurrency();
   return (
     <div className="space-y-6">
@@ -172,6 +180,8 @@ export function AgentDashboard({ user, stats, recentSales, todayAttendance }: Ag
           )}
         </CardContent>
       </Card>
+
+      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" />
 
       {/* Quick summary */}
       <div className="grid gap-4 sm:grid-cols-3">

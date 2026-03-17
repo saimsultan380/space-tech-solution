@@ -6,10 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getInitials, formatDateTime } from "@/lib/utils";
 import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Notification } from "@/lib/types";
+import { ROLE_LABELS } from "@/lib/constants";
+import type { Notification, UserRole } from "@/lib/types";
 
 interface HeaderProps {
   userName: string;
+  role: UserRole;
   userAvatarUrl?: string | null;
   userId?: string;
   collapsed: boolean;
@@ -19,6 +21,7 @@ interface HeaderProps {
 
 export function Header({
   userName,
+  role,
   userAvatarUrl,
   userId,
   collapsed,
@@ -70,7 +73,7 @@ export function Header({
         const isInput =
           target?.tagName === "INPUT" ||
           target?.tagName === "TEXTAREA" ||
-          (target as any)?.isContentEditable;
+          (target instanceof HTMLElement && target.isContentEditable);
         if (!isInput) {
           e.preventDefault();
           searchRef.current?.focus();
@@ -101,11 +104,11 @@ export function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 min-h-[3.5rem] shrink-0 items-center justify-between gap-2 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3 sm:px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-16 min-h-16 shrink-0 items-center justify-between gap-3 border-b border-[#EBEBEB] bg-white px-3 sm:px-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
         <button
           type="button"
-          className="shrink-0 rounded-lg p-2 hover:bg-muted transition-colors flex items-center gap-1"
+          className="flex shrink-0 items-center gap-1 rounded-lg p-2 text-[#6B7280] hover:bg-[#F4F5F7] hover:text-[#111827]"
           onClick={onToggleSidebar}
           aria-label={isMobile ? "Open menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -117,65 +120,61 @@ export function Header({
             <ChevronLeft className="h-5 w-5" />
           )}
           {!isMobile && (
-            <span className="hidden text-xs font-medium text-muted-foreground sm:inline">
+            <span className="hidden text-xs font-medium text-[#6B7280] sm:inline">
               {collapsed ? "Expand" : "Collapse"}
             </span>
           )}
         </button>
 
-        {/* Search bar - hidden on small screens */}
         <form
-          className="hidden md:flex flex-1 max-w-xs lg:max-w-sm"
+          className="hidden max-w-xs flex-1 md:flex lg:max-w-sm"
           onSubmit={handleSearchSubmit}
         >
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
             <input
               ref={searchRef}
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 w-full rounded-lg border-0 bg-muted/60 pl-9 pr-3 text-sm placeholder:text-muted-foreground/50 focus:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all lg:h-10 lg:rounded-xl lg:pr-4"
+              className="h-10 w-full rounded-full border-0 bg-[#F4F5F7] pl-9 pr-3 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3B6EF8]/20"
             />
-            <kbd className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none hidden rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground lg:inline-block">
+            <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-[#E5E7EB] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#9CA3AF] lg:inline-block">
               /
             </kbd>
           </div>
         </form>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        {/* Notifications */}
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <div className="relative">
           <button
             type="button"
             onClick={toggleNotifications}
-            className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all sm:rounded-xl sm:p-2.5"
+            className="relative rounded-lg p-2 text-[#6B7280] hover:bg-[#F4F5F7] hover:text-[#111827] sm:p-2.5"
             aria-label="Notifications"
           >
             <Bell className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
             {unreadCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 flex h-3 min-w-[0.9rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white ring-2 ring-card sm:right-2 sm:top-2">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#3B6EF8]" />
             )}
           </button>
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-[4px] border border-border/60 bg-card shadow-lg z-50">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-[#EBEBEB] bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-[#F3F4F6] px-3 py-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
                   Notifications
                 </span>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
-                    <span className="text-[11px] text-primary font-medium">
+                    <span className="text-[11px] font-medium text-[#3B6EF8]">
                       {unreadCount} new
                     </span>
                   )}
                   <button
                     type="button"
                     onClick={() => setNotificationsOpen(false)}
-                    className="h-5 w-5 rounded-full text-muted-foreground hover:bg-muted flex items-center justify-center text-xs"
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-xs text-[#6B7280] hover:bg-[#F4F5F7]"
                     aria-label="Close notifications"
                   >
                     ×
@@ -184,11 +183,11 @@ export function Header({
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {loadingNotifications ? (
-                  <p className="py-4 text-center text-xs text-muted-foreground">
+                  <p className="py-4 text-center text-xs text-[#6B7280]">
                     Loading...
                   </p>
                 ) : notifications.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-muted-foreground">
+                  <p className="py-4 text-center text-xs text-[#6B7280]">
                     No notifications yet.
                   </p>
                 ) : (
@@ -197,19 +196,19 @@ export function Header({
                       key={n.id}
                       type="button"
                       onClick={() => markAsRead(n.id)}
-                      className={`w-full px-3 py-2.5 text-left text-xs border-b border-border/40 last:border-b-0 hover:bg-muted/60 ${
-                        !n.is_read ? "bg-primary/5" : ""
+                      className={`w-full border-b border-[#F3F4F6] px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-[#F8F9FB] ${
+                        !n.is_read ? "bg-[#EEF3FF]" : ""
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground text-[12px] truncate">
+                        <span className="truncate text-[12px] font-semibold text-[#111827]">
                           {n.title}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[10px] text-[#9CA3AF]">
                           {formatDateTime(n.created_at)}
                         </span>
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-[#6B7280]">
                         {n.body}
                       </p>
                     </button>
@@ -220,25 +219,26 @@ export function Header({
           )}
         </div>
 
-        <div className="mx-0.5 h-6 w-px bg-border/60 sm:mx-1 sm:h-8" />
+        <div className="mx-0.5 h-7 w-px bg-[#EBEBEB] sm:mx-1 sm:h-9" />
 
-        {/* User avatar + info */}
-        <div className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-muted transition-colors cursor-pointer sm:gap-3 sm:rounded-xl sm:px-2 sm:py-1.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground shadow-sm sm:h-9 sm:w-9 overflow-hidden">
-            {userAvatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={userAvatarUrl}
-                alt={userName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              getInitials(userName)
-            )}
+        <div className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-[#F8F9FB] sm:gap-3 sm:px-2 sm:py-1.5">
+          <div className="relative">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#EEF3FF] text-xs font-bold text-[#374151] sm:h-9 sm:w-9">
+              {userAvatarUrl ? (
+                <img
+                  src={userAvatarUrl}
+                  alt={userName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                getInitials(userName)
+              )}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#22C55E]" />
           </div>
-          <div className="hidden sm:block min-w-0">
-            <p className="text-sm font-semibold leading-none truncate">{userName}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Online</p>
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-sm font-semibold leading-none text-[#111827]">{userName}</p>
+            <p className="mt-1 text-[11px] font-medium text-[#6B7280]">{ROLE_LABELS[role]}</p>
           </div>
         </div>
 
@@ -247,7 +247,7 @@ export function Header({
           size="icon"
           onClick={handleSignOut}
           title="Sign out"
-          className="shrink-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 sm:rounded-xl h-8 w-8 sm:h-9 sm:w-9"
+          className="h-8 w-8 shrink-0 rounded-lg text-[#6B7280] hover:bg-[#FEE2E2] hover:text-[#EF4444] sm:h-9 sm:w-9"
         >
           <LogOut className="h-4 w-4" />
         </Button>

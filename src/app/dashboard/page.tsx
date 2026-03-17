@@ -9,9 +9,11 @@ import {
   getPendingSalesQueue,
 } from "@/lib/actions/analytics";
 import { getTodayAttendance } from "@/lib/actions/attendance";
+import { getRecentPayslips } from "@/lib/actions/payslips";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { AgentDashboard } from "@/components/dashboard/agent-dashboard";
 import { ProcessorDashboard } from "@/components/dashboard/processor-dashboard";
+import type { Payslip } from "@/lib/types";
 
 const defaultStats = {
   totalSales: 0,
@@ -42,13 +44,15 @@ export default async function DashboardPage() {
   let todayAttendance = null;
   let salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }> = [];
   let revenueData: Array<{ date: string; revenue: number }> = [];
+  let recentPayslips: Payslip[] = [];
 
   try {
-    [stats, todayAttendance, salesPerAgent, revenueData] = await Promise.all([
+    [stats, todayAttendance, salesPerAgent, revenueData, recentPayslips] = await Promise.all([
       getDashboardStats(),
       getTodayAttendance(),
       getSalesPerAgent(),
       getRevenueOverTime("day"),
+      getRecentPayslips(5),
     ]);
   } catch {
     // Tables may not exist yet
@@ -61,6 +65,7 @@ export default async function DashboardPage() {
       todayAttendance={todayAttendance}
       salesPerAgent={salesPerAgent}
       revenueData={revenueData}
+      recentPayslips={recentPayslips}
     />
   );
 }
@@ -91,12 +96,14 @@ async function AgentDashboardPage() {
     customer_name: string;
   }> = [];
   let todayAttendance = null;
+  let recentPayslips: Payslip[] = [];
 
   try {
-    [agentStats, recentSales, todayAttendance] = await Promise.all([
+    [agentStats, recentSales, todayAttendance, recentPayslips] = await Promise.all([
       getAgentDashboardStats(),
       getAgentRecentSales(),
       getTodayAttendance(),
+      getRecentPayslips(5),
     ]);
   } catch {
     // Tables may not exist yet
@@ -108,6 +115,7 @@ async function AgentDashboardPage() {
       stats={agentStats}
       recentSales={recentSales}
       todayAttendance={todayAttendance}
+      recentPayslips={recentPayslips}
     />
   );
 }
@@ -140,12 +148,14 @@ async function ProcessorDashboardPage() {
     agent_name: string;
   }> = [];
   let todayAttendance = null;
+  let recentPayslips: Payslip[] = [];
 
   try {
-    [procStats, pendingSales, todayAttendance] = await Promise.all([
+    [procStats, pendingSales, todayAttendance, recentPayslips] = await Promise.all([
       getProcessorDashboardStats(),
       getPendingSalesQueue(),
       getTodayAttendance(),
+      getRecentPayslips(5),
     ]);
   } catch {
     // Tables may not exist yet
@@ -157,6 +167,7 @@ async function ProcessorDashboardPage() {
       stats={procStats}
       pendingSales={pendingSales}
       todayAttendance={todayAttendance}
+      recentPayslips={recentPayslips}
     />
   );
 }

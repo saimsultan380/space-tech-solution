@@ -5,8 +5,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { UserRole } from "@/lib/types";
+import { NAV_ITEMS } from "@/lib/constants";
 
 export async function getUsers() {
+  await requireRole(["super_admin"]);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("users")
@@ -60,6 +62,44 @@ export async function toggleUserStatus(userId: string, isActive: boolean) {
     .eq("id", userId);
 
   if (error) throw new Error(error.message);
+  revalidatePath("/dashboard/users");
+}
+
+export async function updateUserAllowedModules(userId: string, allowedModules: string[]) {
+  const currentUser = await requireRole(["super_admin"]);
+  const supabase = await createClient();
+
+  const { data: targetUser, error: targetError } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("id", userId)
+    .single();
+
+  if (targetError || !targetUser) {
+    throw new Error(targetError?.message || "User not found");
+  }
+
+  const roleModules = NAV_ITEMS[targetUser.role as UserRole] || [];
+  const allowedSet = new Set(roleModules.map((item) => item.href));
+  const nextModules = Array.from(new Set(allowedModules)).filter((href) => allowedSet.has(href));
+
+  if (
+    userId === currentUser.id &&
+    nextModules.length > 0 &&
+    !nextModules.includes("/dashboard/settings")
+  ) {
+    nextModules.push("/dashboard/settings");
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({ allowed_modules: nextModules.length > 0 ? nextModules : null })
+    .eq("id", userId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/users");
 }
 
