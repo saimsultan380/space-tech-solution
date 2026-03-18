@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogHeader,
@@ -21,7 +22,6 @@ interface CustomerFormDialogProps {
     email: string;
     address: string;
     dob: string;
-    cnic?: string;
     account_no?: string;
   };
   open?: boolean;
@@ -48,7 +48,6 @@ export function CustomerFormDialog({
     address: customer?.address || "",
     dob: customer?.dob || "",
     ssn: "",
-    cnic: customer?.cnic || "",
     account_no: customer?.account_no || "",
   });
 
@@ -81,7 +80,7 @@ export function CustomerFormDialog({
   return (
     <Dialog open={isOpen} onClose={close}>
       <DialogHeader>
-        <DialogTitle>{isEdit ? "Edit Customer" : "New Customer"}</DialogTitle>
+        <DialogTitle>{isEdit ? "Edit Call Log Response" : "New Call Log Response"}</DialogTitle>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <Input
@@ -108,12 +107,6 @@ export function CustomerFormDialog({
             required
           />
         </div>
-        <Input
-          id="address"
-          label="Address"
-          value={form.address}
-          onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-        />
         <div className="grid grid-cols-2 gap-4">
           <Input
             id="dob"
@@ -131,22 +124,20 @@ export function CustomerFormDialog({
             onChange={(e) => setForm((f) => ({ ...f, ssn: e.target.value }))}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            id="cnic"
-            label="CNIC / National ID"
-            placeholder="XXXXX-XXXXXXX-X"
-            value={form.cnic}
-            onChange={(e) => setForm((f) => ({ ...f, cnic: e.target.value }))}
-          />
-          <Input
-            id="account_no"
-            label="Account Number"
-            placeholder="Account / Policy No."
-            value={form.account_no}
-            onChange={(e) => setForm((f) => ({ ...f, account_no: e.target.value }))}
-          />
-        </div>
+        <Input
+          id="account_no"
+          label="Account Number"
+          placeholder="Account / Policy No."
+          value={form.account_no}
+          onChange={(e) => setForm((f) => ({ ...f, account_no: e.target.value }))}
+        />
+        <Textarea
+          id="address"
+          label="Notes / Comments"
+          placeholder="Write lead notes or response details..."
+          value={form.address}
+          onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+        />
 
         {error && (
           <p className="text-sm text-destructive">{error}</p>

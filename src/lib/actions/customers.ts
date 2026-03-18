@@ -5,6 +5,11 @@ import { requireAuth } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
+function revalidateCallLogsResponsesPaths() {
+  revalidatePath("/dashboard/call-logs-responses");
+  revalidatePath("/dashboard/customers");
+}
+
 export async function getCustomers() {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -35,7 +40,6 @@ export async function createCustomer(formData: {
   address: string;
   dob: string;
   ssn: string;
-  cnic: string;
   account_no: string;
 }) {
   const user = await requireAuth();
@@ -48,13 +52,12 @@ export async function createCustomer(formData: {
     address: formData.address,
     dob: formData.dob || null,
     ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
-    cnic: formData.cnic || "",
     account_no: formData.account_no || "",
     created_by: user.id,
   });
 
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/customers");
+  revalidateCallLogsResponsesPaths();
 }
 
 export async function updateCustomer(
@@ -66,7 +69,6 @@ export async function updateCustomer(
     address: string;
     dob: string;
     ssn?: string;
-    cnic?: string;
     account_no?: string;
   }
 ) {
@@ -79,7 +81,6 @@ export async function updateCustomer(
     email: formData.email,
     address: formData.address,
     dob: formData.dob || null,
-    cnic: formData.cnic || "",
     account_no: formData.account_no || "",
   };
 
@@ -93,7 +94,7 @@ export async function updateCustomer(
     .eq("id", id);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/customers");
+  revalidateCallLogsResponsesPaths();
 }
 
 export async function deleteCustomer(id: string) {
@@ -102,7 +103,7 @@ export async function deleteCustomer(id: string) {
 
   const { error } = await supabase.from("customers").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/customers");
+  revalidateCallLogsResponsesPaths();
 }
 
 export async function searchCustomers(query: string) {

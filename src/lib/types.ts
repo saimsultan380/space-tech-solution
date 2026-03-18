@@ -6,13 +6,17 @@ export type SaleStatus = "pending" | "approved" | "rejected";
 export type ChargebackStatus = "open" | "resolved" | "disputed";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PaymentMethod = "card" | "bank";
-export type PayslipStatus = "draft" | "sent";
+export type PayslipStatus = "processed" | "paid";
+export type MarketingCampaignType = "call" | "digital" | "other";
+export type MarketingCampaignStatus = "active" | "paused" | "completed";
+export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
 
 export interface AppUser {
   id: string;
   email: string;
   full_name: string;
   role: UserRole;
+  employee_id: string;
   is_active: boolean;
   created_at: string;
   avatar_url?: string | null;
@@ -102,6 +106,16 @@ export interface Attendance {
   user?: AppUser;
 }
 
+export interface AttendanceSettings {
+  id: number;
+  shift_start_time: string;
+  late_after_time: string;
+  shift_end_time: string;
+  checkout_latest_time: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Chargeback {
   id: string;
   sale_id: string;
@@ -162,13 +176,91 @@ export interface Payslip {
   bonus: number;
   net_pay: number;
   currency: string;
-  notes: string;
   status: PayslipStatus;
   sent_at: string | null;
   created_at: string;
   updated_at: string;
+  employee_id_display?: string | null;
+  joining_date?: string | null;
+  category?: string | null;
+  department?: string | null;
+  job_position?: string | null;
+  father_name?: string | null;
+  pay_days?: number;
+  cnic_no?: string | null;
+  address?: string | null;
+  pay_rate?: number;
+  gross_pay?: number;
+  monthly_revenue?: number;
+  chargeback_amount?: number;
+  remaining?: number;
+  commission?: number;
+  advance?: number;
+  late_attendance?: number;
+  leaves?: number;
+  paid_through?: string | null;
+  bank_account_no?: string | null;
+  bank_branch?: string | null;
   user?: Pick<AppUser, "id" | "full_name" | "role" | "email"> | null;
   generator?: Pick<AppUser, "id" | "full_name"> | null;
+}
+
+export interface MarketingCampaign {
+  id: string;
+  name: string;
+  type: MarketingCampaignType;
+  total_budget: number;
+  start_date: string;
+  end_date: string;
+  assigned_to: string | null;
+  status: MarketingCampaignStatus;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  assigned_user?: Pick<AppUser, "id" | "full_name" | "role" | "email"> | null;
+}
+
+export interface MarketingDailyCallLog {
+  id: string;
+  log_date: string;
+  campaign_id: string;
+  user_id: string;
+  calls_made: number;
+  cost_per_call: number;
+  total_daily_cost: number;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  campaign?: Pick<MarketingCampaign, "id" | "name" | "type" | "status"> | null;
+  user?: Pick<AppUser, "id" | "full_name" | "role" | "email"> | null;
+}
+
+export interface MarketingDailyCampaignBudget {
+  id: string;
+  budget_date: string;
+  campaign_id: string;
+  daily_budget_allocated: number;
+  daily_spent_manual: number | null;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  campaign?: Pick<MarketingCampaign, "id" | "name" | "status"> | null;
+}
+
+export interface MarketingBudgetTransaction {
+  id: string;
+  transaction_date: string;
+  type: MarketingTransactionType;
+  campaign_id: string;
+  amount: number;
+  performed_by: string;
+  note: string;
+  created_at: string;
+  campaign?: Pick<MarketingCampaign, "id" | "name"> | null;
+  performer?: Pick<AppUser, "id" | "full_name" | "role" | "email"> | null;
 }
 
 export interface DashboardFilters {

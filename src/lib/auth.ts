@@ -26,6 +26,7 @@ export async function getAppUser(): Promise<AppUser | null> {
       id: user.id,
       email: user.email ?? "",
       full_name: user.email?.split("@")[0] ?? "User",
+      employee_id: "ST-0000",
       role: "sales_agent",
       is_active: true,
       created_at: new Date().toISOString(),

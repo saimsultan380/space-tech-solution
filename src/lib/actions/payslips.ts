@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/actions/notifications";
+import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 
 interface CreatePayslipInput {
   user_id: string;
@@ -15,8 +16,29 @@ interface CreatePayslipInput {
   deductions: number;
   bonus: number;
   currency: string;
-  notes?: string;
-  status?: "draft" | "sent";
+  status?: "processed" | "paid";
+  // New fields
+  employee_id_display?: string;
+  joining_date?: string;
+  category?: string;
+  department?: string;
+  job_position?: string;
+  father_name?: string;
+  pay_days?: number;
+  cnic_no?: string;
+  address?: string;
+  pay_rate?: number;
+  gross_pay?: number;
+  monthly_revenue?: number;
+  chargeback_amount?: number;
+  remaining?: number;
+  commission?: number;
+  advance?: number;
+  late_attendance?: number;
+  leaves?: number;
+  paid_through?: string;
+  bank_account_no?: string;
+  bank_branch?: string;
 }
 
 interface UpdatePayslipInput extends CreatePayslipInput {
@@ -24,7 +46,7 @@ interface UpdatePayslipInput extends CreatePayslipInput {
 }
 
 export async function getPayslips() {
-  await requireRole(["super_admin"]);
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -60,7 +82,7 @@ export async function getRecentPayslips(limit = 5) {
     .order("pay_date", { ascending: false })
     .limit(limit);
 
-  if (user.role !== "super_admin") {
+  if (user.role !== "super_admin" && user.role !== "processor") {
     query = query.eq("user_id", user.id);
   }
 
@@ -69,8 +91,69 @@ export async function getRecentPayslips(limit = 5) {
   return data || [];
 }
 
+export async function getPayslipAttendanceSummary(input: {
+  user_id: string;
+  period_start: string;
+  period_end: string;
+}) {
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  if (!input.user_id || !input.period_start || !input.period_end) {
+    return { late_attendance: 0, leaves: 0 };
+  }
+
+  const settings = await getAttendanceSettings();
+  const [lateHour, lateMinute] = settings.late_after_time.split(":").map(Number);
+  const lateAfterMinutes = (lateHour || 0) * 60 + (lateMinute || 0);
+
+  const { data: attendanceRows, error: attendanceError } = await supabase
+    .from("attendance")
+    .select("check_in")
+    .eq("user_id", input.user_id)
+    .gte("date", input.period_start)
+    .lte("date", input.period_end);
+  if (attendanceError) throw new Error(attendanceError.message);
+
+  let lateCount = 0;
+  (attendanceRows || []).forEach((row) => {
+    if (!row.check_in) return;
+    const checkIn = new Date(row.check_in);
+    const checkInMinutes = checkIn.getHours() * 60 + checkIn.getMinutes();
+    if (checkInMinutes > lateAfterMinutes) lateCount += 1;
+  });
+
+  const { data: leaveRows, error: leaveError } = await supabase
+    .from("leaves")
+    .select("start_date, end_date")
+    .eq("user_id", input.user_id)
+    .eq("status", "approved")
+    .lte("start_date", input.period_end)
+    .gte("end_date", input.period_start);
+  if (leaveError) throw new Error(leaveError.message);
+
+  const startBoundary = new Date(`${input.period_start}T00:00:00`);
+  const endBoundary = new Date(`${input.period_end}T00:00:00`);
+  let leaveDays = 0;
+
+  (leaveRows || []).forEach((leave) => {
+    const start = new Date(`${leave.start_date}T00:00:00`);
+    const end = new Date(`${leave.end_date || leave.start_date}T00:00:00`);
+    const overlapStart = start > startBoundary ? start : startBoundary;
+    const overlapEnd = end < endBoundary ? end : endBoundary;
+    if (overlapEnd < overlapStart) return;
+    const days = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1;
+    leaveDays += days;
+  });
+
+  return {
+    late_attendance: lateCount,
+    leaves: leaveDays,
+  };
+}
+
 export async function createPayslip(input: CreatePayslipInput) {
-  const admin = await requireRole(["super_admin"]);
+  const admin = await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   if (!input.user_id || !input.period_start || !input.period_end || !input.pay_date) {
@@ -102,12 +185,14 @@ export async function createPayslip(input: CreatePayslipInput) {
   const allowances = Number(input.allowances || 0);
   const deductions = Number(input.deductions || 0);
   const bonus = Number(input.bonus || 0);
-  const netPay = basicSalary + allowances + bonus - deductions;
+  const commission = Number(input.commission || 0);
+  const advance = Number(input.advance || 0);
+  const netPay = basicSalary + allowances + bonus + commission + advance - deductions;
   if (netPay < 0) {
     throw new Error("Net pay cannot be negative");
   }
 
-  const status = input.status || "draft";
+  const status = input.status || "processed";
   const nowIso = new Date().toISOString();
 
   const { data, error } = await supabase
@@ -122,18 +207,38 @@ export async function createPayslip(input: CreatePayslipInput) {
       allowances,
       deductions,
       bonus,
+      commission,
+      advance,
       net_pay: netPay,
       currency: input.currency || "PKR",
-      notes: input.notes?.trim() || "",
       status,
-      sent_at: status === "sent" ? nowIso : null,
+      sent_at: status === "paid" ? nowIso : null,
+      employee_id_display: input.employee_id_display,
+      joining_date: input.joining_date,
+      category: input.category,
+      department: input.department,
+      job_position: input.job_position,
+      father_name: input.father_name,
+      pay_days: input.pay_days,
+      cnic_no: input.cnic_no,
+      address: input.address,
+      pay_rate: input.pay_rate,
+      gross_pay: input.gross_pay,
+      monthly_revenue: input.monthly_revenue,
+      chargeback_amount: input.chargeback_amount,
+      remaining: input.remaining,
+      late_attendance: input.late_attendance,
+      leaves: input.leaves,
+      paid_through: input.paid_through,
+      bank_account_no: input.bank_account_no,
+      bank_branch: input.bank_branch,
     })
     .select("id")
     .single();
 
   if (error) throw new Error(error.message);
 
-  if (status === "sent") {
+  if (status === "paid") {
     await createNotification({
       user_id: input.user_id,
       title: "New payslip received",
@@ -148,7 +253,7 @@ export async function createPayslip(input: CreatePayslipInput) {
 }
 
 export async function updatePayslip(input: UpdatePayslipInput) {
-  const admin = await requireRole(["super_admin"]);
+  const admin = await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   if (!input.id) {
@@ -171,13 +276,15 @@ export async function updatePayslip(input: UpdatePayslipInput) {
   const allowances = Number(input.allowances || 0);
   const deductions = Number(input.deductions || 0);
   const bonus = Number(input.bonus || 0);
-  const netPay = basicSalary + allowances + bonus - deductions;
+  const commission = Number(input.commission || 0);
+  const advance = Number(input.advance || 0);
+  const netPay = basicSalary + allowances + bonus + commission + advance - deductions;
   if (netPay < 0) {
     throw new Error("Net pay cannot be negative");
   }
 
-  const status = input.status || "draft";
-  const sentAt = status === "sent" ? new Date().toISOString() : null;
+  const status = input.status || "processed";
+  const sentAt = status === "paid" ? new Date().toISOString() : null;
 
   const { error } = await supabase
     .from("payslips")
@@ -191,17 +298,37 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       allowances,
       deductions,
       bonus,
+      commission,
+      advance,
       net_pay: netPay,
       currency: input.currency || "PKR",
-      notes: input.notes?.trim() || "",
       status,
       sent_at: sentAt,
+      employee_id_display: input.employee_id_display,
+      joining_date: input.joining_date,
+      category: input.category,
+      department: input.department,
+      job_position: input.job_position,
+      father_name: input.father_name,
+      pay_days: input.pay_days,
+      cnic_no: input.cnic_no,
+      address: input.address,
+      pay_rate: input.pay_rate,
+      gross_pay: input.gross_pay,
+      monthly_revenue: input.monthly_revenue,
+      chargeback_amount: input.chargeback_amount,
+      remaining: input.remaining,
+      late_attendance: input.late_attendance,
+      leaves: input.leaves,
+      paid_through: input.paid_through,
+      bank_account_no: input.bank_account_no,
+      bank_branch: input.bank_branch,
     })
     .eq("id", input.id);
 
   if (error) throw new Error(error.message);
 
-  if (status === "sent") {
+  if (status === "paid") {
     await createNotification({
       user_id: input.user_id,
       title: "Payslip updated",
@@ -214,8 +341,8 @@ export async function updatePayslip(input: UpdatePayslipInput) {
   revalidatePath("/dashboard");
 }
 
-export async function markPayslipAsSent(payslipId: string) {
-  await requireRole(["super_admin"]);
+export async function markPayslipAsPaid(payslipId: string) {
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { data: payslip, error: fetchError } = await supabase
@@ -229,7 +356,7 @@ export async function markPayslipAsSent(payslipId: string) {
   const sentAt = new Date().toISOString();
   const { error } = await supabase
     .from("payslips")
-    .update({ status: "sent", sent_at: sentAt })
+    .update({ status: "paid", sent_at: sentAt })
     .eq("id", payslipId);
 
   if (error) throw new Error(error.message);
@@ -245,8 +372,8 @@ export async function markPayslipAsSent(payslipId: string) {
   revalidatePath("/dashboard");
 }
 
-export async function clonePayslipToNextMonth(payslipId: string, status: "draft" | "sent" = "draft") {
-  await requireRole(["super_admin"]);
+export async function clonePayslipToNextMonth(payslipId: string, status: "processed" | "paid" = "processed") {
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { data: source, error: sourceError } = await supabase
@@ -284,13 +411,12 @@ export async function clonePayslipToNextMonth(payslipId: string, status: "draft"
     deductions: Number(source.deductions || 0),
     bonus: Number(source.bonus || 0),
     currency: source.currency || "PKR",
-    notes: source.notes || "",
     status,
   });
 }
 
 export async function deletePayslip(payslipId: string) {
-  await requireRole(["super_admin"]);
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   if (!payslipId) {

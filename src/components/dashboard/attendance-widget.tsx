@@ -13,9 +13,13 @@ interface AttendanceWidgetProps {
     check_in: string;
     check_out: string | null;
   } | null;
+  attendanceSettings?: {
+    shift_start_12h: string;
+    shift_end_12h: string;
+  };
 }
 
-export function AttendanceWidget({ todayAttendance }: AttendanceWidgetProps) {
+export function AttendanceWidget({ todayAttendance, attendanceSettings }: AttendanceWidgetProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -111,7 +115,7 @@ export function AttendanceWidget({ todayAttendance }: AttendanceWidgetProps) {
 
       <p className="mt-4 flex items-center gap-1.5 text-xs font-medium text-[#9CA3AF]">
         <Clock className="h-3.5 w-3.5" />
-        Shift window: 09:00 AM - 06:00 PM
+        Shift window: {attendanceSettings?.shift_start_12h || "09:00 AM"} - {attendanceSettings?.shift_end_12h || "06:00 PM"}
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { SettingsClient } from "@/components/settings/settings-client";
 import { getUsers } from "@/lib/actions/users";
+import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 
 export default async function SettingsPage() {
   const user = await requireAuth();
@@ -11,9 +12,11 @@ export default async function SettingsPage() {
     role: "super_admin" | "sales_agent" | "processor";
     allowed_modules: string[] | null;
   }> = [];
+  let attendanceSettings = await getAttendanceSettings();
 
   if (user.role === "super_admin") {
-    const users = await getUsers();
+    const [users, settings] = await Promise.all([getUsers(), getAttendanceSettings()]);
+    attendanceSettings = settings;
     manageableUsers = users.map((entry) => ({
       id: entry.id,
       full_name: entry.full_name,
@@ -23,6 +26,12 @@ export default async function SettingsPage() {
     }));
   }
 
-  return <SettingsClient user={user} manageableUsers={manageableUsers} />;
+  return (
+    <SettingsClient
+      user={user}
+      manageableUsers={manageableUsers}
+      attendanceSettings={attendanceSettings}
+    />
+  );
 }
 

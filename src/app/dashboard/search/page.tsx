@@ -37,7 +37,7 @@ function SearchResults({
         <h1 className="text-3xl font-bold">Search</h1>
         <p className="text-muted-foreground text-sm">
           Type a keyword in the search bar at the top (or press <kbd className="rounded border bg-muted px-1 text-[10px]">/</kbd>) to search
-          across customers, sales, payments, users, and chargebacks.
+          across call logs responses, sales, payments, users, and chargebacks.
         </p>
       </div>
     );
@@ -74,13 +74,13 @@ function SearchResults({
       {customers.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold">Customers</CardTitle>
+            <CardTitle className="text-sm font-semibold">Call Logs Responses</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {customers.map((c) => (
               <Link
                 key={c.id}
-                href={`/dashboard/customers/${c.id}`}
+                href={`/dashboard/call-logs-responses/${c.id}`}
                 className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm hover:bg-muted/40"
               >
                 <div className="flex flex-col">
@@ -240,4 +240,3 @@ function SearchResults({
     </div>
   );
 }
-

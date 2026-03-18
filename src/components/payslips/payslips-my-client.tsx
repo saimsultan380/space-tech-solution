@@ -8,9 +8,10 @@ import { EmptyState } from "@/components/ui/loading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
-import { Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { downloadPayslipPdf } from "@/lib/payslip-pdf";
+import { PayslipDetailDialog } from "./payslip-detail-dialog";
 
 interface PayslipsMyClientProps {
   payslips: Payslip[];
@@ -19,13 +20,20 @@ interface PayslipsMyClientProps {
 export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeMonth, setActiveMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
   const filteredPayslips = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return payslips.filter((payslip) => {
       if (!isPayslipInMonth(payslip, activeMonth)) return false;
       if (!query) return true;
-      return (payslip.notes || "").toLowerCase().includes(query);
+      const text = [
+        payslip.employee_id_display || "",
+        payslip.department || "",
+        payslip.job_position || "",
+        payslip.status || "",
+      ].join(" ").toLowerCase();
+      return text.includes(query);
     });
   }, [payslips, activeMonth, searchTerm]);
 
@@ -67,10 +75,10 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
           </div>
           <Input
             id="search_my_payslip"
-            label="Search Notes"
+            label="Search Payslips"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Find payslip by notes..."
+            placeholder="Search by ID, department, position..."
             className="h-10"
           />
         </CardHeader>
@@ -88,8 +96,7 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
                   <TableHead>Pay Date</TableHead>
                   <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="text-right">Download</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -103,15 +110,15 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
                       {formatCurrency(Number(payslip.net_pay || 0), payslip.currency)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={payslip.status === "sent" ? "success" : "warning"}>
+                      <Badge variant={payslip.status === "paid" ? "success" : "warning"} className="capitalize">
                         {payslip.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-[300px] truncate text-muted-foreground">
-                      {payslip.notes || "-"}
-                    </TableCell>
                     <TableCell>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        <Button size="icon" variant="ghost" onClick={() => setViewingPayslip(payslip)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => downloadPayslipPdf(payslip)}>
                           <Download className="h-3.5 w-3.5" />
                           PDF
@@ -125,6 +132,14 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
           )}
         </CardContent>
       </Card>
+
+      {viewingPayslip && (
+        <PayslipDetailDialog
+          open={!!viewingPayslip}
+          onClose={() => setViewingPayslip(null)}
+          payslip={viewingPayslip}
+        />
+      )}
     </div>
   );
 }

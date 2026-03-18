@@ -56,7 +56,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
 }
 
 export function DialogHeader({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-col space-y-1.5", className)}>{children}</div>;
+  return <div className={cn("flex flex-col space-y-1.5 text-left", className)}>{children}</div>;
 }
 
 export function DialogTitle({ children, className }: { children: ReactNode; className?: string }) {

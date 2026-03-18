@@ -50,6 +50,10 @@ interface AgentDashboardProps {
   }>;
   todayAttendance: { id: string; check_in: string; check_out: string | null } | null;
   recentPayslips: Payslip[];
+  attendanceSettings: {
+    shift_start_12h: string;
+    shift_end_12h: string;
+  };
 }
 
 export function AgentDashboard({
@@ -58,6 +62,7 @@ export function AgentDashboard({
   recentSales,
   todayAttendance,
   recentPayslips,
+  attendanceSettings,
 }: AgentDashboardProps) {
   const { currency } = useCurrency();
   return (
@@ -97,7 +102,7 @@ export function AgentDashboard({
             description="Awaiting processing"
             colorClass="bg-amber-500"
           />
-          <AttendanceWidget todayAttendance={todayAttendance} />
+          <AttendanceWidget todayAttendance={todayAttendance} attendanceSettings={attendanceSettings} />
         </div>
       </div>
 
@@ -126,7 +131,7 @@ export function AgentDashboard({
             colorClass="bg-green-500"
           />
           <StatCard
-            title="My Customers"
+            title="My Call Logs Responses"
             value={stats.totalCustomers}
             icon={<Users className="h-5 w-5" />}
             colorClass="bg-rose-500"

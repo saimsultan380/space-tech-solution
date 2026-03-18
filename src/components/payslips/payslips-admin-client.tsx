@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { clonePayslipToNextMonth, deletePayslip, markPayslipAsSent } from "@/lib/actions/payslips";
+import { clonePayslipToNextMonth, deletePayslip, markPayslipAsPaid } from "@/lib/actions/payslips";
 import type { Payslip } from "@/lib/types";
-import { Download, Plus, Send, ChevronLeft, ChevronRight, Pencil, Copy, MoreHorizontal, Trash2 } from "lucide-react";
+import { Download, Plus, Send, ChevronLeft, ChevronRight, Pencil, Copy, MoreHorizontal, Trash2, Eye } from "lucide-react";
 import { PayslipFormDialog } from "./payslip-form-dialog";
+import { PayslipDetailDialog } from "./payslip-detail-dialog";
 import { downloadPayslipPdf } from "@/lib/payslip-pdf";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -20,6 +21,7 @@ interface EmployeeRow {
   id: string;
   full_name: string;
   role: string;
+  employee_id?: string | null;
   preferred_currency?: string | null;
 }
 
@@ -35,6 +37,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [editingPayslip, setEditingPayslip] = useState<Payslip | null>(null);
+  const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cloningId, setCloningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -47,8 +50,8 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
   const totals = useMemo(
     () => ({
       total: payslips.length,
-      sent: payslips.filter((p) => p.status === "sent").length,
-      draft: payslips.filter((p) => p.status === "draft").length,
+      paid: payslips.filter((p) => p.status === "paid").length,
+      processed: payslips.filter((p) => p.status === "processed").length,
     }),
     [payslips]
   );
@@ -62,7 +65,8 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
       const text = [
         payslip.user?.full_name || "",
         payslip.user?.role || "",
-        payslip.notes || "",
+        payslip.employee_id_display || "",
+        payslip.department || "",
         payslip.status || "",
       ]
         .join(" ")
@@ -111,17 +115,17 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
     };
   }, [menuState]);
 
-  const handleSend = async (payslipId: string) => {
+  const handleMarkAsPaid = async (payslipId: string) => {
     setSendingId(payslipId);
     try {
-      await markPayslipAsSent(payslipId);
+      await markPayslipAsPaid(payslipId);
       router.refresh();
     } finally {
       setSendingId(null);
     }
   };
 
-  const handleClone = async (payslipId: string, status: "draft" | "sent") => {
+  const handleClone = async (payslipId: string, status: "processed" | "paid") => {
     setCloningId(`${payslipId}-${status}`);
     try {
       await clonePayslipToNextMonth(payslipId, status);
@@ -165,14 +169,14 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
         </Card>
         <Card className="border-[#E9EEF7] bg-gradient-to-br from-white to-[#F2FCF6] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_6px_18px_rgba(16,185,129,0.08)]">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#6B7280]">Sent</p>
-            <p className="text-3xl font-bold text-green-600">{totals.sent}</p>
+            <p className="text-sm text-[#6B7280]">Paid</p>
+            <p className="text-3xl font-bold text-green-600">{totals.paid}</p>
           </CardContent>
         </Card>
         <Card className="border-[#E9EEF7] bg-gradient-to-br from-white to-[#FFFBF2] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_6px_18px_rgba(245,158,11,0.08)]">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#6B7280]">Draft</p>
-            <p className="text-3xl font-bold text-amber-600">{totals.draft}</p>
+            <p className="text-sm text-[#6B7280]">Processed</p>
+            <p className="text-3xl font-bold text-amber-600">{totals.processed}</p>
           </CardContent>
         </Card>
       </div>
@@ -199,7 +203,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
               id="search_payslip"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by employee, role, status, or notes..."
+              placeholder="Search by employee, role, id, or department..."
               className="h-10"
               label="Search"
             />
@@ -210,8 +214,8 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
               onChange={(e) => setStatusFilter(e.target.value)}
               options={[
                 { value: "all", label: "All" },
-                { value: "sent", label: "Sent" },
-                { value: "draft", label: "Draft" },
+                { value: "processed", label: "Processed" },
+                { value: "paid", label: "Paid" },
               ]}
             />
           </div>
@@ -227,12 +231,12 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
               <TableHeader>
                 <TableRow>
                   <TableHead>Employee</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead>Emp ID</TableHead>
+                  <TableHead>Department</TableHead>
                   <TableHead>Period</TableHead>
                   <TableHead>Pay Date</TableHead>
                   <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -240,24 +244,30 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
                 {filteredPayslips.map((payslip) => (
                   <TableRow key={payslip.id}>
                     <TableCell className="font-medium">{payslip.user?.full_name || "N/A"}</TableCell>
-                    <TableCell>{payslip.user?.role === "sales_agent" ? "Sales Agent" : "Processor"}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{payslip.employee_id_display || "-"}</TableCell>
+                    <TableCell className="text-xs">{payslip.department || "-"}</TableCell>
+                    <TableCell className="text-xs">
                       {formatDate(payslip.period_start)} - {formatDate(payslip.period_end)}
                     </TableCell>
-                    <TableCell>{formatDate(payslip.pay_date)}</TableCell>
+                    <TableCell className="text-xs">{formatDate(payslip.pay_date)}</TableCell>
                     <TableCell className="font-semibold">
                       {formatCurrency(Number(payslip.net_pay || 0), payslip.currency)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={payslip.status === "sent" ? "success" : "warning"}>
+                      <Badge variant={payslip.status === "paid" ? "success" : "warning"} className="capitalize">
                         {payslip.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-[260px] truncate text-muted-foreground">
-                      {payslip.notes || "-"}
-                    </TableCell>
                     <TableCell>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/5"
+                          onClick={() => setViewingPayslip(payslip)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="icon"
                           variant="outline"
@@ -268,7 +278,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
                             const viewportWidth = window.innerWidth;
                             const viewportHeight = window.innerHeight;
                             const width = Math.min(MENU_WIDTH, Math.max(180, viewportWidth - MENU_MARGIN * 2));
-                            const itemCount = payslip.status === "draft" ? 6 : 5;
+                            const itemCount = payslip.status === "processed" ? 6 : 5;
                             const estimatedHeight = itemCount * 40 + 12;
                             const fitsBelow = rect.bottom + MENU_GAP + estimatedHeight <= viewportHeight - MENU_MARGIN;
                             const aboveY = rect.top - MENU_GAP - estimatedHeight;
@@ -335,18 +345,18 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
             <Download className="h-3.5 w-3.5" />
             Download PDF
           </button>
-          {menuPayslip.status === "draft" && (
+          {menuPayslip.status === "processed" && (
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
               onClick={() => {
                 setMenuState(null);
-                handleSend(menuPayslip.id);
+                handleMarkAsPaid(menuPayslip.id);
               }}
               disabled={sendingId === menuPayslip.id}
             >
               <Send className="h-3.5 w-3.5" />
-              {sendingId === menuPayslip.id ? "Sending..." : "Send"}
+              {sendingId === menuPayslip.id ? "Paying..." : "Mark as Paid"}
             </button>
           )}
           <button
@@ -354,24 +364,24 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
             onClick={() => {
               setMenuState(null);
-              handleClone(menuPayslip.id, "draft");
+              handleClone(menuPayslip.id, "processed");
             }}
-            disabled={cloningId === `${menuPayslip.id}-draft`}
+            disabled={cloningId === `${menuPayslip.id}-processed`}
           >
             <Copy className="h-3.5 w-3.5" />
-            {cloningId === `${menuPayslip.id}-draft` ? "Cloning..." : "Next Month Draft"}
+            {cloningId === `${menuPayslip.id}-processed` ? "Cloning..." : "Next Month Processed"}
           </button>
           <button
             type="button"
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
             onClick={() => {
               setMenuState(null);
-              handleClone(menuPayslip.id, "sent");
+              handleClone(menuPayslip.id, "paid");
             }}
-            disabled={cloningId === `${menuPayslip.id}-sent`}
+            disabled={cloningId === `${menuPayslip.id}-paid`}
           >
             <Send className="h-3.5 w-3.5" />
-            {cloningId === `${menuPayslip.id}-sent` ? "Cloning..." : "Next Month Send"}
+            {cloningId === `${menuPayslip.id}-paid` ? "Cloning..." : "Next Month Paid"}
           </button>
           <button
             type="button"
@@ -402,6 +412,13 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
           employees={employees}
           mode="edit"
           initialPayslip={editingPayslip}
+        />
+      )}
+      {viewingPayslip && (
+        <PayslipDetailDialog
+          open={!!viewingPayslip}
+          onClose={() => setViewingPayslip(null)}
+          payslip={viewingPayslip}
         />
       )}
     </div>

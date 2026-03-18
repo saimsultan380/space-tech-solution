@@ -28,7 +28,7 @@ export function DeleteCustomerButton({ id, name }: { id: string; name: string })
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogHeader>
-          <DialogTitle>Delete Customer</DialogTitle>
+          <DialogTitle>Delete Call Log Response</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground mt-2">
           Are you sure you want to delete <strong>{name}</strong>? This will also delete all related sales and records. This action cannot be undone.

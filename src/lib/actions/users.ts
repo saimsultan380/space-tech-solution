@@ -8,7 +8,7 @@ import type { UserRole } from "@/lib/types";
 import { NAV_ITEMS } from "@/lib/constants";
 
 export async function getUsers() {
-  await requireRole(["super_admin"]);
+  await requireRole(["super_admin", "processor", "sales_agent"]);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("users")
@@ -50,6 +50,58 @@ export async function createUser(formData: {
 
   revalidatePath("/dashboard/users");
   return authData.user;
+}
+
+export async function updateUser(
+  userId: string,
+  formData: {
+    email: string;
+    full_name: string;
+    role: UserRole;
+    allowedModules?: string[];
+  }
+) {
+  await requireRole(["super_admin"]);
+  const supabase = await createClient();
+  const admin = createAdminClient();
+
+  const { data: targetUser, error: targetError } = await supabase
+    .from("users")
+    .select("id, role, email")
+    .eq("id", userId)
+    .single();
+
+  if (targetError || !targetUser) {
+    throw new Error(targetError?.message || "User not found");
+  }
+
+  if (targetUser.email !== formData.email) {
+    const { error: authUpdateError } = await admin.auth.admin.updateUserById(userId, {
+      email: formData.email,
+      email_confirm: true,
+    });
+    if (authUpdateError) throw new Error(authUpdateError.message);
+  }
+
+  const roleModules = NAV_ITEMS[formData.role] || [];
+  const allowedSet = new Set(roleModules.map((item) => item.href));
+  const nextModules = Array.from(new Set(formData.allowedModules ?? [])).filter((href) => allowedSet.has(href));
+
+  const { error } = await supabase
+    .from("users")
+    .update({
+      email: formData.email,
+      full_name: formData.full_name,
+      role: formData.role,
+      allowed_modules: nextModules.length > 0 ? nextModules : null,
+    })
+    .eq("id", userId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/users");
 }
 
 export async function toggleUserStatus(userId: string, isActive: boolean) {

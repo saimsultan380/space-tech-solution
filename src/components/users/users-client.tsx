@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { CreateUserDialog } from "./create-user-dialog";
+import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
 import { formatDate } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
@@ -31,9 +32,11 @@ interface UsersClientProps {
     id: string;
     email: string;
     full_name: string;
+    employee_id: string;
     role: string;
     is_active: boolean;
     created_at: string;
+    allowed_modules?: string[] | null;
   }>;
 }
 
@@ -108,6 +111,7 @@ export function UsersClient({ users }: UsersClientProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Emp ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
@@ -119,6 +123,7 @@ export function UsersClient({ users }: UsersClientProps) {
               <TableBody>
                 {filtered.map((user) => (
                   <TableRow key={user.id}>
+                    <TableCell className="font-mono text-xs">{user.employee_id}</TableCell>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
@@ -134,6 +139,7 @@ export function UsersClient({ users }: UsersClientProps) {
                     <TableCell>{formatDate(user.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <EditUserDialog user={user} />
                         {togglingId === user.id ? (
                           <Spinner />
                         ) : (

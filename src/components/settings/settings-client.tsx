@@ -12,18 +12,26 @@ import type { AppUser } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { updateProfile, updatePreferences, changePassword } from "@/lib/actions/profile";
 import { updateUserAllowedModules } from "@/lib/actions/users";
+import { updateAttendanceSettings } from "@/lib/actions/attendance-settings";
 import {
   User,
   Image as ImageIcon,
   Globe2,
   Lock,
   PanelLeft,
+  Clock3,
   UploadCloud,
   CheckCircle2,
 } from "lucide-react";
 
 interface SettingsClientProps {
   user: AppUser;
+  attendanceSettings: {
+    shift_start_12h: string;
+    late_after_12h: string;
+    shift_end_12h: string;
+    checkout_latest_12h: string;
+  };
   manageableUsers: Array<{
     id: string;
     full_name: string;
@@ -33,7 +41,7 @@ interface SettingsClientProps {
   }>;
 }
 
-export function SettingsClient({ user, manageableUsers }: SettingsClientProps) {
+export function SettingsClient({ user, manageableUsers, attendanceSettings }: SettingsClientProps) {
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -56,10 +64,28 @@ export function SettingsClient({ user, manageableUsers }: SettingsClientProps) {
   const [moduleLoading, setModuleLoading] = useState(false);
   const [moduleMessage, setModuleMessage] = useState<string | null>(null);
   const [moduleError, setModuleError] = useState<string | null>(null);
+  const [attendanceForm, setAttendanceForm] = useState({
+    shift_start_12h: attendanceSettings.shift_start_12h,
+    late_after_12h: attendanceSettings.late_after_12h,
+    shift_end_12h: attendanceSettings.shift_end_12h,
+    checkout_latest_12h: attendanceSettings.checkout_latest_12h,
+  });
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceMessage, setAttendanceMessage] = useState<string | null>(null);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
 
   useEffect(() => {
     setManagedUsersState(manageableUsers);
   }, [manageableUsers]);
+
+  useEffect(() => {
+    setAttendanceForm({
+      shift_start_12h: attendanceSettings.shift_start_12h,
+      late_after_12h: attendanceSettings.late_after_12h,
+      shift_end_12h: attendanceSettings.shift_end_12h,
+      checkout_latest_12h: attendanceSettings.checkout_latest_12h,
+    });
+  }, [attendanceSettings]);
 
   useEffect(() => {
     if (user.role !== "super_admin") return;
@@ -213,6 +239,21 @@ export function SettingsClient({ user, manageableUsers }: SettingsClientProps) {
     }
   };
 
+  const handleSaveAttendanceSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAttendanceLoading(true);
+    setAttendanceMessage(null);
+    setAttendanceError(null);
+    try {
+      await updateAttendanceSettings(attendanceForm);
+      setAttendanceMessage("Attendance timings updated successfully.");
+    } catch (err) {
+      setAttendanceError(err instanceof Error ? err.message : "Failed to update attendance timings.");
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -236,6 +277,12 @@ export function SettingsClient({ user, manageableUsers }: SettingsClientProps) {
             <Lock className="mr-1.5 h-4 w-4" />
             Security
           </TabsTrigger>
+          {user.role === "super_admin" && (
+            <TabsTrigger value="attendance">
+              <Clock3 className="mr-1.5 h-4 w-4" />
+              Attendance Timing
+            </TabsTrigger>
+          )}
           {user.role === "super_admin" && (
             <TabsTrigger value="sidebar">
               <PanelLeft className="mr-1.5 h-4 w-4" />
@@ -388,6 +435,77 @@ export function SettingsClient({ user, manageableUsers }: SettingsClientProps) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {user.role === "super_admin" && (
+          <TabsContent value="attendance" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock3 className="h-4 w-4" />
+                  Attendance Timing Rules
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveAttendanceSettings} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      id="shift_start_12h"
+                      label="Shift Start (AM/PM)"
+                      placeholder="09:00 AM"
+                      value={attendanceForm.shift_start_12h}
+                      onChange={(e) =>
+                        setAttendanceForm((prev) => ({ ...prev, shift_start_12h: e.target.value }))
+                      }
+                      required
+                    />
+                    <Input
+                      id="late_after_12h"
+                      label="Late After (AM/PM)"
+                      placeholder="09:15 AM"
+                      value={attendanceForm.late_after_12h}
+                      onChange={(e) =>
+                        setAttendanceForm((prev) => ({ ...prev, late_after_12h: e.target.value }))
+                      }
+                      required
+                    />
+                    <Input
+                      id="shift_end_12h"
+                      label="Shift End (AM/PM)"
+                      placeholder="06:00 PM"
+                      value={attendanceForm.shift_end_12h}
+                      onChange={(e) =>
+                        setAttendanceForm((prev) => ({ ...prev, shift_end_12h: e.target.value }))
+                      }
+                      required
+                    />
+                    <Input
+                      id="checkout_latest_12h"
+                      label="Latest Checkout (AM/PM)"
+                      placeholder="11:00 PM"
+                      value={attendanceForm.checkout_latest_12h}
+                      onChange={(e) =>
+                        setAttendanceForm((prev) => ({ ...prev, checkout_latest_12h: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+
+                  {attendanceError && <p className="text-sm text-destructive">{attendanceError}</p>}
+                  {attendanceMessage && !attendanceError && (
+                    <p className="text-sm text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 className="h-4 w-4" />
+                      {attendanceMessage}
+                    </p>
+                  )}
+
+                  <Button type="submit" disabled={attendanceLoading}>
+                    {attendanceLoading ? <Spinner /> : "Save Attendance Timing"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {user.role === "super_admin" && (
           <TabsContent value="sidebar" className="mt-4">

@@ -70,6 +70,10 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
         onSubmit={handleSubmit}
         className="mt-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1 sm:pr-0"
       >
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <p className="text-xs font-medium text-primary uppercase tracking-wider">Employee ID</p>
+          <p className="text-sm text-muted-foreground mt-0.5 italic">Will be auto-generated upon creation (e.g. ST-0001)</p>
+        </div>
         <Input
           id="full_name"
           label="Full Name"

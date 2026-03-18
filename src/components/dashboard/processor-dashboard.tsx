@@ -50,6 +50,10 @@ interface ProcessorDashboardProps {
   }>;
   todayAttendance: { id: string; check_in: string; check_out: string | null } | null;
   recentPayslips: Payslip[];
+  attendanceSettings: {
+    shift_start_12h: string;
+    shift_end_12h: string;
+  };
 }
 
 export function ProcessorDashboard({
@@ -58,6 +62,7 @@ export function ProcessorDashboard({
   pendingSales,
   todayAttendance,
   recentPayslips,
+  attendanceSettings,
 }: ProcessorDashboardProps) {
   const [processing, setProcessing] = useState<string | null>(null);
   const { currency } = useCurrency();
@@ -111,7 +116,7 @@ export function ProcessorDashboard({
             description="Total approved value"
             colorClass="bg-emerald-500"
           />
-          <AttendanceWidget todayAttendance={todayAttendance} />
+          <AttendanceWidget todayAttendance={todayAttendance} attendanceSettings={attendanceSettings} />
         </div>
       </div>
 

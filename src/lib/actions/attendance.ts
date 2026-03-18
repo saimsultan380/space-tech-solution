@@ -4,6 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { notifySuperAdmins, createNotification } from "@/lib/actions/notifications";
+import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
+
+function toMinutesFromTimeString(time: string) {
+  const [h = "0", m = "0"] = time.split(":");
+  return Number(h) * 60 + Number(m);
+}
+
+function toCurrentMinutes() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
 
 export async function getAttendance(filters?: {
   date?: string;
@@ -39,6 +50,17 @@ export async function checkIn() {
   const user = await requireAuth();
   const supabase = await createClient();
   const today = new Date().toISOString().split("T")[0];
+  const settings = await getAttendanceSettings();
+  const currentMinutes = toCurrentMinutes();
+  const shiftStartMinutes = toMinutesFromTimeString(settings.shift_start_time);
+  const latestCheckInMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
+
+  if (currentMinutes < shiftStartMinutes) {
+    throw new Error(`Check-in opens at ${settings.shift_start_12h}`);
+  }
+  if (currentMinutes > latestCheckInMinutes) {
+    throw new Error(`Check-in is closed after ${settings.checkout_latest_12h}`);
+  }
 
   const { data: existing } = await supabase
     .from("attendance")
@@ -72,6 +94,17 @@ export async function checkOut() {
   const user = await requireAuth();
   const supabase = await createClient();
   const today = new Date().toISOString().split("T")[0];
+  const settings = await getAttendanceSettings();
+  const currentMinutes = toCurrentMinutes();
+  const shiftEndMinutes = toMinutesFromTimeString(settings.shift_end_time);
+  const latestCheckOutMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
+
+  if (currentMinutes < shiftEndMinutes) {
+    throw new Error(`Check-out starts at ${settings.shift_end_12h}`);
+  }
+  if (currentMinutes > latestCheckOutMinutes) {
+    throw new Error(`Check-out closes at ${settings.checkout_latest_12h}`);
+  }
 
   const { data: record } = await supabase
     .from("attendance")

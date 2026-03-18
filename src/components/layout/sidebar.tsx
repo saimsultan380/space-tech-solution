@@ -19,6 +19,7 @@ import {
   Zap,
   CalendarDays,
   ReceiptText,
+  Megaphone,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -33,6 +34,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Settings,
   CalendarDays,
   ReceiptText,
+  Megaphone,
 };
 
 interface SidebarProps {
@@ -57,17 +59,17 @@ const SECTION_CONFIG: Record<UserRole, Array<{ title: string; hrefs: string[] }>
     },
     {
       title: "Employee Management",
-      hrefs: ["/dashboard/users", "/dashboard/customers", "/dashboard/sales", "/dashboard/chargebacks"],
+      hrefs: ["/dashboard/users", "/dashboard/call-logs-responses", "/dashboard/sales", "/dashboard/chargebacks"],
     },
     {
       title: "Finance & System",
-      hrefs: ["/dashboard/payments", "/dashboard/settings"],
+      hrefs: [/* "/dashboard/payments", */ "/dashboard/marketing-budget", "/dashboard/settings"],
     },
   ],
   sales_agent: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/customers", "/dashboard/sales"],
+      hrefs: ["/dashboard", "/dashboard/call-logs-responses", "/dashboard/sales"],
     },
     {
       title: "HR Services",
@@ -92,8 +94,8 @@ const SECTION_CONFIG: Record<UserRole, Array<{ title: string; hrefs: string[] }>
       hrefs: ["/dashboard/chargebacks"],
     },
     {
-      title: "System",
-      hrefs: ["/dashboard/settings"],
+      title: "Finance & System",
+      hrefs: ["/dashboard/marketing-budget", "/dashboard/settings"],
     },
   ],
 };
@@ -109,9 +111,15 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const baseItems = NAV_ITEMS[role] || [];
+  const legacyModuleAliases: Record<string, string[]> = {
+    "/dashboard/call-logs-responses": ["/dashboard/customers"],
+  };
   const navItems =
-    allowedModules && allowedModules.length > 0
-      ? baseItems.filter((item) => allowedModules.includes(item.href))
+    role !== "super_admin" && allowedModules && allowedModules.length > 0
+      ? baseItems.filter((item) =>
+          allowedModules.includes(item.href) ||
+          (legacyModuleAliases[item.href] || []).some((legacyHref) => allowedModules.includes(legacyHref))
+        )
       : baseItems;
   const navItemMap = new Map(navItems.map((item) => [item.href, item]));
   const roleSections = SECTION_CONFIG[role] ?? [];

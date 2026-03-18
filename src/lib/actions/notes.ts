@@ -43,7 +43,10 @@ export async function createNote(formData: {
   if (error) throw new Error(error.message);
 
   if (formData.sale_id) revalidatePath(`/dashboard/sales/${formData.sale_id}`);
-  if (formData.customer_id) revalidatePath(`/dashboard/customers/${formData.customer_id}`);
+  if (formData.customer_id) {
+    revalidatePath(`/dashboard/call-logs-responses/${formData.customer_id}`);
+    revalidatePath(`/dashboard/customers/${formData.customer_id}`);
+  }
 }
 
 export async function toggleNoteImportance(noteId: string, isImportant: boolean) {

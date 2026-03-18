@@ -95,7 +95,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-foreground">Sale</label>
             <Link
-              href="/dashboard/customers"
+              href="/dashboard/call-logs-responses"
               className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80"
             >
               Customer List/Database

@@ -5,7 +5,9 @@ import { SalesClient } from "@/components/sales/sales-client";
 
 export default async function SalesPage() {
   const user = await requireAuth();
-  const [sales, users] = await Promise.all([getSales(), getUsers()]);
+  
+  const salesFilters = user.role === "sales_agent" ? { agent_id: user.id } : {};
+  const [sales, users] = await Promise.all([getSales(salesFilters), getUsers()]);
 
   const agents = users.filter((u) => u.role === "sales_agent");
 

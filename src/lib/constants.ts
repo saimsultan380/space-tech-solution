@@ -86,9 +86,10 @@ export const NAV_ITEMS = {
   super_admin: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/users", label: "Users", icon: "Users" },
-    { href: "/dashboard/customers", label: "Customers", icon: "Contact" },
+    { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/sales", label: "Sales", icon: "TrendingUp" },
-    { href: "/dashboard/payments", label: "Payments", icon: "CreditCard" },
+    // { href: "/dashboard/payments", label: "Payments", icon: "CreditCard" },
+    { href: "/dashboard/marketing-budget", label: "Marketing Budget", icon: "Megaphone" },
     { href: "/dashboard/payslips", label: "Payslips", icon: "ReceiptText" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
@@ -98,7 +99,7 @@ export const NAV_ITEMS = {
   ],
   sales_agent: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
-    { href: "/dashboard/customers", label: "Customers", icon: "Contact" },
+    { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
     { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
@@ -112,6 +113,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },
+    { href: "/dashboard/marketing-budget", label: "Marketing Budget", icon: "Megaphone" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
 };

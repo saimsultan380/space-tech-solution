@@ -46,6 +46,10 @@ interface DashboardClientProps {
   salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }>;
   revenueData: Array<{ date: string; revenue: number }>;
   recentPayslips: Payslip[];
+  attendanceSettings: {
+    shift_start_12h: string;
+    shift_end_12h: string;
+  };
 }
 
 export function DashboardClient({
@@ -55,6 +59,7 @@ export function DashboardClient({
   salesPerAgent,
   revenueData,
   recentPayslips,
+  attendanceSettings,
 }: DashboardClientProps) {
   const [showCharts, setShowCharts] = useState(true);
   const { currency } = useCurrency();
@@ -105,7 +110,7 @@ export function DashboardClient({
           iconTextClass="text-[#16A34A]"
         />
         <MetricCard
-          title="Customers"
+          title="Call Logs Responses"
           value={stats.totalCustomers}
           trend={Math.max(1, Math.round((stats.totalCustomers / Math.max(stats.totalSales, 1)) * 10))}
           Icon={Users}
@@ -159,7 +164,7 @@ export function DashboardClient({
 
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="xl:col-span-1">
-          <AttendanceWidget todayAttendance={todayAttendance} />
+          <AttendanceWidget todayAttendance={todayAttendance} attendanceSettings={attendanceSettings} />
         </div>
       </div>
 
