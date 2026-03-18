@@ -39,15 +39,15 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
       />
       <div
         className={cn(
-          "relative z-50 my-4 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border/50 bg-card p-4 shadow-2xl animate-[scale-in_0.2s_ease-out] sm:my-6 sm:p-6",
+          "relative z-50 my-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-md border border-border bg-card p-6 shadow-2xl animate-[scale-in_0.2s_ease-out] sm:p-6",
           className
         )}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          className="absolute right-5 top-5 rounded-md bg-muted/50 p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all active:scale-95 sm:right-4 sm:top-4 sm:bg-transparent sm:p-1.5"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5 sm:h-4 sm:w-4" />
         </button>
         {children}
       </div>

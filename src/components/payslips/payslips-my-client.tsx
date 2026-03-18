@@ -53,22 +53,22 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#111827]">My Payslips</h1>
-        <p className="text-[#6B7280]">Track monthly payroll and download salary slips in PDF format.</p>
+        <h1 className="text-3xl font-bold text-foreground">My Payslips</h1>
+        <p className="text-muted-foreground">Track monthly payroll and download salary slips in PDF format.</p>
       </div>
 
-      <Card className="border-[#E9EEF7] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(15,23,42,0.05)]">
-        <CardHeader className="space-y-4">
+      <Card className="border-border shadow-sm overflow-hidden">
+        <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="text-base font-semibold text-[#111827]">Payslip History</CardTitle>
+            <CardTitle className="text-lg font-bold text-foreground">Payslip History</CardTitle>
             <div className="flex items-center gap-2">
-              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => shiftMonth(-1)}>
+              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(-1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="min-w-[180px] rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-center text-sm font-semibold text-[#111827]">
+              <div className="min-w-[180px] rounded-lg border border-border bg-muted/30 px-3 py-2 text-center text-sm font-bold text-foreground">
                 {monthLabel}
               </div>
-              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => shiftMonth(1)}>
+              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

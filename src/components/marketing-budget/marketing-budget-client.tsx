@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,15 +166,15 @@ export function MarketingBudgetClient({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Marketing Budget</h1>
-          <p className="text-muted-foreground">Campaign budget allocation, call cost tracking, and spend controls</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Marketing Budget</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Campaign budget allocation and spend controls</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 min-[400px]:flex-row sm:items-center">
           <select
             value={month}
             onChange={(e) => handleMonthChange(e.target.value)}
-            className="rounded-[4px] border border-border bg-background px-2 py-2 text-xs text-foreground shadow-sm"
+            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium shadow-sm transition-all focus:ring-2 focus:ring-primary/20 min-[400px]:w-[140px]"
           >
             {monthOptions.map((m) => (
               <option key={m.value} value={m.value}>
@@ -182,18 +183,19 @@ export function MarketingBudgetClient({
             ))}
           </select>
           <Button
+            className="h-10 w-full rounded-xl sm:w-auto"
             onClick={() => {
               setEditingCampaign(null);
               setCampaignDialogOpen(true);
             }}
           >
-            <Plus className="h-4 w-4" /> New Campaign
+            <Plus className="h-4 w-4 mr-2" /> New Campaign
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList>
+      <Tabs defaultValue="overview" className="mt-2">
+        <TabsList className="mb-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="daily-call-logs">Daily Call Logs Budget</TabsTrigger>
@@ -202,34 +204,36 @@ export function MarketingBudgetClient({
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
             <SummaryCard
-              title="Total Budget Allocated"
+              title="Allocated"
               value={formatCurrency(overview.totalBudgetAllocated, currency)}
               icon={<Wallet className="h-4 w-4" />}
             />
             <SummaryCard
-              title="Total Spent"
+              title="Spent"
               value={formatCurrency(overview.totalSpent, currency)}
               icon={<TrendingUp className="h-4 w-4" />}
             />
             <SummaryCard
-              title="Remaining Budget"
+              title="Remaining"
               value={formatCurrency(overview.remainingBudget, currency)}
               icon={<Target className="h-4 w-4" />}
             />
             <SummaryCard
-              title="Active Campaigns"
+              title="Active"
               value={overview.activeCampaigns}
               icon={<Megaphone className="h-4 w-4" />}
             />
-            <Card>
-              <CardContent className="pt-5">
-                <p className="text-sm text-muted-foreground">Budget Utilization</p>
-                <p className="mt-1 text-2xl font-bold">{overview.utilizationPercent.toFixed(1)}%</p>
-                <div className="mt-3 h-2 w-full rounded-full bg-muted">
+            <Card className="col-span-1 sm:col-span-1 xl:col-span-1">
+              <CardContent className="p-4 sm:p-5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider sm:text-sm">Utilization</p>
+                <div className="mt-1.5 flex items-baseline gap-1.5">
+                  <p className="text-base font-semibold sm:text-xl">{overview.utilizationPercent.toFixed(1)}%</p>
+                </div>
+                <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-2 rounded-full bg-primary transition-all"
+                    className="h-2 rounded-full bg-primary transition-all duration-500 ease-out"
                     style={{ width: `${Math.min(100, Math.max(0, overview.utilizationPercent))}%` }}
                   />
                 </div>
@@ -322,13 +326,13 @@ export function MarketingBudgetClient({
         <TabsContent value="daily-call-logs" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-base">Call Campaign Daily Cost Logs</CardTitle>
-                <Button onClick={() => setDailyLogDialogOpen(true)}>
-                  <Plus className="h-4 w-4" /> Add Daily Log
+                <Button onClick={() => setDailyLogDialogOpen(true)} className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" /> Add Daily Log
                 </Button>
               </div>
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <Input
                   id="callLogStart"
                   label="Start Date"
@@ -537,14 +541,14 @@ export function MarketingBudgetClient({
 
 function SummaryCard({ title, value, icon }: { title: string; value: string | number; icon: React.ReactNode }) {
   return (
-    <Card>
-      <CardContent className="pt-5">
+    <Card className="overflow-hidden">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="mt-1 text-2xl font-bold">{value}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider sm:text-sm">{title}</p>
+            <p className="mt-1.5 text-base font-semibold tracking-tight truncate sm:text-xl">{value}</p>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm sm:h-12 sm:w-12">
             {icon}
           </div>
         </div>
@@ -591,6 +595,13 @@ function CampaignStatusBadge({
 }
 
 function MonthlySpendChart({ data, currency }: { data: Array<{ date: string; spend: number }>; currency: string }) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (data.length === 0) {
     return <p className="py-8 text-center text-sm text-muted-foreground">No spend data available</p>;
   }
@@ -601,27 +612,38 @@ function MonthlySpendChart({ data, currency }: { data: Array<{ date: string; spe
     maximumFractionDigits: 1,
   });
 
+  const isDark = mounted && theme === "dark";
+  const gridStroke = isDark ? "#1f2937" : "#F3F4F6";
+  const tickFill = isDark ? "#9ca3af" : "#9CA3AF";
+
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data}>
-        <CartesianGrid vertical={false} stroke="#F3F4F6" strokeDasharray="4 4" />
+        <CartesianGrid vertical={false} stroke={gridStroke} strokeDasharray="4 4" />
         <XAxis
           dataKey="date"
-          tick={{ fill: "#9CA3AF" }}
+          tick={{ fill: tickFill }}
           tickLine={false}
-          axisLine={{ stroke: "#F3F4F6" }}
+          axisLine={{ stroke: gridStroke }}
           tickFormatter={(value) => {
             const [, month, day] = value.split("-");
             return `${month}/${day}`;
           }}
         />
         <YAxis
-          tick={{ fill: "#9CA3AF" }}
+          tick={{ fill: tickFill }}
           tickLine={false}
           axisLine={false}
           tickFormatter={(value) => compact.format(Number(value || 0))}
         />
-        <Tooltip formatter={(value) => [formatCurrency(Number(value || 0), currency), "Spend"]} />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: isDark ? "#111827" : "#ffffff", 
+            borderColor: isDark ? "#374151" : "#e5e7eb",
+            color: isDark ? "#f3f4f6" : "#111827"
+          }}
+          formatter={(value) => [formatCurrency(Number(value || 0), currency), "Spend"]} 
+        />
         <Bar dataKey="spend" fill="#3B6EF8" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

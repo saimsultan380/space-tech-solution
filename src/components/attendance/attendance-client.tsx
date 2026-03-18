@@ -269,7 +269,7 @@ export function AttendanceClient({
               >
                 <Card
                   className={`relative overflow-hidden border bg-card shadow-sm transition-all ${
-                    isActiveRole ? "border-primary ring-1 ring-primary/40 scale-[1.01]" : "border-border/60"
+                    isActiveRole ? "border-primary ring-1 ring-primary/40 scale-[1.01]" : "border-border"
                   }`}
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.08),transparent_55%)]" />
@@ -287,9 +287,9 @@ export function AttendanceClient({
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                          {avgRate}% avg attendance
-                        </span>
+                        <span className="rounded-md bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  {avgRate}% avg attendance
+                </span>
                         <span className="text-[11px] text-muted-foreground">
                           {stats.employees > 0
                             ? isActiveRole
@@ -353,8 +353,10 @@ export function AttendanceClient({
           </TabsList>
 
           {userRole === "super_admin" && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-row items-center gap-2">
               <Select
+                containerClassName="w-fit"
+                className="w-auto"
                 options={[
                   { value: "all", label: "All Roles" },
                   { value: "super_admin", label: "Super Admin" },
@@ -367,6 +369,8 @@ export function AttendanceClient({
                 }
               />
               <Select
+                containerClassName="w-fit"
+                className="w-auto"
                 options={[
                   { value: "all", label: "All Employees" },
                   ...users.map((u) => ({ value: u.id, label: u.full_name })),

@@ -28,7 +28,7 @@ export function StatCard({ title, value, description, icon, trend, className, co
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5",
+        "group relative overflow-hidden rounded-md border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5",
         className
       )}
     >
@@ -56,7 +56,7 @@ export function StatCard({ title, value, description, icon, trend, className, co
         {icon && (
           <div
             className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-lg transition-transform duration-300 group-hover:scale-110",
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-white shadow-lg transition-transform duration-300 group-hover:scale-110",
               color
             )}
           >

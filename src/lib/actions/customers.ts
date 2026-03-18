@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
@@ -72,8 +72,20 @@ export async function updateCustomer(
     account_no?: string;
   }
 ) {
-  await requireAuth();
+  const user = await requireAuth();
   const supabase = await createClient();
+
+  // Explicit ownership/admin check for security
+  if (user.role === "sales_agent") {
+    const { data: existing } = await supabase
+      .from("customers")
+      .select("created_by")
+      .eq("id", id)
+      .single();
+    if (existing && existing.created_by !== user.id) {
+      throw new Error("You don't have permission to update this customer");
+    }
+  }
 
   const updateData: Record<string, unknown> = {
     name: formData.name,
@@ -98,8 +110,20 @@ export async function updateCustomer(
 }
 
 export async function deleteCustomer(id: string) {
-  await requireAuth();
+  const user = await requireAuth();
   const supabase = await createClient();
+
+  // Explicit ownership/admin check for security
+  if (user.role === "sales_agent") {
+    const { data: existing } = await supabase
+      .from("customers")
+      .select("created_by")
+      .eq("id", id)
+      .single();
+    if (existing && existing.created_by !== user.id) {
+      throw new Error("You don't have permission to delete this customer");
+    }
+  }
 
   const { error } = await supabase.from("customers").delete().eq("id", id);
   if (error) throw new Error(error.message);

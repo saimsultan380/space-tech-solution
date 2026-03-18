@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 const Table = forwardRef<HTMLTableElement, HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto rounded-xl">
+    <div className="relative w-full overflow-auto rounded-md">
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   )
@@ -28,7 +28,7 @@ const TableRow = forwardRef<HTMLTableRowElement, HTMLAttributes<HTMLTableRowElem
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b border-border/40 transition-colors hover:bg-muted/30 data-[state=selected]:bg-muted", className)}
+      className={cn("border-b border-border transition-colors hover:bg-muted/30 data-[state=selected]:bg-muted", className)}
       {...props}
     />
   )

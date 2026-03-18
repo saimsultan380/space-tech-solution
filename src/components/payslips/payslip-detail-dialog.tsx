@@ -2,7 +2,7 @@
 
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { downloadPayslipPdf } from "@/lib/payslip-pdf";
 import { Download, FileText, User, Briefcase, Calendar, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
@@ -45,7 +45,7 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
             <User className="h-4 w-4" />
             Employee Information
           </h3>
-          <div className="grid gap-6 rounded-xl border border-border/50 bg-muted/20 p-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 rounded-xl border border-border bg-muted/20 p-5 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem label="Full Name" value={payslip.user?.full_name} />
             <DetailItem label="Employee ID" value={payslip.employee_id_display} />
             <DetailItem label="Father Name" value={payslip.father_name} />
@@ -64,7 +64,7 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
             <Calendar className="h-4 w-4" />
             Pay Period & Dates
           </h3>
-          <div className="grid gap-6 rounded-xl border border-border/50 bg-muted/20 p-5 sm:grid-cols-3">
+          <div className="grid gap-6 rounded-xl border border-border bg-muted/20 p-5 sm:grid-cols-3">
             <DetailItem label="Period Start" value={formatDate(payslip.period_start)} />
             <DetailItem label="Period End" value={formatDate(payslip.period_end)} />
             <DetailItem label="Pay Date" value={formatDate(payslip.pay_date)} />
@@ -77,7 +77,7 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
             <TrendingUp className="h-4 w-4" />
             Revenue Tracking
           </h3>
-          <div className="grid gap-6 rounded-xl border border-border/50 bg-muted/20 p-5 sm:grid-cols-3">
+          <div className="grid gap-6 rounded-xl border border-border bg-muted/20 p-5 sm:grid-cols-3">
             <DetailItem label="Monthly Revenue" value={`${payslip.monthly_revenue || 0}$`} />
             <DetailItem label="Chargeback" value={`${payslip.chargeback_amount || 0}$`} />
             <DetailItem label="Remaining" value={`${payslip.remaining || 0}$`} />
@@ -91,66 +91,51 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
             Salary Breakdown
           </h3>
           <div className="grid gap-8 lg:grid-cols-2">
-            <div className="space-y-4 rounded-xl border border-border/50 bg-emerald-50/30 p-5">
-              <h4 className="font-semibold text-emerald-700">Earnings</h4>
+            <div className="space-y-4 rounded-xl border border-border bg-success/5 p-5">
+              <h4 className="font-semibold text-success">Earnings</h4>
               <div className="space-y-3">
                 <BreakdownRow label="Basic Salary" value={payslip.basic_salary} currency={payslip.currency} />
                 <BreakdownRow label="Allowances" value={payslip.allowances} currency={payslip.currency} />
                 <BreakdownRow label="Bonus" value={payslip.bonus} currency={payslip.currency} />
                 <BreakdownRow label="Commission" value={payslip.commission} currency={payslip.currency} />
                 <BreakdownRow label="Advance" value={payslip.advance} currency={payslip.currency} />
-                <div className="mt-2 border-t border-emerald-200/50 pt-2 font-bold text-emerald-800 flex justify-between">
-                  <span>Total Earnings</span>
-                  <span>{formatCurrency(totalEarnings, payslip.currency)}</span>
+                <div className="border-t border-border pt-3">
+                  <BreakdownRow label="Total Earnings" value={totalEarnings} currency={payslip.currency} className="font-bold text-success" />
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4 rounded-xl border border-border/50 bg-rose-50/30 p-5">
-              <h4 className="font-semibold text-rose-700">Deductions & Attendance</h4>
+            <div className="space-y-4 rounded-xl border border-border bg-destructive/5 p-5">
+              <h4 className="font-semibold text-destructive">Deductions</h4>
               <div className="space-y-3">
-                <BreakdownRow label="Late Attendance" value={payslip.late_attendance || 0} isCount />
-                <BreakdownRow label="Leaves" value={payslip.leaves || 0} isCount />
                 <BreakdownRow label="Deductions" value={payslip.deductions} currency={payslip.currency} />
-                <div className="mt-2 border-t border-rose-200/50 pt-2 font-bold text-rose-800 flex justify-between">
-                  <span>Total Deductions</span>
-                  <span>{formatCurrency(Number(payslip.deductions || 0), payslip.currency)}</span>
+                <div className="border-t border-border pt-3">
+                  <BreakdownRow label="Total Deductions" value={payslip.deductions} currency={payslip.currency} className="font-bold text-destructive" />
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Payment Details */}
-        <section className="space-y-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <CreditCard className="h-4 w-4" />
-            Payment Information
-          </h3>
-          <div className="grid gap-6 rounded-xl border border-border/50 bg-muted/20 p-5 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="Paid Through" value={payslip.paid_through} />
-            <DetailItem label="Bank Account" value={payslip.bank_account_no} />
-            <DetailItem label="Bank Branch" value={payslip.bank_branch} />
+        {/* Net Salary Summary */}
+        <section className="rounded-2xl border border-border bg-primary/5 p-8 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Net Salary Payable</p>
+          <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
+            {formatCurrency(Number(payslip.net_pay || 0), payslip.currency)}
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-6 border-t border-border pt-6">
+            <div className="flex items-center gap-2 text-sm">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Pay Mode:</span>
+              <span className="font-semibold">{payslip.paid_through || "Bank Transfer"}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Status:</span>
+              <span className="font-semibold capitalize">{payslip.status}</span>
+            </div>
           </div>
         </section>
-
-        {/* Net Pay Summary */}
-        <div className="rounded-2xl bg-primary/5 border-2 border-primary/10 p-6">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Final Net Pay</p>
-              <p className="text-3xl font-bold text-primary">
-                {formatCurrency(Number(payslip.net_pay || 0), payslip.currency)}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={() => downloadPayslipPdf(payslip)} variant="default" className="gap-2 shadow-lg shadow-primary/20">
-                <Download className="h-4 w-4" />
-                Download PDF
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <DialogFooter className="bg-background pt-4 border-t border-border/50">
@@ -171,9 +156,21 @@ function DetailItem({ label, value, className }: { label: string; value?: string
   );
 }
 
-function BreakdownRow({ label, value, currency, isCount }: { label: string; value?: number | null; currency?: string; isCount?: boolean }) {
+function BreakdownRow({ 
+  label, 
+  value, 
+  currency, 
+  isCount,
+  className 
+}: { 
+  label: string; 
+  value?: number | null; 
+  currency?: string; 
+  isCount?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="flex justify-between text-sm">
+    <div className={cn("flex justify-between text-sm", className)}>
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground">
         {isCount ? value : formatCurrency(Number(value || 0), currency || "PKR")}

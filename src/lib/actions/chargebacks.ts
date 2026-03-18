@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { ChargebackStatus } from "@/lib/types";
 
@@ -21,7 +21,7 @@ export async function createChargeback(formData: {
   date: string;
   reason: string;
 }) {
-  await requireAuth();
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { error } = await supabase.from("chargebacks").insert({
@@ -35,7 +35,7 @@ export async function createChargeback(formData: {
 }
 
 export async function updateChargebackStatus(id: string, status: ChargebackStatus) {
-  await requireAuth();
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -48,7 +48,7 @@ export async function updateChargebackStatus(id: string, status: ChargebackStatu
 }
 
 export async function deleteChargeback(id: string) {
-  await requireAuth();
+  await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { error } = await supabase.from("chargebacks").delete().eq("id", id);

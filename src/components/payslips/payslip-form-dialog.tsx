@@ -307,7 +307,7 @@ export function PayslipFormDialog({
         </div>
 
         {/* Employee Details */}
-        <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="space-y-4 pt-4 border-t border-border">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Employee Profile Details</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
@@ -391,7 +391,7 @@ export function PayslipFormDialog({
         </div>
 
         {/* Revenue Section */}
-        <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="space-y-4 pt-4 border-t border-border">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Revenue Tracking</h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <Input
@@ -419,7 +419,7 @@ export function PayslipFormDialog({
         </div>
 
         {/* Salary Breakdown */}
-        <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="space-y-4 pt-4 border-t border-border">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Salary Breakdown</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
@@ -500,7 +500,7 @@ export function PayslipFormDialog({
         </div>
 
         {/* Bank Information */}
-        <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="space-y-4 pt-4 border-t border-border">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Payment Details</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
@@ -529,7 +529,7 @@ export function PayslipFormDialog({
           />
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+        <div className="rounded-xl border border-border bg-muted/20 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Calculated Net Pay</p>
@@ -559,7 +559,7 @@ export function PayslipFormDialog({
           </p>
         )}
 
-        <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t border-border/50 -mx-1 px-1">
+        <DialogFooter className="sticky bottom-0 bg-background pt-2 border-t border-border -mx-1 px-1">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>

@@ -152,47 +152,47 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#111827]">Payslips</h1>
-          <p className="text-[#6B7280]">Generate, send, edit, and reuse monthly salary slips.</p>
+          <h1 className="text-3xl font-bold text-foreground">Payslips</h1>
+          <p className="text-muted-foreground">Generate, send, edit, and reuse monthly salary slips.</p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="bg-[#3B6EF8] hover:bg-[#2E5EE8]">
-          <Plus className="h-4 w-4" /> Generate Payslip
+        <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90">
+          <Plus className="h-4 w-4 mr-2" /> Generate Payslip
         </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-[#E9EEF7] bg-gradient-to-br from-white to-[#F8FAFF] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_6px_18px_rgba(59,110,248,0.08)]">
+        <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#6B7280]">Total Payslips</p>
-            <p className="text-3xl font-bold text-[#111827]">{totals.total}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Payslips</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{totals.total}</p>
           </CardContent>
         </Card>
-        <Card className="border-[#E9EEF7] bg-gradient-to-br from-white to-[#F2FCF6] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_6px_18px_rgba(16,185,129,0.08)]">
+        <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#6B7280]">Paid</p>
-            <p className="text-3xl font-bold text-green-600">{totals.paid}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Paid</p>
+            <p className="mt-2 text-3xl font-bold text-success">{totals.paid}</p>
           </CardContent>
         </Card>
-        <Card className="border-[#E9EEF7] bg-gradient-to-br from-white to-[#FFFBF2] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_6px_18px_rgba(245,158,11,0.08)]">
+        <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#6B7280]">Processed</p>
-            <p className="text-3xl font-bold text-amber-600">{totals.processed}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Processed</p>
+            <p className="mt-2 text-3xl font-bold text-warning">{totals.processed}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-[#E9EEF7] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(15,23,42,0.05)]">
-        <CardHeader className="space-y-4">
+      <Card className="border-border shadow-sm overflow-hidden">
+        <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="text-base font-semibold text-[#111827]">Payroll Register</CardTitle>
+            <CardTitle className="text-lg font-bold text-foreground">Payroll Register</CardTitle>
             <div className="flex items-center gap-2">
-              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => shiftMonth(-1)}>
+              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(-1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="min-w-[180px] rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-center text-sm font-semibold text-[#111827]">
+              <div className="min-w-[180px] rounded-lg border border-border bg-muted/30 px-3 py-2 text-center text-sm font-bold text-foreground">
                 {monthLabel}
               </div>
-              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => shiftMonth(1)}>
+              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -320,12 +320,12 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
       {menuState && menuPayslip && (
         <div
           ref={menuRef}
-          className="fixed z-[70] max-h-[calc(100vh-16px)] overflow-y-auto rounded-lg border border-[#E5E7EB] bg-white p-1.5 shadow-xl"
+          className="fixed z-[70] max-h-[calc(100vh-16px)] overflow-y-auto rounded-lg border border-border bg-card p-1.5 shadow-xl"
           style={{ left: `${menuState.x}px`, top: `${menuState.y}px`, width: `${menuState.width}px` }}
         >
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
             onClick={() => {
               setMenuState(null);
               setEditingPayslip(menuPayslip);
@@ -336,7 +336,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
           </button>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
             onClick={() => {
               setMenuState(null);
               downloadPayslipPdf(menuPayslip);
@@ -348,7 +348,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
           {menuPayslip.status === "processed" && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
               onClick={() => {
                 setMenuState(null);
                 handleMarkAsPaid(menuPayslip.id);
@@ -361,7 +361,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
           )}
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
             onClick={() => {
               setMenuState(null);
               handleClone(menuPayslip.id, "processed");
@@ -373,7 +373,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
           </button>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-[#F8F9FB]"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
             onClick={() => {
               setMenuState(null);
               handleClone(menuPayslip.id, "paid");
@@ -385,7 +385,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
           </button>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-red-600 hover:bg-destructive/10"
             onClick={() => {
               setMenuState(null);
               handleDelete(menuPayslip.id);

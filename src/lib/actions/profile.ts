@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
@@ -9,9 +10,9 @@ export async function updateProfile(formData: {
   avatar_url?: string | null;
 }) {
   const user = await requireAuth();
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("users")
     .update({
       full_name: formData.full_name,
@@ -21,13 +22,34 @@ export async function updateProfile(formData: {
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
+}
+
+export async function requestPasswordReset(email: string) {
+  const supabase = await createClient();
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password`,
+  });
+
+  if (error) throw new Error(error.message);
+}
+
+export async function resetPassword(password: string) {
+  const supabase = await createClient();
+  
+  const { error } = await supabase.auth.updateUser({
+    password: password,
+  });
+
+  if (error) throw new Error(error.message);
 }
 
 export async function updatePreferences(formData: { preferred_currency: string }) {
   const user = await requireAuth();
-  const supabase = await createClient();
+  const admin = createAdminClient();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("users")
     .update({
       preferred_currency: formData.preferred_currency,
@@ -36,6 +58,7 @@ export async function updatePreferences(formData: { preferred_currency: string }
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
 }
 
 export async function changePassword(formData: {

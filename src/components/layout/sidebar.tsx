@@ -151,30 +151,24 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "flex h-full flex-col bg-gradient-to-b from-white to-[#F7FAFF] text-[#4A587A] transition-all duration-300 ease-in-out",
+          "flex h-full flex-col bg-card text-muted-foreground transition-all duration-300 ease-in-out border-r border-border",
           "fixed inset-y-0 left-0 z-50 w-[17rem] lg:static lg:z-auto lg:shrink-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",  
           collapsed ? "lg:w-[4.5rem]" : "lg:w-[17rem]"
         )}
       >
       {/* Brand + mobile close */}
-      <div className="flex h-[4.5rem] items-center justify-between gap-2 px-3.5">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5 group" onClick={onCloseMobile}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 via-primary/10 to-transparent shadow-[0_8px_20px_rgba(59,110,248,0.2)] transition-transform group-hover:scale-105">
-            <Zap className="h-5 w-5 text-primary drop-shadow-[0_2px_4px_rgba(59,110,248,0.35)]" />
-          </div>
+      <div className="flex h-[4.5rem] items-center justify-between gap-2 px-6 border-b border-border">
+        <Link href="/dashboard" className="flex min-w-0 items-center group" onClick={onCloseMobile}>
           {(!collapsed || isMobileOpen) && (
-            <div className="min-w-0">
-              <span className="text-[15px] font-bold tracking-tight text-[#111827]">Space Tech Solution</span>
-              <span className="ml-1.5 inline-flex items-center rounded-md border border-[#DDE7FF] bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary shadow-sm">
-                v2
-              </span>
-            </div>
+            <span className="text-lg font-bold tracking-tight text-foreground whitespace-nowrap">
+              Space Tech Solution
+            </span>
           )}
         </Link>
         <button
           type="button"
-          className="shrink-0 rounded-lg p-1.5 text-[#6B7280] hover:bg-[#F4F5F7] transition-colors lg:hidden"
+          className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors lg:hidden"
           onClick={onCloseMobile}
           aria-label="Close menu"
         >
@@ -188,67 +182,73 @@ export function Sidebar({
           <div
             key={section.title}
             className={cn(
-              "space-y-1.5 rounded-2xl",
-              (!collapsed || isMobileOpen) && "border border-[#EEF3FF] bg-white/70 px-2 py-2.5 shadow-[0_6px_20px_rgba(59,110,248,0.08)]"
+              "space-y-1 rounded-md border border-border bg-card/30 px-2 py-2.5 shadow-sm",
+              collapsed && !isMobileOpen && "px-1.5"
             )}
           >
             {(!collapsed || isMobileOpen) && (
-              <div className="flex items-center gap-2 px-2 pb-0.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8B98B7]">
+              <div className="flex items-center gap-2 px-2 pb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
                   {section.title}
                 </span>
-                <span className="h-px flex-1 bg-gradient-to-r from-[#D9E5FF] to-transparent" />
+                <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
               </div>
             )}
-            {section.items.map((item) => {
-              const Icon = iconMap[item.icon];
-              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onCloseMobile}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-gradient-to-r from-primary to-[#2B62FF] text-primary-foreground shadow-[0_10px_18px_rgba(43,98,255,0.32)]"
-                      : "text-[#4A587A] hover:bg-[#EEF4FF] hover:text-[#20315A]",
-                    (collapsed && !isMobileOpen) && "justify-center px-2"
-                  )}
-                >
-                  {Icon && (
-                    <div
+            <div className="space-y-0.5">
+              {section.items.map((item, idx) => {
+                const Icon = iconMap[item.icon];
+                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                return (
+                  <div key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onCloseMobile}
                       className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-200",
-                        isActive 
-                          ? "bg-white/20 border-white/40 shadow-inner" 
-                          : "bg-white border-[#3B6EF8]/40 shadow-sm group-hover:bg-white group-hover:border-primary/60"
+                        "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        (collapsed && !isMobileOpen) && "justify-center px-2"
                       )}
                     >
-                      <Icon
-                        className={cn(
-                          "h-[16px] w-[16px] transition-transform duration-200 group-hover:scale-110",
-                          isActive ? "text-primary-foreground" : "text-[#64749A] group-hover:text-[#2B4C9B]"
-                        )}
-                      />
-                    </div>
-                  )}
-                  {(!collapsed || isMobileOpen) && (
-                    <span className={cn("truncate", isActive && "font-semibold tracking-[0.01em]")}>{item.label}</span>
-                  )}
-                </Link>
-              );
-            })}
+                      {Icon && (
+                        <div
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-200",
+                            isActive 
+                              ? "bg-primary-foreground/10 border-primary-foreground/20" 
+                              : "bg-background border-border shadow-sm group-hover:border-primary/50"
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              "h-[15px] w-[15px] transition-transform duration-200 group-hover:scale-110",
+                              isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                            )}
+                          />
+                        </div>
+                      )}
+                      {(!collapsed || isMobileOpen) && (
+                        <span className={cn("truncate", isActive && "font-bold")}>{item.label}</span>
+                      )}
+                    </Link>
+                    {!isActive && idx < section.items.length - 1 && !collapsed && (
+                      <div className="mx-3 my-0.5 h-px bg-border/30" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </nav>
 
       {/* Bottom user info section */}
       {(!collapsed || isMobileOpen) && (
-        <div className="p-4">
-          <div className="rounded-xl border border-primary/10 bg-primary/5 px-3.5 py-3">
+        <div className="p-4 border-t border-border/50">
+          <div className="rounded-xl border border-border bg-muted/30 px-3.5 py-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-bold text-[#111827] shadow-sm overflow-hidden">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-foreground shadow-sm overflow-hidden border border-border">
                 {userAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -261,8 +261,8 @@ export function Sidebar({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate text-[#111827]">{userName}</p>
-                <p className="text-[11px] font-medium text-[#6B7280]">
+                <p className="text-sm font-semibold truncate text-foreground">{userName}</p>
+                <p className="text-[11px] font-medium text-muted-foreground">
                   {ROLE_LABELS[role]}
                 </p>
               </div>

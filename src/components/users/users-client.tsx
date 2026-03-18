@@ -49,7 +49,8 @@ export function UsersClient({ users }: UsersClientProps) {
   const filtered = users.filter(
     (u) =>
       u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      (u.employee_id && u.employee_id.toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleToggle = async (id: string, current: boolean) => {
@@ -123,7 +124,7 @@ export function UsersClient({ users }: UsersClientProps) {
               <TableBody>
                 {filtered.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-mono text-xs">{user.employee_id}</TableCell>
+                    <TableCell className="font-bold text-sm text-primary">{user.employee_id || "—"}</TableCell>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>

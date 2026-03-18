@@ -8,6 +8,7 @@ import { ConversionChart } from "@/components/reports/charts/conversion-chart";
 import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
+import { useTheme } from "next-themes";
 import type { AppUser, Payslip } from "@/lib/types";
 import {
   DollarSign,
@@ -70,17 +71,17 @@ export function DashboardClient({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-[#6B7280]">Good {getGreeting()}</p>
-          <h1 className="mt-1 text-[28px] font-bold tracking-tight text-[#111827]">
-            Welcome back, {user.full_name}
+          <p className="text-sm font-medium text-muted-foreground">Good {getGreeting()}</p>
+          <h1 className="mt-1 text-[28px] font-bold tracking-tight text-foreground">
+            Welcome Back, {user.full_name}
           </h1>
-          <p className="mt-1 text-sm font-medium text-[#9CA3AF]">
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             Here&apos;s an overview of your business today.
           </p>
         </div>
         <button
           onClick={() => setShowCharts((v) => !v)}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-sm font-medium text-[#374151] hover:bg-[#F9FAFB]"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted"
         >
           {showCharts ? (
             <><EyeOff className="h-4 w-4" /> Hide Charts</>
@@ -97,8 +98,8 @@ export function DashboardClient({
           description="From approved sales"
           trend={revenueTrend}
           Icon={DollarSign}
-          iconBgClass="bg-[#EFF6FF]"
-          iconTextClass="text-[#3B6EF8]"
+          iconBgClass="bg-primary/10"
+          iconTextClass="text-primary"
         />
         <MetricCard
           title="Total Sales"
@@ -106,16 +107,16 @@ export function DashboardClient({
           description={`${stats.pendingSales} pending`}
           trend={Math.round(((stats.approvedSales - stats.pendingSales) / Math.max(stats.totalSales, 1)) * 100)}
           Icon={ShoppingCart}
-          iconBgClass="bg-[#F0FDF4]"
-          iconTextClass="text-[#16A34A]"
+          iconBgClass="bg-success/10"
+          iconTextClass="text-success"
         />
         <MetricCard
           title="Call Logs Responses"
           value={stats.totalCustomers}
           trend={Math.max(1, Math.round((stats.totalCustomers / Math.max(stats.totalSales, 1)) * 10))}
           Icon={Users}
-          iconBgClass="bg-[#EEF3FF]"
-          iconTextClass="text-[#3B6EF8]"
+          iconBgClass="bg-primary/10"
+          iconTextClass="text-primary"
           description="In your database"
         />
         <MetricCard
@@ -123,8 +124,8 @@ export function DashboardClient({
           value={`${stats.conversionRate}%`}
           trend={conversionValue >= 50 ? 3 : -3}
           Icon={TrendingUp}
-          iconBgClass="bg-[#F0FDF4]"
-          iconTextClass="text-[#16A34A]"
+          iconBgClass="bg-success/10"
+          iconTextClass="text-success"
           description={`${stats.approvedSales} approved of ${stats.totalSales}`}
         />
       </div>
@@ -135,9 +136,9 @@ export function DashboardClient({
           value={stats.pendingSales}
           trend={Math.max(1, Math.round((stats.pendingSales / Math.max(stats.totalSales, 1)) * 100))}
           Icon={Clock}
-          iconBgClass="bg-[#FFFBEB]"
-          iconTextClass="text-[#F59E0B]"
-          valueClassName="text-[#F59E0B]"
+          iconBgClass="bg-warning/10"
+          iconTextClass="text-warning"
+          valueClassName="text-warning"
           description="Awaiting processing"
         />
         <MetricCard
@@ -145,9 +146,9 @@ export function DashboardClient({
           value={stats.openChargebacks}
           trend={-Math.max(1, Math.round((stats.openChargebacks / Math.max(stats.totalChargebacks, 1)) * 100))}
           Icon={AlertTriangle}
-          iconBgClass="bg-[#FEF2F2]"
-          iconTextClass="text-[#EF4444]"
-          valueClassName="text-[#EF4444]"
+          iconBgClass="bg-destructive/10"
+          iconTextClass="text-destructive"
+          valueClassName="text-destructive"
           description={`${stats.totalChargebacks} total chargebacks`}
         />
         <MetricCard
@@ -155,9 +156,9 @@ export function DashboardClient({
           value={stats.pendingLeaves}
           trend={-Math.max(1, Math.round((stats.pendingLeaves / Math.max(stats.todayOnLeave + stats.pendingLeaves, 1)) * 100))}
           Icon={CalendarDays}
-          iconBgClass="bg-[#FFFBEB]"
-          iconTextClass="text-[#F59E0B]"
-          valueClassName="text-[#F59E0B]"
+          iconBgClass="bg-warning/10"
+          iconTextClass="text-warning"
+          valueClassName="text-warning"
           description={`${stats.todayOnLeave} employees on leave today`}
         />
       </div>
@@ -173,34 +174,34 @@ export function DashboardClient({
       {showCharts && (
         <div className="animate-[slide-up_0.3s_ease-out] space-y-5">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF3FF]">
-              <BarChart3 className="h-4 w-4 text-[#3B6EF8]" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <BarChart3 className="h-4 w-4 text-primary" />
             </div>
-            <h2 className="text-lg font-semibold text-[#111827]">Analytics Overview</h2>
+            <h2 className="text-lg font-semibold text-foreground">Analytics Overview</h2>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-[#111827]">Revenue Trend</h3>
-                  <p className="text-xs font-medium text-[#9CA3AF]">Daily revenue from approved sales</p>
+                  <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
+                  <p className="text-xs font-medium text-muted-foreground">Daily revenue from approved sales</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#EEF3FF]">
-                  <DollarSign className="h-4 w-4 text-[#3B6EF8]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
+                  <DollarSign className="h-4 w-4 text-primary" />
                 </div>
               </div>
               <RevenueChart data={revenueData} />
             </div>
 
-            <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-[#111827]">Sales Conversion</h3>
-                  <p className="text-xs font-medium text-[#9CA3AF]">Approved vs pending vs rejected</p>
+                  <h3 className="text-sm font-semibold text-foreground">Sales Conversion</h3>
+                  <p className="text-xs font-medium text-muted-foreground">Approved vs pending vs rejected</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#EEF3FF]">
-                  <TrendingUp className="h-4 w-4 text-[#3B6EF8]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
+                  <TrendingUp className="h-4 w-4 text-primary" />
                 </div>
               </div>
               <ConversionChart
@@ -210,14 +211,14 @@ export function DashboardClient({
               />
             </div>
 
-            <div className="rounded-xl border border-[#F0F0F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)] lg:col-span-2">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-[#111827]">Sales per Agent</h3>
-                  <p className="text-xs font-medium text-[#9CA3AF]">Performance breakdown by agent</p>
+                  <h3 className="text-sm font-semibold text-foreground">Sales per Agent</h3>
+                  <p className="text-xs font-medium text-muted-foreground">Performance breakdown by agent</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#EEF3FF]">
-                  <Users className="h-4 w-4 text-[#3B6EF8]" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
+                  <Users className="h-4 w-4 text-primary" />
                 </div>
               </div>
               <SalesPerAgentChart data={salesPerAgent} />
@@ -268,20 +269,20 @@ function MetricCard({
   const trendPositive = trend >= 0;
 
   return (
-    <div className="rounded-xl border border-[#F0F0F0] bg-white px-6 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)]">
+    <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm font-medium text-[#6B7280]">{title}</p>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBgClass}`}>
           <Icon className={`h-5 w-5 ${iconTextClass}`} />
         </div>
       </div>
       <div className="flex items-end gap-2">
-        <p className={`text-3xl font-bold text-[#111827] ${valueClassName || ""}`}>{value}</p>
-        <span className={`pb-1 text-xs font-semibold ${trendPositive ? "text-[#16A34A]" : "text-[#EF4444]"}`}>
+        <p className={`text-3xl font-bold text-foreground ${valueClassName || ""}`}>{value}</p>
+        <span className={`pb-1 text-xs font-semibold ${trendPositive ? "text-success" : "text-destructive"}`}>
           {trendPositive ? "▲" : "▼"} {Math.abs(trend)}%
         </span>
       </div>
-      <p className="mt-1 text-xs font-medium text-[#9CA3AF]">{description}</p>
+      <p className="mt-1 text-xs font-medium text-muted-foreground">{description}</p>
     </div>
   );
 }

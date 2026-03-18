@@ -6,6 +6,7 @@ import { Header } from "./header";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { UserRole } from "@/lib/types";
 import { CurrencyProvider } from "@/components/providers/currency-provider";
+import { InactivityTracker } from "@/components/auth/inactivity-tracker";
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -46,7 +47,8 @@ export function DashboardShell({
 
   return (
     <CurrencyProvider currency={currency}>
-      <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+      <InactivityTracker />
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar
           role={role}
           userName={userName}
@@ -66,7 +68,7 @@ export function DashboardShell({
             onToggleSidebar={handleToggleSidebar}
             isMobile={isMobile}
           />
-          <main className="flex-1 overflow-y-auto bg-[#F8F9FB] p-4 sm:p-5 lg:p-6">
+          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 lg:p-6">
             <div className="mx-auto w-full max-w-7xl animate-[fade-in_0.3s_ease-out]">
               {children}
             </div>

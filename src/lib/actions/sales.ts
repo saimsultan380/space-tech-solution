@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
@@ -225,7 +225,7 @@ export async function updateSaleStatus(
   status: SaleStatus,
   processing_notes: string
 ) {
-  const user = await requireAuth();
+  const user = await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -248,7 +248,7 @@ export async function bulkUpdateSaleStatus(
   status: SaleStatus,
   processing_notes: string
 ) {
-  const user = await requireAuth();
+  const user = await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
   const { error } = await supabase
