@@ -101,6 +101,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
+    { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "My Leaves", icon: "CalendarDays" },

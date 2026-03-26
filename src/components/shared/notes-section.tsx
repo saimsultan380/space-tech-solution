@@ -89,27 +89,28 @@ export function NotesSection({ notes, saleId, customerId }: NotesSectionProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg whitespace-nowrap">
             <MessageSquare className="h-4 w-4" />
             Notes & History
             {notes.length > 0 && (
               <Badge variant="secondary">{notes.length}</Badge>
             )}
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-start gap-2 sm:w-auto sm:justify-end">
             {importantCount > 0 && (
               <Button
                 size="sm"
                 variant={showImportantOnly ? "default" : "outline"}
                 onClick={() => setShowImportantOnly(!showImportantOnly)}
+                className="shrink-0"
               >
                 <Filter className="h-3 w-3" />
                 <Star className="h-3 w-3" />
                 {importantCount}
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)}>
+            <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="shrink-0">
               <Plus className="h-3 w-3" /> Add Note
             </Button>
           </div>
@@ -172,8 +173,8 @@ export function NotesSection({ notes, saleId, customerId }: NotesSectionProps) {
                   : "border-border/60"
               }`}
             >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold">
                     {note.user?.full_name || "System"}
                   </span>
@@ -182,11 +183,11 @@ export function NotesSection({ notes, saleId, customerId }: NotesSectionProps) {
                       <AlertCircle className="mr-1 h-3 w-3" /> Important
                     </Badge>
                   )}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground sm:ml-1">
                     {formatDateTime(note.created_at)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 self-end sm:self-auto">
                   <button
                     onClick={() => handleToggleImportance(note.id, note.is_important)}
                     disabled={togglingId === note.id}

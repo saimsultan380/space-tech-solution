@@ -9,6 +9,10 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/loading";
 import { createSale, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
+import { createAgentName } from "@/lib/actions/agent-names";
+import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
+import { createClient } from "@/lib/supabase/client";
+import { createSaleAttachment } from "@/lib/actions/sale-attachments";
 import {
   SALE_TYPES,
   UTILITY_SUBTYPES,
@@ -23,25 +27,35 @@ import {
   DollarSign,
   Shield,
   Zap,
+  Users,
+  Plus,
+  Upload,
+  X,
 } from "lucide-react";
+import type { UserRole } from "@/lib/types";
+import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SaleFormProps {
-  customers: Array<{ id: string; name: string }>;
+  agents: Array<{ id: string; name: string }>;
+  userRole: UserRole;
   mode?: "create" | "edit";
   saleId?: string;
   initialValues?: Partial<typeof emptyForm>;
+  initialAttachments?: Array<any>;
 }
 
 const emptyForm = {
   sale_type: "utility",
   subtype: "new",
   customer_id: "",
+  agent_name: "",
   sale_date: new Date().toISOString().split("T")[0],
   customer_phone: "",
   customer_name: "",
   customer_email: "",
   service_address: "",
   account_holder_name: "",
+  account_no: "",
   company_name: "",
   dob: "",
   ssn: "",
@@ -66,11 +80,16 @@ const emptyForm = {
   vehicle_details: "",
 };
 
-export function SaleForm({ customers, mode = "create", saleId, initialValues }: SaleFormProps) {
+export function SaleForm({ agents, userRole, mode = "create", saleId, initialValues, initialAttachments = [] }: SaleFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [addingAgent, setAddingAgent] = useState(false);
+  const [agentNameInput, setAgentNameInput] = useState("");
+  const [agentsList, setAgentsList] = useState(agents);
   const [form, setForm] = useState({ ...emptyForm, ...initialValues });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const isUtility = form.sale_type === "utility";
   const isInsurance = form.sale_type === "insurance";
@@ -79,12 +98,6 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
 
   const set = (field: string, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
-
-  const handleCustomerSelect = (customerId: string) => {
-    set("customer_id", customerId);
-    const c = customers.find((x) => x.id === customerId);
-    if (c) set("customer_name", c.name);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,13 +116,50 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
         };
         await updateSaleDetails(editPayload);
       } else {
-        await createSale(payload);
+        const newSaleId = await createSale(payload);
+
+        if (pendingFiles.length > 0) {
+          const supabase = createClient();
+          for (const file of pendingFiles) {
+            const safeName = file.name.replace(/[^\w.\-()\s]/g, "_");
+            const path = `sales/${newSaleId}/${Date.now()}-${safeName}`;
+            const { error: uploadError } = await supabase.storage
+              .from("avatars")
+              .upload(path, file, { upsert: false, cacheControl: "3600" });
+            if (uploadError) throw new Error(uploadError.message);
+
+            const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+            await createSaleAttachment({
+              sale_id: newSaleId,
+              file_name: file.name,
+              file_path: path,
+              file_url: data.publicUrl,
+              mime_type: file.type || "application/octet-stream",
+              size_bytes: file.size || 0,
+            });
+          }
+        }
       }
       router.push("/dashboard/sales");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create sale");
     }
     setLoading(false);
+  };
+
+  const handleAddAgentName = async () => {
+    setAddingAgent(true);
+    setError("");
+    try {
+      const created = await createAgentName(agentNameInput);
+      setAgentsList((prev) => [...prev, { id: created.id, name: created.name }]);
+      set("agent_name", created.name);
+      setAgentNameInput("");
+      setShowCreateAgent(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add agent");
+    }
+    setAddingAgent(false);
   };
 
   return (
@@ -162,6 +212,42 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
         </CardContent>
       </Card>
 
+      {/* Agent Information */}
+      {userRole === "super_admin" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-sky-500" />
+              Agent Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Select
+                  id="agent_name"
+                  label="Agent Name"
+                  options={agentsList.map((a) => ({ value: a.name, label: a.name }))}
+                  placeholder="Select an agent"
+                  value={form.agent_name}
+                  onChange={(e) => set("agent_name", e.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowCreateAgent(true)}
+                title="Add agent"
+                className="h-12 w-12 sm:h-11 sm:w-11"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Customer Information */}
       <Card>
         <CardHeader>
@@ -171,15 +257,6 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Select
-            id="customer_id"
-            label="Customer"
-            options={customers.map((c) => ({ value: c.id, label: c.name }))}
-            placeholder="Select a customer"
-            value={form.customer_id}
-            onChange={(e) => handleCustomerSelect(e.target.value)}
-            required
-          />
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               id="customer_name"
@@ -211,7 +288,7 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
               onChange={(e) => set("service_address", e.target.value)}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <Input
               id="account_holder_name"
               label={isInsurance ? "Policy Holder Name" : "Account Holder Name"}
@@ -221,6 +298,13 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
                   ? set("policy_holder_name", e.target.value)
                   : set("account_holder_name", e.target.value)
               }
+            />
+            <Input
+              id="account_no"
+              label="Account Number"
+              placeholder="Account / Policy No."
+              value={form.account_no}
+              onChange={(e) => set("account_no", e.target.value)}
             />
             <Input
               id="dob"
@@ -240,6 +324,30 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showCreateAgent} onClose={() => setShowCreateAgent(false)}>
+        <DialogHeader>
+          <DialogTitle>Add Agent Name</DialogTitle>
+        </DialogHeader>
+        <div className="mt-4 space-y-4">
+          <Input
+            id="new_agent_name"
+            label="Agent Name"
+            placeholder="Enter agent name"
+            value={agentNameInput}
+            onChange={(e) => setAgentNameInput(e.target.value)}
+          />
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowCreateAgent(false)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={addingAgent} onClick={handleAddAgentName}>
+              {addingAgent ? <Spinner /> : "Add"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
 
       {/* Company / Service Details */}
       <Card>
@@ -485,6 +593,92 @@ export function SaleForm({ customers, mode = "create", saleId, initialValues }: 
           />
         </CardContent>
       </Card>
+
+      {/* Attachments */}
+      {mode === "edit" && saleId ? (
+        <SaleAttachmentsSection
+          saleId={saleId}
+          initialAttachments={initialAttachments}
+          mode="edit"
+          userRole={userRole}
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-orange-500" />
+              Attachments
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <input
+              id="new-sale-attachments"
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                if (files.length === 0) return;
+                setPendingFiles((prev) => [...prev, ...files]);
+                e.currentTarget.value = "";
+              }}
+              disabled={loading}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Add images or documents now. They’ll upload automatically after you click “Create Sale”.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById("new-sale-attachments")?.click()}
+                disabled={loading}
+              >
+                <Upload className="h-4 w-4" />
+                <span className="ml-2">Add files</span>
+              </Button>
+            </div>
+
+            {pendingFiles.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                <p className="text-sm font-medium">No attachments selected</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Supported: images, PDF, Word, Excel.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pendingFiles.map((f, idx) => (
+                  <div
+                    key={`${f.name}-${f.size}-${idx}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/10 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{f.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {Math.round((f.size / 1024) * 10) / 10} KB
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))}
+                      disabled={loading}
+                      title="Remove"
+                      className="shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Submit */}
       {error && (

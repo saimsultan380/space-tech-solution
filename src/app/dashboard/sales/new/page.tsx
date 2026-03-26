@@ -1,10 +1,10 @@
 import { requireAuth } from "@/lib/auth";
-import { getCustomers } from "@/lib/actions/customers";
+import { getAgentNames } from "@/lib/actions/agent-names";
 import { SaleForm } from "@/components/sales/sale-form";
 
 export default async function NewSalePage() {
   const user = await requireAuth();
-  const customers = await getCustomers();
+  const agents = await getAgentNames();
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -15,7 +15,8 @@ export default async function NewSalePage() {
         </p>
       </div>
       <SaleForm
-        customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+        agents={agents.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }))}
+        userRole={user.role}
       />
     </div>
   );

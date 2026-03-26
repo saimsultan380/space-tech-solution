@@ -19,10 +19,19 @@ import { ROLE_LABELS, LEAVE_STATUSES } from "@/lib/constants";
 import type { Leave } from "@/lib/types";
 import { updateLeaveStatus } from "@/lib/actions/leaves";
 import { formatDate } from "@/lib/utils";
-import { CheckCircle2, XCircle, CalendarDays, FileText, Clock, CheckCircle } from "lucide-react";
+import { CheckCircle2, XCircle, CalendarDays, FileText, Clock, CheckCircle, Bot } from "lucide-react";
+
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 
 interface LeavesAdminClientProps {
-  leaves: Leave[];
+  leavesResponse: {
+    data: Leave[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
 }
 
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
@@ -39,36 +48,51 @@ function getMonthStartEnd(monthStr: string) {
   return { monthStart, monthEnd };
 }
 
-export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
-  const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
-  const [monthFilter, setMonthFilter] = useState(currentMonth);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">(
-    "all"
-  );
-  const [roleFilter, setRoleFilter] = useState<"all" | "super_admin" | "sales_agent" | "processor">(
-    "all"
-  );
+export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const { data: leaves, count, page, totalPages, pageSize } = leavesResponse;
+
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
 
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const statusFilter = (searchParams.get("status") as any) || "all";
+  const roleFilter = (searchParams.get("role") as any) || "all";
+  const monthFilter = searchParams.get("month") || new Date().toISOString().slice(0, 7);
+
   const { monthStart, monthEnd } = getMonthStartEnd(monthFilter);
-  const leavesInMonth = leaves.filter((leave) => {
+  
+  // We keep some client side filtering for month if needed, but status is handled by server
+  const filtered = leaves.filter((leave) => {
     const d = leave.start_date;
-    return d >= monthStart && d < monthEnd;
+    if (monthFilter && (d < monthStart || d >= monthEnd)) return false;
+    const role = leave.user?.role;
+    const matchesRole = roleFilter === "all" || role === roleFilter;
+    return matchesRole;
   });
 
   const stats = useMemo(() => ({
-    total: leavesInMonth.length,
-    pending: leavesInMonth.filter((l) => l.status === "pending").length,
-    approved: leavesInMonth.filter((l) => l.status === "approved").length,
-    rejected: leavesInMonth.filter((l) => l.status === "rejected").length,
-  }), [leavesInMonth]);
-
-  const filtered = leavesInMonth.filter((leave) => {
-    const matchesStatus = statusFilter === "all" || leave.status === statusFilter;
-    const role = leave.user?.role;
-    const matchesRole = roleFilter === "all" || role === roleFilter;
-    return matchesStatus && matchesRole;
-  });
+    total: count,
+    pending: leaves.filter((l) => l.status === "pending").length,
+    approved: leaves.filter((l) => l.status === "approved").length,
+    rejected: leaves.filter((l) => l.status === "rejected").length,
+  }), [leaves, count]);
 
   const handleUpdate = async (id: string, status: "approved" | "rejected") => {
     const key = `${id}-${status}`;
@@ -98,12 +122,24 @@ export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
 
       {/* Month filter */}
       <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm font-medium text-muted-foreground">Month</label>
         <Input
           type="month"
           value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className="w-[180px]"
+          onChange={(e) => updateFilters({ month: e.target.value })}
+          className="w-auto h-10"
+        />
+        <Select
+          options={[{ value: "all", label: "All Statuses" }, ...LEAVE_STATUSES]}
+          value={statusFilter}
+          onChange={(e) => updateFilters({ status: e.target.value })}
+        />
+        <Select
+          options={[
+            { value: "all", label: "All Roles" },
+            ...Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l })),
+          ]}
+          value={roleFilter}
+          onChange={(e) => updateFilters({ role: e.target.value })}
         />
       </div>
 
@@ -163,34 +199,8 @@ export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-sm text-muted-foreground">
-              {leavesInMonth.length} total request{leavesInMonth.length !== 1 ? "s" : ""} this month
+              {filtered.length} total request{filtered.length !== 1 ? "s" : ""} matching filters
             </CardTitle>
-            <div className="flex gap-2">
-              <Select
-                options={[
-                  { value: "all", label: "All Statuses" },
-                  ...LEAVE_STATUSES,
-                ]}
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as "all" | "pending" | "approved" | "rejected")
-                }
-              />
-              <Select
-                options={[
-                  { value: "all", label: "All Roles" },
-                  { value: "super_admin", label: "Super Admin" },
-                  { value: "sales_agent", label: "Sales Agent" },
-                  { value: "processor", label: "Processor" },
-                ]}
-                value={roleFilter}
-                onChange={(e) =>
-                  setRoleFilter(
-                    e.target.value as "all" | "super_admin" | "sales_agent" | "processor"
-                  )
-                }
-              />
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -207,6 +217,7 @@ export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
                   <TableHead>Role</TableHead>
                   <TableHead>Dates</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Applied</TableHead>
@@ -232,6 +243,16 @@ export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
                         : ""}
                     </TableCell>
                     <TableCell className="capitalize">{leave.type || "N/A"}</TableCell>
+                    <TableCell>
+                      {leave.source === "auto" ? (
+                        <Badge variant="secondary" className="gap-1">
+                          <Bot className="h-3 w-3" />
+                          Auto
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Manual</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="max-w-[220px] truncate" title={leave.reason}>
                       {leave.reason}
                     </TableCell>
@@ -290,6 +311,13 @@ export function LeavesAdminClient({ leaves }: LeavesAdminClientProps) {
             </Table>
           )}
         </CardContent>
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={(p) => updateFilters({ page: p })}
+          totalItems={count}
+          pageSize={pageSize}
+        />
       </Card>
     </div>
   );

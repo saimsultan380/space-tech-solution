@@ -21,6 +21,9 @@ import { formatDate } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import { Plus, Search, Trash2 } from "lucide-react";
 
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
+
 const roleVariant: Record<string, "default" | "secondary" | "outline"> = {
   super_admin: "default",
   sales_agent: "secondary",
@@ -28,30 +31,42 @@ const roleVariant: Record<string, "default" | "secondary" | "outline"> = {
 };
 
 interface UsersClientProps {
-  users: Array<{
-    id: string;
-    email: string;
-    full_name: string;
-    employee_id: string;
-    role: string;
-    is_active: boolean;
-    created_at: string;
-    allowed_modules?: string[] | null;
-  }>;
+  usersResponse: {
+    data: any[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
 }
 
-export function UsersClient({ users }: UsersClientProps) {
-  const [search, setSearch] = useState("");
+export function UsersClient({ usersResponse }: UsersClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const { data: users, count, page, totalPages, pageSize } = usersResponse;
+
   const [showCreate, setShowCreate] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const filtered = users.filter(
-    (u) =>
-      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      (u.employee_id && u.employee_id.toLowerCase().includes(search.toLowerCase()))
-  );
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const search = searchParams.get("q") || "";
 
   const handleToggle = async (id: string, current: boolean) => {
     setTogglingId(id);
@@ -96,83 +111,110 @@ export function UsersClient({ users }: UsersClientProps) {
               <Input
                 placeholder="Search users..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => updateFilters({ q: e.target.value })}
                 className="pl-10"
               />
             </div>
             <CardTitle className="text-sm text-muted-foreground whitespace-nowrap">
-              {filtered.length} user{filtered.length !== 1 ? "s" : ""}
+              {count} user{count !== 1 ? "s" : ""}
             </CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
-            <EmptyState title="No users found" description="Add team members to get started" />
+          {users.length === 0 ? (
+            <EmptyState
+              title="No users found"
+              description={search ? "Try adjusting your search" : "Add your first team member to get started"}
+            />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Emp ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-bold text-sm text-primary">{user.employee_id || "—"}</TableCell>
-                    <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={roleVariant[user.role] || "secondary"}>
-                        {ROLE_LABELS[user.role] || user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.is_active ? "success" : "destructive"}>
-                        {user.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(user.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <EditUserDialog user={user} />
-                        {togglingId === user.id ? (
-                          <Spinner />
-                        ) : (
-                          <Button
-                            variant={user.is_active ? "outline" : "default"}
-                            size="sm"
-                            onClick={() => handleToggle(user.id, user.is_active)}
-                          >
-                            {user.is_active ? "Deactivate" : "Activate"}
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(user.id)}
-                          disabled={deletingId === user.id}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Delete user"
-                        >
-                          {deletingId === user.id ? (
-                            <Spinner />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Employee ID</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">{user.full_name}</span>
+                          <span className="text-[11px] text-muted-foreground">{user.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{user.employee_id || "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant={roleVariant[user.role] || "outline"} className="capitalize">
+                          {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] || user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(user.id, user.is_active)}
+                          disabled={togglingId === user.id}
+                          title={user.is_active ? "Click to deactivate user" : "Click to activate user"}
+                          className="inline-flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <Badge
+                            variant={user.is_active ? "success" : "destructive"}
+                            className={
+                              user.is_active
+                                ? "border border-success/40 bg-success/10 text-success"
+                                : "border border-destructive/40 bg-destructive/10 text-destructive"
+                            }
+                          >
+                            {togglingId === user.id ? (
+                              <span className="inline-flex items-center gap-2">
+                                <Spinner />
+                                Updating…
+                              </span>
+                            ) : user.is_active ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                            {user.is_active ? "Deactivate" : "Activate"}
+                          </span>
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(user.created_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <EditUserDialog user={user} />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDelete(user.id)}
+                            disabled={deletingId === user.id}
+                          >
+                            {deletingId === user.id ? <Spinner /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
+          
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
         </CardContent>
       </Card>
 

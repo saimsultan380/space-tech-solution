@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -19,8 +18,11 @@ import { EmptyState } from "@/components/ui/loading";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { UserRole, Leave } from "@/lib/types";
-import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Download } from "lucide-react";
+import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Download, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 
 interface AttendanceRecord {
   id: string;
@@ -33,6 +35,7 @@ interface AttendanceRecord {
 type DailyRow = AttendanceRecord & {
   isLeaveOnly?: boolean;
   leaveStatus?: "approved" | "rejected";
+  leaveSource?: "manual" | "auto";
 };
 
 interface MonthlySummary {
@@ -47,7 +50,13 @@ interface MonthlySummary {
 }
 
 interface AttendanceClientProps {
-  attendance: AttendanceRecord[];
+  attendanceResponse: {
+    data: AttendanceRecord[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   users: Array<{ id: string; full_name: string; role: string }>;
   userRole: UserRole;
   monthlySummary: MonthlySummary[];
@@ -56,25 +65,44 @@ interface AttendanceClientProps {
 }
 
 export function AttendanceClient({
-  attendance,
+  attendanceResponse,
   users,
   userRole,
   monthlySummary,
   leaves,
   initialMonth,
 }: AttendanceClientProps) {
-  const [userFilter, setUserFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("daily");
-  const [roleFilter, setRoleFilter] = useState<"all" | "super_admin" | "sales_agent" | "processor">("all");
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const { data: attendance, count, page, totalPages, pageSize } = attendanceResponse;
+
+  const [activeTab, setActiveTab] = useState("daily");
+  
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthParam = searchParams.get("month") ?? currentMonth;
+  const roleFilter = (searchParams.get("role") as any) || "all";
+  const selectedEmployeeId = searchParams.get("user_id") || "all";
 
   const handleMonthChange = (value: string) => {
     if (!value) return;
-    router.push(`/dashboard/attendance?month=${value}`);
+    updateFilters({ month: value });
   };
 
   const monthStart = `${monthParam}-01`;
@@ -106,6 +134,7 @@ export function AttendanceClient({
           user: leave.user as { id: string; full_name: string; role: string },
           isLeaveOnly: true,
           leaveStatus: leave.status,
+          leaveSource: leave.source || "manual",
         });
       }
     }
@@ -117,7 +146,8 @@ export function AttendanceClient({
   ].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
 
   const filtered = allDailyRows.filter((a) => {
-    const matchesUser = userFilter === "all" || a.user?.id === userFilter;
+    const matchesUser =
+      selectedEmployeeId === "all" ? true : a.user?.id === selectedEmployeeId;
     const matchesRole =
       userRole !== "super_admin" ||
       roleFilter === "all" ||
@@ -136,12 +166,45 @@ export function AttendanceClient({
   };
 
 
-  const calculateHours = (checkIn: string, checkOut: string | null) => {
-    if (!checkOut) return "In progress";
+  const today = new Date().toISOString().split("T")[0];
+
+  const calculateHours = (checkIn: string, checkOut: string | null, date: string) => {
+    if (!checkOut) {
+      return date === today ? "In progress" : "—";
+    }
     const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
     const hours = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
     return `${hours}h ${minutes}m`;
+  };
+
+  const getAttendanceStatus = (record: DailyRow) => {
+    const isToday = record.date === today;
+    
+    if (record.leaveStatus === "rejected") {
+      return { label: "Leave Rejected", variant: "destructive" as const };
+    }
+    
+    if (record.isLeaveOnly) {
+      if (record.leaveSource === "auto") {
+        return { label: "Auto Absent", variant: "secondary" as const, showBot: true };
+      }
+      return { label: "On Leave", variant: "secondary" as const };
+    }
+    
+    if (isOnLeave(record.user?.id, record.date)) {
+      return { label: "On Leave", variant: "secondary" as const };
+    }
+    
+    if (record.check_out) {
+      return { label: "Completed", variant: "success" as const };
+    }
+    
+    if (isToday) {
+      return { label: "Active", variant: "warning" as const };
+    }
+    
+    return { label: "Missed Checkout", variant: "destructive" as const };
   };
 
   const countLeaveDaysInMonth = (
@@ -164,11 +227,7 @@ export function AttendanceClient({
 
   const filteredSummary = monthlySummary.filter((s) => {
     const matchesUser =
-      userFilter === "all" && selectedEmployeeId === "all"
-        ? true
-        : selectedEmployeeId !== "all"
-        ? s.userId === selectedEmployeeId
-        : userFilter === "all" || s.userId === userFilter;
+      selectedEmployeeId === "all" ? true : s.userId === selectedEmployeeId;
     const matchesRole =
       userRole !== "super_admin" ||
       roleFilter === "all" ||
@@ -253,10 +312,9 @@ export function AttendanceClient({
 
             const handleRoleClick = () => {
               if (isActiveRole) {
-                setRoleFilter("all");
+                updateFilters({ role: "all" });
               } else {
-                setRoleFilter(role as "super_admin" | "sales_agent" | "processor");
-                setSelectedEmployeeId("all");
+                updateFilters({ role, user_id: "all" });
               }
             };
 
@@ -365,7 +423,7 @@ export function AttendanceClient({
                 ]}
                 value={roleFilter}
                 onChange={(e) =>
-                  setRoleFilter(e.target.value as "all" | "super_admin" | "sales_agent" | "processor")
+                  updateFilters({ role: e.target.value })
                 }
               />
               <Select
@@ -377,9 +435,7 @@ export function AttendanceClient({
                 ]}
                 value={selectedEmployeeId}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedEmployeeId(value);
-                  setUserFilter("all");
+                  updateFilters({ user_id: e.target.value });
                 }}
               />
               {(roleFilter !== "all" || selectedEmployeeId !== "all") && (
@@ -388,9 +444,7 @@ export function AttendanceClient({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setRoleFilter("all");
-                    setSelectedEmployeeId("all");
-                    setUserFilter("all");
+                    updateFilters({ role: "all", user_id: "all" });
                   }}
                   className="shrink-0"
                 >
@@ -441,8 +495,6 @@ export function AttendanceClient({
                   <TableBody>
                     {filtered.map((record) => {
                       const leaveOnly = record.isLeaveOnly === true;
-                      const onLeave =
-                        leaveOnly || isOnLeave(record.user?.id, record.date);
                       return (
                   <TableRow key={record.id}>
                         <TableCell className="font-medium">
@@ -467,18 +519,18 @@ export function AttendanceClient({
                         <TableCell>
                           {leaveOnly
                             ? "—"
-                            : calculateHours(record.check_in, record.check_out)}
+                            : calculateHours(record.check_in, record.check_out, record.date)}
                         </TableCell>
                         <TableCell>
-                          {record.leaveStatus === "rejected" ? (
-                            <Badge variant="destructive">Leave Rejected</Badge>
-                          ) : onLeave ? (
-                            <Badge variant="secondary">On Leave</Badge>
-                          ) : (
-                            <Badge variant={record.check_out ? "success" : "warning"}>
-                              {record.check_out ? "Completed" : "Active"}
-                            </Badge>
-                          )}
+                          {(() => {
+                            const status = getAttendanceStatus(record);
+                            return (
+                              <Badge variant={status.variant} className={status.showBot ? "gap-1" : ""}>
+                                {status.showBot && <Bot className="h-3 w-3" />}
+                                {status.label}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
                     );
@@ -486,6 +538,14 @@ export function AttendanceClient({
                   </TableBody>
                 </Table>
               )}
+
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={(p) => updateFilters({ page: p })}
+                totalItems={count}
+                pageSize={pageSize}
+              />
             </CardContent>
           </Card>
         </TabsContent>

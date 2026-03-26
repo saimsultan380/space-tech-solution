@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/auth";
 import { SettingsClient } from "@/components/settings/settings-client";
 import { getUsers } from "@/lib/actions/users";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
+import { getCompanySettings } from "@/lib/actions/company-settings";
 
 export default async function SettingsPage() {
   const user = await requireAuth();
@@ -13,11 +14,12 @@ export default async function SettingsPage() {
     allowed_modules: string[] | null;
   }> = [];
   let attendanceSettings = await getAttendanceSettings();
+  const companySettings = await getCompanySettings();
 
   if (user.role === "super_admin") {
-    const [users, settings] = await Promise.all([getUsers(), getAttendanceSettings()]);
+    const [usersResponse, settings] = await Promise.all([getUsers(), getAttendanceSettings()]);
     attendanceSettings = settings;
-    manageableUsers = users.map((entry) => ({
+    manageableUsers = usersResponse.data.map((entry) => ({
       id: entry.id,
       full_name: entry.full_name,
       email: entry.email,
@@ -31,6 +33,7 @@ export default async function SettingsPage() {
       user={user}
       manageableUsers={manageableUsers}
       attendanceSettings={attendanceSettings}
+      companySettings={companySettings}
     />
   );
 }

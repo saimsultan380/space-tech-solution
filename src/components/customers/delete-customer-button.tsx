@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
 import { deleteCustomer } from "@/lib/actions/customers";
 import { Trash2 } from "lucide-react";
@@ -30,9 +30,10 @@ export function DeleteCustomerButton({ id, name }: { id: string; name: string })
         <DialogHeader>
           <DialogTitle>Delete Call Log Response</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground mt-2">
-          Are you sure you want to delete <strong>{name}</strong>? This will also delete all related sales and records. This action cannot be undone.
-        </p>
+        <DialogDescription className="mt-2 text-left">
+          Are you sure you want to delete <strong>{name}</strong>? This will also delete all related
+          sales and records. This action cannot be undone.
+        </DialogDescription>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel

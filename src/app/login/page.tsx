@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("inactive") === "1") {
+      setNotice(
+        "Your account is inactive. It was deactivated by an administrator. Please contact admin to reactivate it.",
+      );
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,15 +34,39 @@ export default function LoginPage() {
     setError("");
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
     if (authError) {
       setError(authError.message);
       setLoading(false);
       return;
+    }
+
+    // If auth succeeded but the profile is inactive, immediately sign out and show a clear notice.
+    try {
+      const userId = authData.user?.id;
+      if (userId) {
+        const { data: profile } = await supabase
+          .from("users")
+          .select("is_active")
+          .eq("id", userId)
+          .single();
+
+        if (profile?.is_active === false) {
+          await supabase.auth.signOut();
+          setNotice(
+            "Your account is inactive. It was deactivated by an administrator. Please contact admin to reactivate it.",
+          );
+          setLoading(false);
+          return;
+        }
+      }
+    } catch {
+      // ignore and continue to dashboard (middleware/requireAuth will still enforce)
     }
 
     router.push("/dashboard");
@@ -45,7 +80,7 @@ export default function LoginPage() {
         <div className="absolute -left-[10%] -top-[10%] h-[40%] w-[40%] rounded-full bg-primary/10 blur-[120px] animate-pulse" />
         <div className="absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full bg-blue-500/10 blur-[120px] animate-pulse [animation-delay:2s]" />
         <div className="absolute left-[20%] top-[30%] h-32 w-32 rounded-full bg-purple-500/5 blur-[60px]" />
-        
+
         {/* Grid Pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
       </div>
@@ -54,11 +89,10 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary/5 border-r border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-blue-600/10" />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiM4MDgwODAiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
-        
+
         <div className="relative z-10 flex flex-col justify-between p-16 text-foreground">
           <div>
             <div className="flex items-center gap-4">
-              
               <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                 Space Tech Solution
               </span>
@@ -73,33 +107,49 @@ export default function LoginPage() {
               </span>
               Enterprise CRM Platform
             </div>
-            
+
             <h1 className="text-5xl font-extrabold leading-[1.1] tracking-tight xl:text-6xl">
-              Manage your <span className="text-primary">sales,</span><br />
-              <span className="text-blue-600">billing</span> & team<br />
+              Manage your <span className="text-primary">sales,</span>
+              <br />
+              <span className="text-blue-600">billing</span> & team
+              <br />
               in one place.
             </h1>
-            
+
             <p className="max-w-md text-lg text-muted-foreground leading-relaxed">
-              A powerful internal CRM to track sales pipelines, process billing, manage chargebacks, and monitor team performance with real-time analytics.
+              A powerful internal CRM to track sales pipelines, process billing,
+              manage chargebacks, and monitor team performance with real-time
+              analytics.
             </p>
 
             <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border">
               <div className="space-y-1">
-                <p className="text-3xl font-bold tracking-tight text-primary">99.9%</p>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Uptime</p>
+                <p className="text-3xl font-bold tracking-tight text-primary">
+                  99.9%
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Uptime
+                </p>
               </div>
               <div className="space-y-1">
-                <p className="text-3xl font-bold tracking-tight text-blue-600">50K+</p>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Processed</p>
+                <p className="text-3xl font-bold tracking-tight text-blue-600">
+                  50K+
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Processed
+                </p>
               </div>
               <div className="space-y-1">
-                <p className="text-3xl font-bold tracking-tight text-emerald-600">3x</p>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Efficiency</p>
+                <p className="text-3xl font-bold tracking-tight text-emerald-600">
+                  3x
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Efficiency
+                </p>
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             Secured with enterprise-grade encryption
@@ -115,21 +165,24 @@ export default function LoginPage() {
       <div className="relative z-10 flex w-full items-center justify-center px-6 lg:w-1/2">
         <div className="w-full max-w-[440px] animate-[fade-in_0.6s_ease-out]">
           {/* Mobile Logo */}
-          <div className="mb-12 flex flex-col items-center text-center lg:hidden">
-            
-            <h1 className="text-2xl font-bold tracking-tight">Space Tech Solution</h1>
-            <p className="mt-2 text-sm text-muted-foreground">CRM Management System</p>
-          </div>
+          <div className="mb-12 flex flex-col items-center text-center lg:hidden"></div>
 
           <div className="mb-10 text-center lg:text-left">
-            <h2 className="text-3xl font-bold tracking-tight lg:text-4xl">Welcome back</h2>
-            <p className="mt-3 text-[15px] text-muted-foreground">Enter your credentials to access your account</p>
+            <h2 className="text-3xl font-bold tracking-tight lg:text-4xl">
+              Welcome Back
+            </h2>
+            <p className="mt-3 text-[15px] text-muted-foreground">
+              Enter your credentials to access your account
+            </p>
           </div>
 
           <div className="relative rounded-md border border-border bg-card/50 p-8 shadow-2xl backdrop-blur-xl lg:border-none lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-semibold text-foreground/80 ml-1">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-semibold text-foreground/80 ml-1"
+                >
                   Email address
                 </label>
                 <div className="group relative">
@@ -150,7 +203,10 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
-                  <label htmlFor="password" className="text-sm font-semibold text-foreground/80">
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-semibold text-foreground/80"
+                  >
                     Password
                   </label>
                 </div>
@@ -170,6 +226,13 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {notice && (
+                <div className="flex items-center gap-3 rounded-md bg-destructive/5 border border-destructive/30 px-4 py-3 text-[14px] text-destructive animate-in fade-in zoom-in duration-300">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <p className="font-medium">{notice}</p>
+                </div>
+              )}
+
               {error && (
                 <div className="flex items-center gap-3 rounded-md bg-destructive/5 border border-destructive/20 px-4 py-3 text-[14px] text-destructive animate-in fade-in zoom-in duration-300">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -177,9 +240,9 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <Button 
-                type="submit" 
-                className="group h-13 w-full rounded-md text-[16px] font-bold shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98]" 
+              <Button
+                type="submit"
+                className="group h-13 w-full rounded-md text-[16px] font-bold shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98]"
                 disabled={loading}
               >
                 {loading ? (
@@ -202,7 +265,12 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-10 text-center text-[13px] font-medium text-muted-foreground/80">
-            Forgot password? <Link href="/forgot-password"><span className="text-primary hover:underline">Reset it here</span></Link>
+            Forgot password?{" "}
+            <Link href="/forgot-password">
+              <span className="text-primary hover:underline">
+                Reset it here
+              </span>
+            </Link>
           </p>
         </div>
       </div>

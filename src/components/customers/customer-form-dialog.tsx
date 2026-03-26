@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
 import { createCustomer, updateCustomer } from "@/lib/actions/customers";
+import { createNote } from "@/lib/actions/notes";
 import { Pencil } from "lucide-react";
 
 interface CustomerFormDialogProps {
@@ -49,6 +50,7 @@ export function CustomerFormDialog({
     dob: customer?.dob || "",
     ssn: "",
     account_no: customer?.account_no || "",
+    notes: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,8 +61,14 @@ export function CustomerFormDialog({
     try {
       if (isEdit) {
         await updateCustomer(customer.id, form);
+        if (form.notes.trim()) {
+          await createNote({ customer_id: customer.id, content: form.notes.trim() });
+        }
       } else {
-        await createCustomer(form);
+        const newCustomerId = await createCustomer(form);
+        if (form.notes.trim()) {
+          await createNote({ customer_id: newCustomerId, content: form.notes.trim() });
+        }
       }
       close();
     } catch (err) {
@@ -82,13 +90,12 @@ export function CustomerFormDialog({
       <DialogHeader>
         <DialogTitle>{isEdit ? "Edit Call Log Response" : "New Call Log Response"}</DialogTitle>
       </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4" noValidate>
         <Input
           id="name"
           label="Full Name"
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          required
         />
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -97,14 +104,12 @@ export function CustomerFormDialog({
             type="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            required
           />
           <Input
             id="phone"
             label="Phone"
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            required
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -125,6 +130,13 @@ export function CustomerFormDialog({
           />
         </div>
         <Input
+          id="address"
+          label="Address"
+          placeholder="Enter address"
+          value={form.address}
+          onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+        />
+        <Input
           id="account_no"
           label="Account Number"
           placeholder="Account / Policy No."
@@ -132,11 +144,11 @@ export function CustomerFormDialog({
           onChange={(e) => setForm((f) => ({ ...f, account_no: e.target.value }))}
         />
         <Textarea
-          id="address"
+          id="notes"
           label="Notes / Comments"
           placeholder="Write lead notes or response details..."
-          value={form.address}
-          onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
         />
 
         {error && (

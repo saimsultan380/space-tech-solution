@@ -20,11 +20,17 @@ export async function getAttendance(filters?: {
   date?: string;
   user_id?: string;
   month?: string;
+  page?: number;
+  pageSize?: number;
 }) {
   const supabase = await createClient();
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
+
   let query = supabase
     .from("attendance")
-    .select("*, user:users(id, full_name, role)")
+    .select("*, user:users(id, full_name, role)", { count: "exact" })
     .order("date", { ascending: false });
 
   if (filters?.date) {
@@ -41,9 +47,17 @@ export async function getAttendance(filters?: {
     query = query.eq("user_id", filters.user_id);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data;
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function checkIn() {
@@ -56,10 +70,10 @@ export async function checkIn() {
   const latestCheckInMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
 
   if (currentMinutes < shiftStartMinutes) {
-    throw new Error(`Check-in opens at ${settings.shift_start_12h}`);
+    throw new Error(`Check-in is not available yet. Check-in opens at ${settings.shift_start_12h}.`);
   }
   if (currentMinutes > latestCheckInMinutes) {
-    throw new Error(`Check-in is closed after ${settings.checkout_latest_12h}`);
+    throw new Error(`Check-in window has closed. Check-in was available until ${settings.checkout_latest_12h}.`);
   }
 
   const { data: existing } = await supabase
@@ -100,10 +114,10 @@ export async function checkOut() {
   const latestCheckOutMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
 
   if (currentMinutes < shiftEndMinutes) {
-    throw new Error(`Check-out starts at ${settings.shift_end_12h}`);
+    throw new Error(`Check-out is not available yet. You can checkout after ${settings.shift_end_12h}.`);
   }
   if (currentMinutes > latestCheckOutMinutes) {
-    throw new Error(`Check-out closes at ${settings.checkout_latest_12h}`);
+    throw new Error(`Check-out window has closed. Checkout was available until ${settings.checkout_latest_12h}.`);
   }
 
   const { data: record } = await supabase

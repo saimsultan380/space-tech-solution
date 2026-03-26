@@ -7,16 +7,18 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { Download, Eye } from "lucide-react";
 import Link from "next/link";
-import { downloadPayslipPdf } from "@/lib/payslip-pdf";
+import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { useState } from "react";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
+import type { CompanySettings } from "@/lib/actions/company-settings";
 
 interface PayslipDashboardCardProps {
   payslips: Payslip[];
   title?: string;
+  companySettings: CompanySettings;
 }
 
-export function PayslipDashboardCard({ payslips, title = "Recent Payslips" }: PayslipDashboardCardProps) {
+export function PayslipDashboardCard({ payslips, title = "Recent Payslips", companySettings }: PayslipDashboardCardProps) {
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
   return (
@@ -61,7 +63,12 @@ export function PayslipDashboardCard({ payslips, title = "Recent Payslips" }: Pa
                     <Button size="sm" variant="ghost" onClick={() => setViewingPayslip(payslip)}>
                       <Eye className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => downloadPayslipPdf(payslip)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void previewPayslipPdf(payslip, companySettings)}
+                      title="Preview PDF"
+                    >
                       <Download className="h-3.5 w-3.5" />
                       PDF
                     </Button>

@@ -7,16 +7,37 @@ import { revalidatePath } from "next/cache";
 import type { UserRole } from "@/lib/types";
 import { NAV_ITEMS } from "@/lib/constants";
 
-export async function getUsers() {
+export async function getUsers(filters?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}) {
   await requireRole(["super_admin", "processor", "sales_agent"]);
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
+
+  let query = supabase
     .from("users")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false });
 
+  if (filters?.search) {
+    query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
+  }
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data;
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function createUser(formData: {

@@ -11,6 +11,7 @@ import {
 import { getTodayAttendance } from "@/lib/actions/attendance";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { getRecentPayslips } from "@/lib/actions/payslips";
+import { getCompanySettings } from "@/lib/actions/company-settings";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { AgentDashboard } from "@/components/dashboard/agent-dashboard";
 import { ProcessorDashboard } from "@/components/dashboard/processor-dashboard";
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
   let revenueData: Array<{ date: string; revenue: number }> = [];
   let recentPayslips: Payslip[] = [];
   let attendanceSettings = await getAttendanceSettings();
+  let companySettings = await getCompanySettings();
 
   try {
     [stats, todayAttendance, salesPerAgent, revenueData, recentPayslips, attendanceSettings] = await Promise.all([
@@ -70,6 +72,7 @@ export default async function DashboardPage() {
       revenueData={revenueData}
       recentPayslips={recentPayslips}
       attendanceSettings={attendanceSettings}
+      companySettings={companySettings}
     />
   );
 }
@@ -102,6 +105,7 @@ async function AgentDashboardPage() {
   let todayAttendance = null;
   let recentPayslips: Payslip[] = [];
   let attendanceSettings = await getAttendanceSettings();
+  let companySettings = await getCompanySettings();
 
   try {
     [agentStats, recentSales, todayAttendance, recentPayslips, attendanceSettings] = await Promise.all([
@@ -123,6 +127,7 @@ async function AgentDashboardPage() {
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
       attendanceSettings={attendanceSettings}
+      companySettings={companySettings}
     />
   );
 }
@@ -157,6 +162,7 @@ async function ProcessorDashboardPage() {
   let todayAttendance = null;
   let recentPayslips: Payslip[] = [];
   let attendanceSettings = await getAttendanceSettings();
+  let companySettings = await getCompanySettings();
 
   try {
     [procStats, pendingSales, todayAttendance, recentPayslips, attendanceSettings] = await Promise.all([
@@ -178,6 +184,7 @@ async function ProcessorDashboardPage() {
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
       attendanceSettings={attendanceSettings}
+      companySettings={companySettings}
     />
   );
 }

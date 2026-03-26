@@ -5,22 +5,26 @@ import { AttendanceClient } from "@/components/attendance/attendance-client";
 import { getAllLeaves, getLeavesForCurrentUser } from "@/lib/actions/leaves";
 
 export default async function AttendancePage(props: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; page?: string; user_id?: string }>;
 }) {
   const user = await requireAuth();
   const searchParams = await props.searchParams;
   const currentMonth = new Date().toISOString().slice(0, 7);
   const month = searchParams.month ?? currentMonth;
+  const page = Number(searchParams.page) || 1;
+  const user_id = searchParams.user_id || (user.role === "super_admin" ? "all" : user.id);
 
   const isSuperAdmin = user.role === "super_admin";
 
   const attendanceFilters = {
     month,
-    ...(isSuperAdmin ? {} : { user_id: user.id }),
+    user_id,
+    page,
+    pageSize: 10,
   };
   const summaryMonth = month;
 
-  const [attendance, users, monthlySummary, leaves] = await Promise.all([
+  const [attendanceResponse, usersResponse, monthlySummary, leaves] = await Promise.all([
     getAttendance(attendanceFilters),
     getUsers(),
     isSuperAdmin
@@ -31,17 +35,19 @@ export default async function AttendancePage(props: {
       : getLeavesForCurrentUser({ status: "approved" }),
   ]);
 
+  const allUsers = usersResponse.data;
+
   const visibleUsers = isSuperAdmin
-    ? users
-    : users.filter((u: { id: string }) => u.id === user.id);
+    ? allUsers
+    : allUsers.filter((u: { id: string }) => u.id === user.id);
 
   return (
     <AttendanceClient
-      attendance={attendance}
+      attendanceResponse={attendanceResponse}
       users={visibleUsers}
       userRole={user.role}
       monthlySummary={monthlySummary}
-      leaves={leaves}
+      leaves={leaves.data}
       initialMonth={month}
     />
   );

@@ -76,6 +76,18 @@ export interface Sale {
   processor?: AppUser;
 }
 
+export interface SaleAttachment {
+  id: string;
+  sale_id: string;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
 export interface Payment {
   id: string;
   sale_id: string;
@@ -112,6 +124,10 @@ export interface AttendanceSettings {
   late_after_time: string;
   shift_end_time: string;
   checkout_latest_time: string;
+  notify_after_minutes: number;
+  auto_leave_after_minutes: number;
+  auto_leave_enabled: boolean;
+  auto_leave_type: string;
   created_at: string;
   updated_at: string;
 }
@@ -136,6 +152,7 @@ export interface Leave {
   status: LeaveStatus;
   approver_id: string | null;
   approver_notes: string | null;
+  source: "manual" | "auto";
   created_at: string;
   updated_at: string;
   user?: AppUser;

@@ -16,10 +16,18 @@ import { EmptyState } from "@/components/ui/loading";
 import { formatDate } from "@/lib/utils";
 import type { Leave, UserRole } from "@/lib/types";
 import { LeaveFormDialog } from "./leave-form-dialog";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Bot } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 
 interface MyLeavesClientProps {
-  leaves: Leave[];
+  leavesResponse: {
+    data: Leave[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   userRole: UserRole;
 }
 
@@ -29,12 +37,29 @@ const statusVariant: Record<string, "default" | "success" | "destructive" | "war
   rejected: "destructive",
 };
 
-export function MyLeavesClient({ leaves, userRole }: MyLeavesClientProps) {
+export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const { data: leaves, count, page, totalPages, pageSize } = leavesResponse;
+
   const [showForm, setShowForm] = useState(false);
 
-  const sorted = [...leaves].sort((a, b) =>
-    a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0
-  );
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const title = userRole === "sales_agent" ? "My Leaves" : "Leave Requests";
   const subtitle =
@@ -58,54 +83,75 @@ export function MyLeavesClient({ leaves, userRole }: MyLeavesClientProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm text-muted-foreground">
-            {sorted.length} request{sorted.length !== 1 ? "s" : ""}
+            {count} request{count !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {sorted.length === 0 ? (
+          {leaves.length === 0 ? (
             <EmptyState
               title="No leave requests yet"
               description="Click “Apply Leave” to submit your first leave request."
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dates</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Applied</TableHead>
-                  <TableHead>Approver Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((leave) => (
-                  <TableRow key={leave.id}>
-                    <TableCell>
-                      {formatDate(leave.start_date)}
-                      {leave.end_date && leave.end_date !== leave.start_date
-                        ? ` - ${formatDate(leave.end_date)}`
-                        : ""}
-                    </TableCell>
-                    <TableCell className="capitalize">{leave.type}</TableCell>
-                    <TableCell className="max-w-[260px] truncate" title={leave.reason}>
-                      {leave.reason}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[leave.status] || "default"} className="capitalize">
-                        {leave.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(leave.created_at)}</TableCell>
-                    <TableCell className="max-w-[260px] truncate" title={leave.approver_notes || ""}>
-                      {leave.approver_notes || "-"}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dates</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Applied</TableHead>
+                    <TableHead>Approver Notes</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {leaves.map((leave) => (
+                    <TableRow key={leave.id}>
+                      <TableCell>
+                        {formatDate(leave.start_date)}
+                        {leave.end_date && leave.end_date !== leave.start_date
+                          ? ` - ${formatDate(leave.end_date)}`
+                          : ""}
+                      </TableCell>
+                      <TableCell className="capitalize">{leave.type}</TableCell>
+                      <TableCell>
+                        {leave.source === "auto" ? (
+                          <Badge variant="secondary" className="gap-1">
+                            <Bot className="h-3 w-3" />
+                            Auto
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Manual</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[260px] truncate" title={leave.reason}>
+                        {leave.reason}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant[leave.status] || "default"} className="capitalize">
+                          {leave.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(leave.created_at)}</TableCell>
+                      <TableCell className="max-w-[200px] truncate italic text-muted-foreground">
+                        {leave.approver_notes || "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
+          
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
         </CardContent>
       </Card>
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +12,13 @@ import type { Payslip } from "@/lib/types";
 import { Download, Plus, Send, ChevronLeft, ChevronRight, Pencil, Copy, MoreHorizontal, Trash2, Eye } from "lucide-react";
 import { PayslipFormDialog } from "./payslip-form-dialog";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
-import { downloadPayslipPdf } from "@/lib/payslip-pdf";
+import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import type { CompanySettings } from "@/lib/actions/company-settings";
+
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 
 interface EmployeeRow {
   id: string;
@@ -26,54 +29,72 @@ interface EmployeeRow {
 }
 
 interface PayslipsAdminClientProps {
-  payslips: Payslip[];
+  payslipsResponse: {
+    data: Payslip[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   employees: EmployeeRow[];
+  companySettings: CompanySettings;
 }
 
-export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClientProps) {
+export function PayslipsAdminClient({ payslipsResponse, employees, companySettings }: PayslipsAdminClientProps) {
   const MENU_GAP = 8;
   const MENU_MARGIN = 8;
   const MENU_WIDTH = 220;
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
+
   const [showForm, setShowForm] = useState(false);
   const [editingPayslip, setEditingPayslip] = useState<Payslip | null>(null);
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cloningId, setCloningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const searchTerm = searchParams.get("q") || "";
+  const statusFilter = searchParams.get("status") || "all";
   const [activeMonth, setActiveMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [menuState, setMenuState] = useState<{ id: string; x: number; y: number; width: number } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const totals = useMemo(
     () => ({
-      total: payslips.length,
-      paid: payslips.filter((p) => p.status === "paid").length,
-      processed: payslips.filter((p) => p.status === "processed").length,
+      total: count,
+      paid: payslips.filter((p) => p.status === "paid").length, // This is only for the current page now
+      processed: payslips.filter((p) => p.status === "processed").length, // This is only for the current page now
     }),
-    [payslips]
+    [payslips, count]
   );
 
   const filteredPayslips = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
+    // We still do some month filtering on client side for now as requested by existing logic
+    // but the search and status filters are now partially handled by the server
     return payslips.filter((payslip) => {
       if (!isPayslipInMonth(payslip, activeMonth)) return false;
-      if (statusFilter !== "all" && payslip.status !== statusFilter) return false;
-      if (!query) return true;
-      const text = [
-        payslip.user?.full_name || "",
-        payslip.user?.role || "",
-        payslip.employee_id_display || "",
-        payslip.department || "",
-        payslip.status || "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return text.includes(query);
+      return true;
     });
-  }, [payslips, activeMonth, statusFilter, searchTerm]);
+  }, [payslips, activeMonth]);
 
   const monthLabel = useMemo(() => {
     const [year, month] = activeMonth.split("-").map(Number);
@@ -202,7 +223,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
             <Input
               id="search_payslip"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => updateFilters({ q: e.target.value })}
               placeholder="Search by employee, role, id, or department..."
               className="h-10"
               label="Search"
@@ -211,7 +232,7 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
               id="status_filter"
               label="Status"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => updateFilters({ status: e.target.value })}
               options={[
                 { value: "all", label: "All" },
                 { value: "processed", label: "Processed" },
@@ -315,6 +336,15 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
             </Table>
           )}
         </CardContent>
+        <div className="border-t border-border px-6 py-4">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
+        </div>
       </Card>
 
       {menuState && menuPayslip && (
@@ -339,7 +369,18 @@ export function PayslipsAdminClient({ payslips, employees }: PayslipsAdminClient
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
             onClick={() => {
               setMenuState(null);
-              downloadPayslipPdf(menuPayslip);
+              void previewPayslipPdf(menuPayslip, companySettings);
+            }}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview PDF
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
+            onClick={() => {
+              setMenuState(null);
+              downloadPayslipPdf(menuPayslip, companySettings);
             }}
           >
             <Download className="h-3.5 w-3.5" />

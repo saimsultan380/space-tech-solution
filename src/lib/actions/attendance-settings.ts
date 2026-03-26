@@ -63,6 +63,10 @@ export async function getAttendanceSettings(): Promise<
     late_after_time: "09:15:00",
     shift_end_time: "18:00:00",
     checkout_latest_time: "23:00:00",
+    notify_after_minutes: 60,
+    auto_leave_after_minutes: 240,
+    auto_leave_enabled: true,
+    auto_leave_type: "casual",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -81,6 +85,10 @@ export async function updateAttendanceSettings(input: {
   late_after_12h: string;
   shift_end_12h: string;
   checkout_latest_12h: string;
+  notify_after_minutes?: number;
+  auto_leave_after_minutes?: number;
+  auto_leave_enabled?: boolean;
+  auto_leave_type?: string;
 }) {
   await requireRole(["super_admin"]);
   const supabase = await createClient();
@@ -100,18 +108,30 @@ export async function updateAttendanceSettings(input: {
     throw new Error("Latest checkout cannot be before shift end");
   }
 
+  const updateData: Record<string, unknown> = {
+    id: 1,
+    shift_start_time: shiftStart,
+    late_after_time: lateAfter,
+    shift_end_time: shiftEnd,
+    checkout_latest_time: checkoutLatest,
+  };
+
+  if (input.notify_after_minutes !== undefined) {
+    updateData.notify_after_minutes = input.notify_after_minutes;
+  }
+  if (input.auto_leave_after_minutes !== undefined) {
+    updateData.auto_leave_after_minutes = input.auto_leave_after_minutes;
+  }
+  if (input.auto_leave_enabled !== undefined) {
+    updateData.auto_leave_enabled = input.auto_leave_enabled;
+  }
+  if (input.auto_leave_type !== undefined) {
+    updateData.auto_leave_type = input.auto_leave_type;
+  }
+
   const { error } = await supabase
     .from("attendance_settings")
-    .upsert(
-      {
-        id: 1,
-        shift_start_time: shiftStart,
-        late_after_time: lateAfter,
-        shift_end_time: shiftEnd,
-        checkout_latest_time: checkoutLatest,
-      },
-      { onConflict: "id" }
-    );
+    .upsert(updateData, { onConflict: "id" });
 
   if (error) throw new Error(error.message);
 

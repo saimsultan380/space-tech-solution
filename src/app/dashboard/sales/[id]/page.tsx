@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { NotesSection } from "@/components/shared/notes-section";
 import { ProcessSaleForm } from "@/components/sales/process-sale-form";
+import { decrypt } from "@/lib/encryption";
+import { getSaleAttachments } from "@/lib/actions/sale-attachments";
+import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -31,10 +34,12 @@ export default async function SaleDetailPage(props: {
   const params = await props.params;
   const user = await requireAuth();
   const currency = user.preferred_currency || "USD";
-  const [sale, notes] = await Promise.all([
+  const [sale, notes, attachments] = await Promise.all([
     getSale(params.id),
     getNotes({ sale_id: params.id }),
+    getSaleAttachments(params.id),
   ]);
+  const ssnValue = sale.ssn_encrypted ? decrypt(sale.ssn_encrypted) || "N/A" : "N/A";
 
   const canProcess = user.role === "processor" || user.role === "super_admin";
   const canEdit =
@@ -89,7 +94,7 @@ export default async function SaleDetailPage(props: {
               value={isInsurance ? (sale.policy_holder_name || "N/A") : (sale.account_holder_name || "N/A")}
             />
             <InfoRow label="Date of Birth" value={sale.dob || "N/A"} />
-            <InfoRow label="SSN" value={sale.ssn_encrypted ? "***-**-****" : "N/A"} />
+            <InfoRow label="SSN" value={ssnValue} />
           </CardContent>
         </Card>
 
@@ -196,6 +201,13 @@ export default async function SaleDetailPage(props: {
       {canProcess && sale.status === "pending" && (
         <ProcessSaleForm saleId={sale.id} />
       )}
+
+      <SaleAttachmentsSection
+        saleId={sale.id}
+        initialAttachments={attachments}
+        mode="view"
+        userRole={user.role}
+      />
 
       <NotesSection notes={notes} saleId={params.id} />
     </div>

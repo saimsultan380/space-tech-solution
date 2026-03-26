@@ -10,15 +10,20 @@ interface LeaveFilters {
   status?: LeaveStatus | "all";
   month?: string;
   user_id?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export async function getLeavesForCurrentUser(filters?: Omit<LeaveFilters, "user_id">) {
   const user = await requireAuth();
   const supabase = await createClient();
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
 
   let query = supabase
     .from("leaves")
-    .select("*, user:users!leaves_user_id_fkey(id, full_name, role), approver:users!leaves_approver_id_fkey(id, full_name)")
+    .select("*, user:users!leaves_user_id_fkey(id, full_name, role), approver:users!leaves_approver_id_fkey(id, full_name)", { count: "exact" })
     .eq("user_id", user.id)
     .order("start_date", { ascending: false });
 
@@ -34,9 +39,17 @@ export async function getLeavesForCurrentUser(filters?: Omit<LeaveFilters, "user
     query = query.gte("start_date", monthStart).lt("start_date", monthEnd);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data;
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function getAllLeaves(filters?: LeaveFilters) {
@@ -46,9 +59,13 @@ export async function getAllLeaves(filters?: LeaveFilters) {
   }
 
   const supabase = await createClient();
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
+
   let query = supabase
     .from("leaves")
-    .select("*, user:users!leaves_user_id_fkey(id, full_name, role), approver:users!leaves_approver_id_fkey(id, full_name)")
+    .select("*, user:users!leaves_user_id_fkey(id, full_name, role), approver:users!leaves_approver_id_fkey(id, full_name)", { count: "exact" })
     .order("start_date", { ascending: false });
 
   if (filters?.status && filters.status !== "all") {
@@ -65,9 +82,17 @@ export async function getAllLeaves(filters?: LeaveFilters) {
     query = query.gte("start_date", monthStart).lt("start_date", monthEnd);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data;
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function createLeave(formData: {

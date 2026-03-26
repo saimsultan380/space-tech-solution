@@ -17,34 +17,48 @@ import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Eye } from "lucide-react";
 import Link from "next/link";
 
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
+
 interface CustomersClientProps {
-  customers: Array<{
-    id: string;
-    name: string;
-    phone: string;
-    email: string;
-    address: string;
-    dob: string;
-    account_no: string;
-    created_at: string;
-    created_by_user: { full_name: string } | null;
-  }>;
+  customersResponse: {
+    data: any[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   userRole: UserRole;
 }
 
-export function CustomersClient({ customers, userRole }: CustomersClientProps) {
-  const [search, setSearch] = useState("");
+export function CustomersClient({ customersResponse, userRole }: CustomersClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [showForm, setShowForm] = useState(false);
 
-  const filtered = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search)
-  );
+  const { data: customers, count, page, totalPages, pageSize } = customersResponse;
+
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const search = searchParams.get("q") || "";
 
   const canEdit = userRole === "super_admin" || userRole === "sales_agent";
 
@@ -70,17 +84,17 @@ export function CustomersClient({ customers, userRole }: CustomersClientProps) {
               <Input
                 placeholder="Search call logs responses..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => updateFilters({ q: e.target.value })}
                 className="pl-10"
               />
             </div>
             <CardTitle className="text-sm text-muted-foreground whitespace-nowrap">
-              {filtered.length} call log response{filtered.length !== 1 ? "s" : ""}
+              {count} call log response{count !== 1 ? "s" : ""}
             </CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {customers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"
               description={search ? "Try adjusting your search" : "Add your first call log response to get started"}
@@ -93,45 +107,75 @@ export function CustomersClient({ customers, userRole }: CustomersClientProps) {
               }
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>DOB</TableHead>
-                  <TableHead>Created</TableHead>
-                  {canEdit && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <Link
-                        href={`/dashboard/call-logs-responses/${customer.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {customer.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{customer.email}</TableCell>
-                    <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.dob ? formatDate(customer.dob) : "-"}</TableCell>
-                    <TableCell>{formatDate(customer.created_at)}</TableCell>
-                    {canEdit && (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <CustomerFormDialog customer={customer} />
-                          <DeleteCustomerButton id={customer.id} name={customer.name} />
-                        </div>
-                      </TableCell>
-                    )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>DOB</TableHead>
+                    <TableHead>Recent Note</TableHead>
+                    <TableHead>Created</TableHead>
+                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <Link
+                          href={`/dashboard/call-logs-responses/${customer.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {customer.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{customer.email}</TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>{customer.dob ? formatDate(customer.dob) : "-"}</TableCell>
+                      <TableCell>
+                        {customer.recent_note ? (
+                          <span
+                            className="block max-w-[340px] truncate text-sm text-muted-foreground"
+                            title={customer.recent_note}
+                          >
+                            {customer.recent_note}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatDate(customer.created_at)}</TableCell>
+                      {canEdit && (
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/dashboard/call-logs-responses/${customer.id}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                            <CustomerFormDialog customer={customer} />
+                            <DeleteCustomerButton id={customer.id} name={customer.name} />
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
+          
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
         </CardContent>
       </Card>
 

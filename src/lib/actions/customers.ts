@@ -10,15 +10,66 @@ function revalidateCallLogsResponsesPaths() {
   revalidatePath("/dashboard/customers");
 }
 
-export async function getCustomers() {
+export async function getCustomers(filters?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
+
+  let query = supabase
     .from("customers")
-    .select("*, created_by_user:users!customers_created_by_fkey(full_name)")
+    .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
     .order("created_at", { ascending: false });
 
+  if (filters?.search) {
+    query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+  }
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data;
+
+  const customers = (data || []) as Array<{ id: string } & Record<string, unknown>>;
+  const ids = customers.map((c) => c.id).filter(Boolean);
+
+  let recentNoteByCustomerId = new Map<string, { content: string; created_at: string }>();
+  if (ids.length > 0) {
+    const { data: notesData, error: notesError } = await supabase
+      .from("notes")
+      .select("customer_id, content, created_at")
+      .in("customer_id", ids)
+      .order("created_at", { ascending: false });
+
+    if (notesError) throw new Error(notesError.message);
+
+    (notesData || []).forEach((n: { customer_id: string | null; content: string; created_at: string }) => {
+      if (!n.customer_id) return;
+      if (!recentNoteByCustomerId.has(n.customer_id)) {
+        recentNoteByCustomerId.set(n.customer_id, { content: n.content, created_at: n.created_at });
+      }
+    });
+  }
+
+  const enriched = customers.map((c) => {
+    const recent = recentNoteByCustomerId.get(c.id) || null;
+    return {
+      ...c,
+      recent_note: recent?.content || null,
+      recent_note_created_at: recent?.created_at || null,
+    };
+  });
+
+  return {
+    data: enriched,
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function getCustomer(id: string) {
@@ -45,19 +96,24 @@ export async function createCustomer(formData: {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  const { error } = await supabase.from("customers").insert({
-    name: formData.name,
-    phone: formData.phone,
-    email: formData.email,
-    address: formData.address,
-    dob: formData.dob || null,
-    ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
-    account_no: formData.account_no || "",
-    created_by: user.id,
-  });
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      dob: formData.dob || null,
+      ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
+      account_no: formData.account_no || "",
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) throw new Error(error.message);
   revalidateCallLogsResponsesPaths();
+  return data.id as string;
 }
 
 export async function updateCustomer(

@@ -47,6 +47,10 @@ export async function requireAuth(): Promise<AppUser> {
 
   const appUser = await getAppUser();
   if (!appUser) redirect("/login");
+  if (appUser.is_active === false) {
+    // User is authenticated in Supabase Auth but disabled in app profile
+    redirect("/login?inactive=1");
+  }
   return appUser;
 }
 

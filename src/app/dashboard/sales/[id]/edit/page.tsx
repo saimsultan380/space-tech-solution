@@ -1,29 +1,34 @@
 import { requireAuth } from "@/lib/auth";
 import { getSale } from "@/lib/actions/sales";
-import { getCustomers } from "@/lib/actions/customers";
+import { getAgentNames } from "@/lib/actions/agent-names";
 import { SaleForm } from "@/components/sales/sale-form";
+import { getSaleAttachments } from "@/lib/actions/sale-attachments";
+import { decrypt } from "@/lib/encryption";
 
 export default async function EditSalePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await requireAuth();
-  const [sale, customers] = await Promise.all([
+  const [sale, agents, attachments] = await Promise.all([
     getSale(params.id),
-    getCustomers(),
+    getAgentNames(),
+    getSaleAttachments(params.id),
   ]);
 
   const initialValues = {
     sale_type: sale.sale_type,
     subtype: sale.subtype,
     customer_id: sale.customer_id,
+    agent_name: sale.agent_name || "",
     sale_date: sale.sale_date || new Date().toISOString().split("T")[0],
     customer_phone: sale.customer_phone,
     customer_name: sale.customer_name || (sale.customer as { name?: string } | null)?.name || "",
     customer_email: sale.customer_email || (sale.customer as { email?: string } | null)?.email || "",
     service_address: sale.service_address || (sale.customer as { address?: string } | null)?.address || "",
     account_holder_name: sale.account_holder_name,
+    account_no: (sale.customer as { account_no?: string } | null)?.account_no || "",
     company_name: sale.company_name,
     dob: sale.dob,
-    ssn: "",
+    ssn: sale.ssn_encrypted ? decrypt(sale.ssn_encrypted) || "" : "",
     amount: String(sale.amount),
     discount: String(sale.discount),
     billed_month: sale.billed_month,
@@ -54,10 +59,12 @@ export default async function EditSalePage(props: { params: Promise<{ id: string
         </p>
       </div>
       <SaleForm
-        customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+        agents={agents.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }))}
+        userRole={user.role}
         mode="edit"
         saleId={sale.id}
         initialValues={initialValues}
+        initialAttachments={attachments}
       />
     </div>
   );

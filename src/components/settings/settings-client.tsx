@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { updateProfile, updatePreferences, changePassword } from "@/lib/actions/profile";
 import { updateUserAllowedModules } from "@/lib/actions/users";
 import { updateAttendanceSettings } from "@/lib/actions/attendance-settings";
+import { updateCompanySettings, type CompanySettings } from "@/lib/actions/company-settings";
 import {
   User,
   Image as ImageIcon,
@@ -31,6 +32,10 @@ interface SettingsClientProps {
     late_after_12h: string;
     shift_end_12h: string;
     checkout_latest_12h: string;
+    notify_after_minutes: number;
+    auto_leave_after_minutes: number;
+    auto_leave_enabled: boolean;
+    auto_leave_type: string;
   };
   manageableUsers: Array<{
     id: string;
@@ -39,9 +44,10 @@ interface SettingsClientProps {
     role: "super_admin" | "sales_agent" | "processor";
     allowed_modules: string[] | null;
   }>;
+  companySettings: CompanySettings;
 }
 
-export function SettingsClient({ user, manageableUsers, attendanceSettings }: SettingsClientProps) {
+export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings }: SettingsClientProps) {
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -69,10 +75,24 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
     late_after_12h: attendanceSettings.late_after_12h,
     shift_end_12h: attendanceSettings.shift_end_12h,
     checkout_latest_12h: attendanceSettings.checkout_latest_12h,
+    notify_after_minutes: attendanceSettings.notify_after_minutes,
+    auto_leave_after_minutes: attendanceSettings.auto_leave_after_minutes,
+    auto_leave_enabled: attendanceSettings.auto_leave_enabled,
+    auto_leave_type: attendanceSettings.auto_leave_type,
   });
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceMessage, setAttendanceMessage] = useState<string | null>(null);
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
+
+  const [brandingForm, setBrandingForm] = useState({
+    company_name: companySettings.company_name,
+    address_line: companySettings.address_line,
+    contact_email: companySettings.contact_email,
+    logo_url: companySettings.logo_url,
+  });
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [brandingMessage, setBrandingMessage] = useState<string | null>(null);
+  const [brandingError, setBrandingError] = useState<string | null>(null);
 
   useEffect(() => {
     setManagedUsersState(manageableUsers);
@@ -84,8 +104,21 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
       late_after_12h: attendanceSettings.late_after_12h,
       shift_end_12h: attendanceSettings.shift_end_12h,
       checkout_latest_12h: attendanceSettings.checkout_latest_12h,
+      notify_after_minutes: attendanceSettings.notify_after_minutes,
+      auto_leave_after_minutes: attendanceSettings.auto_leave_after_minutes,
+      auto_leave_enabled: attendanceSettings.auto_leave_enabled,
+      auto_leave_type: attendanceSettings.auto_leave_type,
     });
   }, [attendanceSettings]);
+
+  useEffect(() => {
+    setBrandingForm({
+      company_name: companySettings.company_name,
+      address_line: companySettings.address_line,
+      contact_email: companySettings.contact_email,
+      logo_url: companySettings.logo_url,
+    });
+  }, [companySettings]);
 
   useEffect(() => {
     if (user.role !== "super_admin") return;
@@ -254,6 +287,57 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
     }
   };
 
+  const handleCompanyLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setBrandingLoading(true);
+    setBrandingMessage(null);
+    setBrandingError(null);
+
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() || "png";
+      const filePath = `company/logo-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+      if (uploadError) {
+        throw new Error("Failed to upload image. Please ensure 'avatars' bucket exists.");
+      }
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      setBrandingForm((prev) => ({ ...prev, logo_url: data.publicUrl }));
+      setBrandingMessage("Logo uploaded. Click Save to apply.");
+    } catch (err) {
+      setBrandingError(err instanceof Error ? err.message : "Failed to upload logo.");
+    } finally {
+      setBrandingLoading(false);
+    }
+  };
+
+  const handleSaveBranding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBrandingLoading(true);
+    setBrandingMessage(null);
+    setBrandingError(null);
+    try {
+      await updateCompanySettings({
+        company_name: brandingForm.company_name,
+        address_line: brandingForm.address_line,
+        contact_email: brandingForm.contact_email,
+        logo_url: brandingForm.logo_url,
+      });
+      setBrandingMessage("Branding settings updated successfully.");
+    } catch (err) {
+      setBrandingError(err instanceof Error ? err.message : "Failed to update branding settings.");
+    } finally {
+      setBrandingLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -281,6 +365,12 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
             <TabsTrigger value="attendance">
               <Clock3 className="mr-1.5 h-4 w-4" />
               Attendance Timing
+            </TabsTrigger>
+          )}
+          {user.role === "super_admin" && (
+            <TabsTrigger value="branding">
+              <ImageIcon className="mr-1.5 h-4 w-4" />
+              Branding
             </TabsTrigger>
           )}
           {user.role === "super_admin" && (
@@ -437,7 +527,101 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
         </TabsContent>
 
         {user.role === "super_admin" && (
-          <TabsContent value="attendance" className="mt-4">
+          <TabsContent value="branding" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Payslip Branding
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveBranding} className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="relative h-16 w-16 rounded-md border border-border bg-muted/20 flex items-center justify-center overflow-hidden">
+                      {brandingForm.logo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={brandingForm.logo_url}
+                          alt="Company logo"
+                          className="h-full w-full object-contain p-2"
+                        />
+                      ) : (
+                        <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="inline-flex items-center gap-2"
+                        onClick={() => document.getElementById("company-logo-upload")?.click()}
+                        disabled={brandingLoading}
+                      >
+                        <UploadCloud className="h-4 w-4" />
+                        Upload Logo
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Recommended: transparent PNG, max 2MB.
+                      </p>
+                      <input
+                        id="company-logo-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleCompanyLogoUpload}
+                      />
+                    </div>
+                  </div>
+
+                  <Input
+                    id="company_name"
+                    label="Company Name"
+                    value={brandingForm.company_name}
+                    onChange={(e) =>
+                      setBrandingForm((prev) => ({ ...prev, company_name: e.target.value }))
+                    }
+                    required
+                  />
+                  <Input
+                    id="company_address_line"
+                    label="Address Line"
+                    value={brandingForm.address_line}
+                    onChange={(e) =>
+                      setBrandingForm((prev) => ({ ...prev, address_line: e.target.value }))
+                    }
+                    required
+                  />
+                  <Input
+                    id="company_contact_email"
+                    label="Contact Email"
+                    type="email"
+                    value={brandingForm.contact_email}
+                    onChange={(e) =>
+                      setBrandingForm((prev) => ({ ...prev, contact_email: e.target.value }))
+                    }
+                    required
+                  />
+
+                  {brandingError && <p className="text-sm text-destructive">{brandingError}</p>}
+                  {brandingMessage && !brandingError && (
+                    <p className="text-sm text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 className="h-4 w-4" />
+                      {brandingMessage}
+                    </p>
+                  )}
+
+                  <Button type="submit" disabled={brandingLoading}>
+                    {brandingLoading ? <Spinner /> : "Save Branding"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {user.role === "super_admin" && (
+          <TabsContent value="attendance" className="mt-4 space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -446,7 +630,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSaveAttendanceSettings} className="space-y-4">
+                <form onSubmit={handleSaveAttendanceSettings} className="space-y-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Input
                       id="shift_start_12h"
@@ -490,6 +674,76 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
                     />
                   </div>
 
+                  <div className="border-t border-border pt-4">
+                    <h3 className="text-sm font-semibold mb-3">Auto Attendance & Leave Settings</h3>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Configure automatic notifications and leave creation for employees who miss check-in.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input
+                        id="notify_after_minutes"
+                        label="Send Reminder After (minutes)"
+                        type="number"
+                        min="0"
+                        placeholder="60"
+                        value={String(attendanceForm.notify_after_minutes)}
+                        onChange={(e) =>
+                          setAttendanceForm((prev) => ({
+                            ...prev,
+                            notify_after_minutes: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                      />
+                      <Input
+                        id="auto_leave_after_minutes"
+                        label="Auto-Create Leave After (minutes)"
+                        type="number"
+                        min="0"
+                        placeholder="240"
+                        value={String(attendanceForm.auto_leave_after_minutes)}
+                        onChange={(e) =>
+                          setAttendanceForm((prev) => ({
+                            ...prev,
+                            auto_leave_after_minutes: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                      />
+                      <Select
+                        label="Auto Leave Type"
+                        value={attendanceForm.auto_leave_type}
+                        onChange={(e) =>
+                          setAttendanceForm((prev) => ({ ...prev, auto_leave_type: e.target.value }))
+                        }
+                        options={[
+                          { value: "casual", label: "Casual Leave" },
+                          { value: "sick", label: "Sick Leave" },
+                          { value: "annual", label: "Annual Leave" },
+                          { value: "other", label: "Other" },
+                        ]}
+                      />
+                      <div className="flex items-center gap-3 pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border text-primary"
+                            checked={attendanceForm.auto_leave_enabled}
+                            onChange={(e) =>
+                              setAttendanceForm((prev) => ({
+                                ...prev,
+                                auto_leave_enabled: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-sm">Enable Auto Leave Creation</span>
+                        </label>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Times are calculated from the "Late After" time. E.g., if Late After is 9:15 AM and 
+                      Reminder is 60 min, notification is sent at 10:15 AM.
+                    </p>
+                  </div>
+
                   {attendanceError && <p className="text-sm text-destructive">{attendanceError}</p>}
                   {attendanceMessage && !attendanceError && (
                     <p className="text-sm text-emerald-600 flex items-center gap-1">
@@ -499,7 +753,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings }: Se
                   )}
 
                   <Button type="submit" disabled={attendanceLoading}>
-                    {attendanceLoading ? <Spinner /> : "Save Attendance Timing"}
+                    {attendanceLoading ? <Spinner /> : "Save Attendance Settings"}
                   </Button>
                 </form>
               </CardContent>

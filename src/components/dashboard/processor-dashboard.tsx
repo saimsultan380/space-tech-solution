@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { updateSaleStatus } from "@/lib/actions/sales";
 import type { AppUser, SaleStatus, Payslip } from "@/lib/types";
+import type { CompanySettings } from "@/lib/actions/company-settings";
 import {
   DollarSign,
   CheckCircle,
@@ -54,6 +55,7 @@ interface ProcessorDashboardProps {
     shift_start_12h: string;
     shift_end_12h: string;
   };
+  companySettings: CompanySettings;
 }
 
 export function ProcessorDashboard({
@@ -63,6 +65,7 @@ export function ProcessorDashboard({
   todayAttendance,
   recentPayslips,
   attendanceSettings,
+  companySettings,
 }: ProcessorDashboardProps) {
   const [processing, setProcessing] = useState<string | null>(null);
   const { currency } = useCurrency();
@@ -238,7 +241,7 @@ export function ProcessorDashboard({
         </CardContent>
       </Card>
 
-      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" />
+      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
     </div>
   );
 }

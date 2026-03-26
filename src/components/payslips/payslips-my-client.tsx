@@ -10,32 +10,56 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { Download, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { downloadPayslipPdf } from "@/lib/payslip-pdf";
+import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
 
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
+import type { CompanySettings } from "@/lib/actions/company-settings";
+
 interface PayslipsMyClientProps {
-  payslips: Payslip[];
+  payslipsResponse: {
+    data: Payslip[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+  companySettings: CompanySettings;
 }
 
-export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
-  const [searchTerm, setSearchTerm] = useState("");
+export function PayslipsMyClient({ payslipsResponse, companySettings }: PayslipsMyClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
+
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const searchTerm = searchParams.get("q") || "";
   const [activeMonth, setActiveMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
   const filteredPayslips = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
     return payslips.filter((payslip) => {
       if (!isPayslipInMonth(payslip, activeMonth)) return false;
-      if (!query) return true;
-      const text = [
-        payslip.employee_id_display || "",
-        payslip.department || "",
-        payslip.job_position || "",
-        payslip.status || "",
-      ].join(" ").toLowerCase();
-      return text.includes(query);
+      return true;
     });
-  }, [payslips, activeMonth, searchTerm]);
+  }, [payslips, activeMonth]);
 
   const monthLabel = useMemo(() => {
     const [year, month] = activeMonth.split("-").map(Number);
@@ -77,7 +101,7 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
             id="search_my_payslip"
             label="Search Payslips"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => updateFilters({ q: e.target.value })}
             placeholder="Search by ID, department, position..."
             className="h-10"
           />
@@ -89,48 +113,61 @@ export function PayslipsMyClient({ payslips }: PayslipsMyClientProps) {
               description="No payslip records match this month or search query."
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Pay Date</TableHead>
-                  <TableHead>Net Pay</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayslips.map((payslip) => (
-                  <TableRow key={payslip.id}>
-                    <TableCell>
-                      {formatDate(payslip.period_start)} - {formatDate(payslip.period_end)}
-                    </TableCell>
-                    <TableCell>{formatDate(payslip.pay_date)}</TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(Number(payslip.net_pay || 0), payslip.currency)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={payslip.status === "paid" ? "success" : "warning"} className="capitalize">
-                        {payslip.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => setViewingPayslip(payslip)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => downloadPayslipPdf(payslip)}>
-                          <Download className="h-3.5 w-3.5" />
-                          PDF
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Pay Date</TableHead>
+                    <TableHead>Net Pay</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredPayslips.map((payslip) => (
+                    <TableRow key={payslip.id}>
+                      <TableCell className="font-medium">
+                        {formatDate(payslip.period_start)} - {formatDate(payslip.period_end)}
+                      </TableCell>
+                      <TableCell>{formatDate(payslip.pay_date)}</TableCell>
+                      <TableCell className="font-bold text-foreground">
+                        {formatCurrency(Number(payslip.net_pay || 0), payslip.currency || "PKR")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={payslip.status === "paid" ? "success" : "warning"}>
+                          {payslip.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="icon" variant="ghost" onClick={() => setViewingPayslip(payslip)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => void previewPayslipPdf(payslip, companySettings)}>
+                            <span className="text-[10px] font-semibold">PDF</span>
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => downloadPayslipPdf(payslip, companySettings)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
+        <div className="border-t border-border px-6 py-4">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
+        </div>
       </Card>
 
       {viewingPayslip && (

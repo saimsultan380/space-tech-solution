@@ -45,31 +45,67 @@ interface UpdatePayslipInput extends CreatePayslipInput {
   id: string;
 }
 
-export async function getPayslips() {
+export async function getPayslips(filters?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}) {
   await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)")
+    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
     .order("pay_date", { ascending: false });
 
+  if (filters?.search) {
+    // Note: Searching on joined fields might need a different approach in Supabase, 
+    // but for now we'll assume the client filters or we search on basic fields.
+    // For exact match on user name we might need a separate query or RPC.
+  }
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data || [];
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
-export async function getMyPayslips() {
+export async function getMyPayslips(filters?: {
+  page?: number;
+  pageSize?: number;
+}) {
   const user = await requireAuth();
   const supabase = await createClient();
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)")
+    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
     .eq("user_id", user.id)
-    .order("pay_date", { ascending: false });
+    .order("pay_date", { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
-  return data || [];
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function getRecentPayslips(limit = 5) {

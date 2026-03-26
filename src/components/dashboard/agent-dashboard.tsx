@@ -8,6 +8,7 @@ import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-ca
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import type { AppUser, Payslip } from "@/lib/types";
+import type { CompanySettings } from "@/lib/actions/company-settings";
 import {
   DollarSign,
   ShoppingCart,
@@ -54,6 +55,7 @@ interface AgentDashboardProps {
     shift_start_12h: string;
     shift_end_12h: string;
   };
+  companySettings: CompanySettings;
 }
 
 export function AgentDashboard({
@@ -63,6 +65,7 @@ export function AgentDashboard({
   todayAttendance,
   recentPayslips,
   attendanceSettings,
+  companySettings,
 }: AgentDashboardProps) {
   const { currency } = useCurrency();
   return (
@@ -186,7 +189,7 @@ export function AgentDashboard({
         </CardContent>
       </Card>
 
-      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" />
+      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
 
       {/* Quick summary */}
       <div className="grid gap-4 sm:grid-cols-3">

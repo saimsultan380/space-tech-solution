@@ -4,7 +4,7 @@ import { getNotes } from "@/lib/actions/notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { maskSSN } from "@/lib/encryption";
+import { decrypt } from "@/lib/encryption";
 import { NotesSection } from "@/components/shared/notes-section";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -55,7 +55,7 @@ export default async function CustomerDetailPage(props: {
               label="Date of Birth"
               value={customer.dob ? formatDate(customer.dob) : "N/A"}
             />
-            <InfoRow label="SSN" value={maskSSN(customer.ssn_encrypted || "")} />
+            <InfoRow label="SSN" value={customer.ssn_encrypted ? decrypt(customer.ssn_encrypted) || "N/A" : "N/A"} />
             <InfoRow label="Created" value={formatDate(customer.created_at)} />
           </CardContent>
         </Card>

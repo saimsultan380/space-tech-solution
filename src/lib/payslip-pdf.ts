@@ -2,38 +2,76 @@ import { jsPDF } from "jspdf";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 
-export function downloadPayslipPdf(payslip: Payslip) {
+type PayslipBranding = {
+  company_name: string;
+  address_line: string;
+  contact_email: string;
+  logo_url: string | null;
+};
+
+async function loadImageDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to load logo");
+  const blob = await res.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Failed to read logo"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function buildPayslipPdfDoc(payslip: Payslip, branding?: Partial<PayslipBranding>) {
   const doc = new jsPDF();
   const employeeName = payslip.user?.full_name || "Employee";
   const currency = payslip.currency || "PKR";
+  const brand: PayslipBranding = {
+    company_name: branding?.company_name || "SPACE TECH",
+    address_line: branding?.address_line || "Sector J Dha Phase 1, Lahore",
+    contact_email: branding?.contact_email || "contact@spacetechsolution.com",
+    logo_url: branding?.logo_url ?? null,
+  };
 
   // --- Header ---
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(23, 37, 84); // Navy blue
-  doc.text("SPACE TECH", 30, 18);
-  
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont("helvetica", "normal");
-  doc.text("Sector J Dha Phase 1, Lahore", 30, 24);
-  doc.text("contact@spacetechsolution.com", 30, 28);
+  // Logo (fallback to circle icon). Address is placed under logo.
+  if (brand.logo_url) {
+    try {
+      const dataUrl = await loadImageDataUrl(brand.logo_url);
+      // Larger logo, but still constrained to header area
+      doc.addImage(dataUrl, "PNG", 14, 11, 30, 15);
+    } catch {
+      doc.setDrawColor(23, 37, 84);
+      doc.setLineWidth(0.5);
+      doc.circle(22, 20.5, 8);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("ST", 22, 21.5, { align: "center" });
+    }
+  } else {
+    doc.setDrawColor(23, 37, 84);
+    doc.setLineWidth(0.5);
+    doc.circle(22, 20.5, 8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("ST", 22, 21.5, { align: "center" });
+  }
 
-  // Logo Icon (Circle with ST)
-  doc.setDrawColor(23, 37, 84);
-  doc.setLineWidth(0.5);
-  doc.circle(20, 22, 8);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("ST", 20, 23, { align: "center" });
+  // Address under logo (with spacing)
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  doc.text(brand.address_line, 14, 30);
+  doc.text(brand.contact_email, 14, 34);
 
   // --- Title Section ---
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Spacetech", 105, 45, { align: "center" });
-  doc.setFontSize(12);
+  doc.setFontSize(10.5);
+  doc.setFont("helvetica", "bold");
   doc.text(payslip.department || "Sales Department", 105, 52, { align: "center" });
+  doc.setFont("helvetica", "bold");
   doc.text("Salary Slip", 105, 59, { align: "center" });
 
   // --- Salary Month ---
@@ -154,5 +192,18 @@ export function downloadPayslipPdf(payslip: Payslip) {
   doc.text("This is a system-generated salary slip and does not require a signature.", 105, currentY, { align: "center" });
 
   const filename = `payslip-${employeeName.replace(/\s+/g, "-").toLowerCase()}-${payslip.pay_date}.pdf`;
+  return { doc, filename };
+}
+
+export async function downloadPayslipPdf(payslip: Payslip, branding?: Partial<PayslipBranding>) {
+  const { doc, filename } = await buildPayslipPdfDoc(payslip, branding);
   doc.save(filename);
+}
+
+export async function previewPayslipPdf(payslip: Payslip, branding?: Partial<PayslipBranding>) {
+  const { doc } = await buildPayslipPdfDoc(payslip, branding);
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

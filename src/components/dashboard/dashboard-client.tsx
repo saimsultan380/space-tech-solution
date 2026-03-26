@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { useTheme } from "next-themes";
 import type { AppUser, Payslip } from "@/lib/types";
+import type { CompanySettings } from "@/lib/actions/company-settings";
 import {
   DollarSign,
   ShoppingCart,
@@ -51,6 +52,7 @@ interface DashboardClientProps {
     shift_start_12h: string;
     shift_end_12h: string;
   };
+  companySettings: CompanySettings;
 }
 
 export function DashboardClient({
@@ -61,6 +63,7 @@ export function DashboardClient({
   revenueData,
   recentPayslips,
   attendanceSettings,
+  companySettings,
 }: DashboardClientProps) {
   const [showCharts, setShowCharts] = useState(true);
   const { currency } = useCurrency();
@@ -169,7 +172,7 @@ export function DashboardClient({
         </div>
       </div>
 
-      <PayslipDashboardCard payslips={recentPayslips} title="Latest Payslips" />
+      <PayslipDashboardCard payslips={recentPayslips} title="Latest Payslips" companySettings={companySettings} />
 
       {showCharts && (
         <div className="animate-[slide-up_0.3s_ease-out] space-y-5">

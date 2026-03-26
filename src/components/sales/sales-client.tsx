@@ -23,6 +23,9 @@ import type { UserRole } from "@/lib/types";
 import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Download } from "lucide-react";
 import Link from "next/link";
 
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
+
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
   pending: "warning",
   approved: "success",
@@ -30,51 +33,55 @@ const statusVariant: Record<string, "default" | "success" | "destructive" | "war
 };
 
 interface SalesClientProps {
-  sales: Array<{
-    id: string;
-    sale_type: string;
-    subtype: string;
-    company_name: string;
-    charged_amount: number;
-    status: string;
-    created_at: string;
-    customer: { id: string; name: string; email: string; phone: string } | null;
-    agent: { id: string; full_name: string } | null;
-    processor: { id: string; full_name: string } | null;
-  }>;
+  salesResponse: {
+    data: any[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   agents: Array<{ id: string; full_name: string }>;
   userRole: UserRole;
   userId: string;
 }
 
-export function SalesClient({ sales, agents, userRole, userId }: SalesClientProps) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [amountFilter, setAmountFilter] = useState("all");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
+export function SalesClient({ salesResponse, agents, userRole, userId }: SalesClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currency } = useCurrency();
 
-  const filtered = sales.filter((s) => {
-    const matchesSearch =
-      (s.customer?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-      s.company_name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || s.status === statusFilter;
-    const matchesType = typeFilter === "all" || s.sale_type === typeFilter;
-    const matchesAmount =
-      amountFilter === "all" ||
-      (amountFilter === "lt_100" && s.charged_amount < 100) ||
-      (amountFilter === "100_500" && s.charged_amount >= 100 && s.charged_amount < 500) ||
-      (amountFilter === "500_1000" && s.charged_amount >= 500 && s.charged_amount < 1000) ||
-      (amountFilter === "gte_1000" && s.charged_amount >= 1000);
-    return matchesSearch && matchesStatus && matchesType && matchesAmount;
-  });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const { data: sales, count, page, totalPages, pageSize } = salesResponse;
+
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "all" || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    // Reset to page 1 on filter change unless specifically changing page
+    if (!updates.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const search = searchParams.get("q") || "";
+  const statusFilter = searchParams.get("status") || "all";
+  const typeFilter = searchParams.get("type") || "all";
+  const agentFilter = searchParams.get("agent_id") || "all";
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
   const canBulkProcess = userRole === "processor" || userRole === "super_admin";
+  
   const pendingSelected = [...selected].filter((id) =>
-    filtered.find((s) => s.id === id && s.status === "pending")
+    sales.find((s) => s.id === id && s.status === "pending")
   );
 
   const toggleSelect = (id: string) => {
@@ -87,7 +94,7 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
   };
 
   const toggleSelectAll = () => {
-    const pendingIds = filtered.filter((s) => s.status === "pending").map((s) => s.id);
+    const pendingIds = sales.filter((s) => s.status === "pending").map((s) => s.id);
     if (pendingIds.every((id) => selected.has(id))) {
       setSelected(new Set());
     } else {
@@ -96,7 +103,7 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
   };
 
   const handleDownloadReport = () => {
-    if (filtered.length === 0) return;
+    if (sales.length === 0) return;
 
     const headers = [
       "Customer",
@@ -109,7 +116,7 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
       "Created At",
     ];
 
-    const rows = filtered.map((sale) => [
+    const rows = sales.map((sale) => [
       sale.customer?.name || "",
       sale.sale_type,
       sale.subtype,
@@ -192,31 +199,27 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
               <Input
                 placeholder="Search sales..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => updateFilters({ q: e.target.value })}
                 className="pl-10"
               />
             </div>
             <Select
               options={[{ value: "all", label: "All Statuses" }, ...SALE_STATUSES]}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => updateFilters({ status: e.target.value })}
             />
             <Select
               options={[{ value: "all", label: "All Types" }, ...SALE_TYPES]}
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(e) => updateFilters({ type: e.target.value })}
             />
-            <Select
-              options={[
-                { value: "all", label: "All Amounts" },
-                { value: "lt_100", label: "< $100" },
-                { value: "100_500", label: "$100 - $500" },
-                { value: "500_1000", label: "$500 - $1,000" },
-                { value: "gte_1000", label: "≥ $1,000" },
-              ]}
-              value={amountFilter}
-              onChange={(e) => setAmountFilter(e.target.value)}
-            />
+            {userRole !== "sales_agent" && (
+              <Select
+                options={[{ value: "all", label: "All Agents" }, ...agents.map(a => ({ value: a.id, label: a.full_name }))]}
+                value={agentFilter}
+                onChange={(e) => updateFilters({ agent_id: e.target.value })}
+              />
+            )}
           </div>
 
           {/* Bulk actions bar */}
@@ -259,96 +262,114 @@ export function SalesClient({ sales, agents, userRole, userId }: SalesClientProp
           )}
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
-            <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {canBulkProcess && (
-                    <TableHead className="w-10">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-border"
-                        checked={
-                          filtered.filter((s) => s.status === "pending").length > 0 &&
-                          filtered
-                            .filter((s) => s.status === "pending")
-                            .every((s) => selected.has(s.id))
-                        }
-                        onChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                  )}
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="w-12 text-right">View</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((sale) => (
-                  <TableRow
-                    key={sale.id}
-                    className={selected.has(sale.id) ? "bg-primary/5" : ""}
-                  >
+          <div className="overflow-x-auto">
+            {sales.length === 0 ? (
+              <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
                     {canBulkProcess && (
-                      <TableCell>
-                        {sale.status === "pending" && (
+                      <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-border"
+                          checked={
+                            sales.filter((s) => s.status === "pending").length > 0 &&
+                            sales
+                              .filter((s) => s.status === "pending")
+                              .every((s) => selected.has(s.id))
+                          }
+                          onChange={toggleSelectAll}
+                        />
+                      </TableHead>
+                    )}
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Agent</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="w-[80px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sales.map((sale) => (
+                    <TableRow
+                      key={sale.id}
+                      className={selected.has(sale.id) ? "bg-primary/5 hover:bg-muted/30" : "hover:bg-muted/30"}
+                    >
+                      {canBulkProcess && (
+                        <TableCell>
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-border"
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 disabled:opacity-30"
                             checked={selected.has(sale.id)}
                             onChange={() => toggleSelect(sale.id)}
+                            disabled={sale.status !== "pending"}
                           />
-                        )}
+                        </TableCell>
+                      )}
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <Link
+                            href={`/dashboard/sales/${sale.id}`}
+                            className="text-foreground hover:underline"
+                          >
+                            {sale.customer?.name || "N/A"}
+                          </Link>
+                          <span className="text-[11px] text-muted-foreground">{sale.customer?.email}</span>
+                        </div>
                       </TableCell>
-                    )}
-                    <TableCell>
-                      <Link
-                        href={`/dashboard/sales/${sale.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {sale.customer?.name || "N/A"}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize">
-                        {sale.sale_type} / {sale.subtype}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{sale.company_name}</TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(sale.charged_amount, currency)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[sale.status] || "default"} className="capitalize">
-                        {sale.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{sale.agent?.full_name || "N/A"}</TableCell>
-                    <TableCell>{formatDate(sale.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/dashboard/sales/${sale.id}`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-transparent"
-                          aria-label="View sale"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                      <TableCell>{sale.company_name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="capitalize">{sale.sale_type}</span>
+                          <span className="text-[11px] text-muted-foreground uppercase">{sale.subtype}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-semibold text-foreground">
+                        {formatCurrency(sale.charged_amount, currency)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant[sale.status] || "default"} className="capitalize">
+                          {sale.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{sale.agent?.full_name || "N/A"}</span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(sale.created_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Link href={`/dashboard/sales/${sale.id}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md text-muted-foreground hover:text-primary hover:bg-transparent"
+                              aria-label="View sale"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
         </CardContent>
       </Card>
     </div>

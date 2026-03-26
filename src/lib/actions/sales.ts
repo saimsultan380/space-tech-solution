@@ -10,12 +10,20 @@ export async function getSales(filters?: {
   status?: string;
   sale_type?: string;
   agent_id?: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
 }) {
   const supabase = await createClient();
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
+
   let query = supabase
     .from("sales")
     .select(
-      "*, customer:customers(id, name, email, phone), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)"
+      "*, customer:customers(id, name, email, phone), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)",
+      { count: "exact" }
     )
     .order("created_at", { ascending: false });
 
@@ -28,10 +36,21 @@ export async function getSales(filters?: {
   if (filters?.agent_id && filters.agent_id !== "all") {
     query = query.eq("agent_id", filters.agent_id);
   }
+  if (filters?.search) {
+    query = query.or(`company_name.ilike.%${filters.search}%`);
+  }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
   if (error) throw new Error(error.message);
-  return data;
+
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function getSale(id: string) {
@@ -52,6 +71,8 @@ export interface CreateSaleInput {
   sale_type: string;
   subtype: string;
   customer_id: string;
+  agent_id?: string;
+  agent_name?: string;
   company_name: string;
   amount: number;
   discount: number;
@@ -64,6 +85,7 @@ export interface CreateSaleInput {
   customer_email: string;
   service_address: string;
   account_holder_name: string;
+  account_no?: string;
   dob: string;
   ssn: string;
   account_status: string;
@@ -94,13 +116,39 @@ export async function createSale(formData: CreateSaleInput) {
 
   const chargedAmount = formData.amount - formData.discount;
 
+  // If customer dropdown is removed, allow creating a new customer on-the-fly.
+  let customerId = formData.customer_id;
+  if (!customerId) {
+    const { data: customerData, error: customerError } = await supabase
+      .from("customers")
+      .insert({
+        name: formData.customer_name,
+        phone: formData.customer_phone,
+        email: formData.customer_email,
+        address: formData.service_address,
+        dob: formData.dob || null,
+        ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
+        account_no: formData.account_no || "",
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (customerError) throw new Error(customerError.message);
+    customerId = customerData.id as string;
+  }
+
+  const agentId =
+    user.role === "super_admin" && formData.agent_id ? formData.agent_id : user.id;
+
   const { data: saleData, error: saleError } = await supabase
     .from("sales")
     .insert({
       sale_type: formData.sale_type,
       subtype: formData.subtype,
-      customer_id: formData.customer_id,
-      agent_id: user.id,
+      customer_id: customerId,
+      agent_id: agentId,
+      agent_name: formData.agent_name || null,
       company_name: formData.company_name,
       amount: formData.amount,
       discount: formData.discount,
@@ -131,7 +179,7 @@ export async function createSale(formData: CreateSaleInput) {
   if (formData.payment_method && saleData) {
     const paymentInsert: Record<string, unknown> = {
       sale_id: saleData.id,
-      customer_id: formData.customer_id,
+      customer_id: customerId,
       method: formData.payment_method === "checking" ? "bank" : "card",
       amount: chargedAmount,
       merchant_name: formData.merchant_name,
@@ -170,6 +218,7 @@ export async function createSale(formData: CreateSaleInput) {
   }
 
   revalidatePath("/dashboard/sales");
+  return saleData?.id as string;
 }
 
 export async function updateSaleDetails(formData: UpdateSaleInput) {
@@ -178,11 +227,15 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
 
   const chargedAmount = formData.amount - formData.discount;
 
+  const agentId =
+    user.role === "super_admin" && formData.agent_id ? formData.agent_id : user.id;
+
   const updatePayload: Record<string, unknown> = {
     sale_type: formData.sale_type,
     subtype: formData.subtype,
     customer_id: formData.customer_id,
-    agent_id: user.id,
+    agent_id: agentId,
+    agent_name: formData.agent_name || null,
     company_name: formData.company_name,
     amount: formData.amount,
     discount: formData.discount,
