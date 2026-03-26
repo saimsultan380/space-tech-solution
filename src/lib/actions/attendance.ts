@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { notifySuperAdmins, createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 
+type ActionResult = { ok: true } | { ok: false; error: string };
+
 function toMinutesFromTimeString(time: string) {
   const [h = "0", m = "0"] = time.split(":");
   return Number(h) * 60 + Number(m);
@@ -61,95 +63,119 @@ export async function getAttendance(filters?: {
 }
 
 export async function checkIn() {
-  const user = await requireAuth();
-  const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0];
-  const settings = await getAttendanceSettings();
-  const currentMinutes = toCurrentMinutes();
-  const shiftStartMinutes = toMinutesFromTimeString(settings.shift_start_time);
-  const latestCheckInMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
+  try {
+    const user = await requireAuth();
+    const supabase = await createClient();
+    const today = new Date().toISOString().split("T")[0];
+    const settings = await getAttendanceSettings();
+    const currentMinutes = toCurrentMinutes();
+    const shiftStartMinutes = toMinutesFromTimeString(settings.shift_start_time);
+    const latestCheckInMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
 
-  if (currentMinutes < shiftStartMinutes) {
-    throw new Error(`Check-in is not available yet. Check-in opens at ${settings.shift_start_12h}.`);
+    if (currentMinutes < shiftStartMinutes) {
+      return { ok: false, error: `Check-in is not available yet. Check-in opens at ${settings.shift_start_12h}.` };
+    }
+    if (currentMinutes > latestCheckInMinutes) {
+      return { ok: false, error: `Check-in window has closed. Check-in was available until ${settings.checkout_latest_12h}.` };
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("attendance")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single();
+
+    // Supabase returns an error when `.single()` finds no rows; treat that as "not existing".
+    if (existingError && existingError.code !== "PGRST116") {
+      return { ok: false, error: existingError.message };
+    }
+
+    if (existing) {
+      return { ok: false, error: "You have already checked in today" };
+    }
+
+    const { error } = await supabase.from("attendance").insert({
+      user_id: user.id,
+      date: today,
+      check_in: new Date().toISOString(),
+    });
+
+    if (error) return { ok: false, error: error.message };
+
+    await notifySuperAdmins({
+      title: "Employee checked in",
+      body: `${user.full_name} checked in on ${today}.`,
+      type: "attendance",
+    });
+
+    revalidatePath("/dashboard/attendance");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to check in" };
   }
-  if (currentMinutes > latestCheckInMinutes) {
-    throw new Error(`Check-in window has closed. Check-in was available until ${settings.checkout_latest_12h}.`);
-  }
-
-  const { data: existing } = await supabase
-    .from("attendance")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("date", today)
-    .single();
-
-  if (existing) {
-    throw new Error("You have already checked in today");
-  }
-
-  const { error } = await supabase.from("attendance").insert({
-    user_id: user.id,
-    date: today,
-    check_in: new Date().toISOString(),
-  });
-
-  if (error) throw new Error(error.message);
-
-  await notifySuperAdmins({
-    title: "Employee checked in",
-    body: `${user.full_name} checked in on ${today}.`,
-    type: "attendance",
-  });
-
-  revalidatePath("/dashboard/attendance");
 }
 
 export async function checkOut() {
-  const user = await requireAuth();
-  const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0];
-  const settings = await getAttendanceSettings();
-  const currentMinutes = toCurrentMinutes();
-  const shiftEndMinutes = toMinutesFromTimeString(settings.shift_end_time);
-  const latestCheckOutMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
+  try {
+    const user = await requireAuth();
+    const supabase = await createClient();
+    const today = new Date().toISOString().split("T")[0];
+    const settings = await getAttendanceSettings();
+    const currentMinutes = toCurrentMinutes();
+    const shiftEndMinutes = toMinutesFromTimeString(settings.shift_end_time);
+    const latestCheckOutMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
 
-  if (currentMinutes < shiftEndMinutes) {
-    throw new Error(`Check-out is not available yet. You can checkout after ${settings.shift_end_12h}.`);
+    if (currentMinutes < shiftEndMinutes) {
+      return { ok: false, error: `Check-out is not available yet. You can checkout after ${settings.shift_end_12h}.` };
+    }
+    if (currentMinutes > latestCheckOutMinutes) {
+      return { ok: false, error: `Check-out window has closed. Checkout was available until ${settings.checkout_latest_12h}.` };
+    }
+
+    const { data: record, error: recordError } = await supabase
+      .from("attendance")
+      .select("id, check_out")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single();
+
+    if (recordError) {
+      if (recordError.code === "PGRST116") {
+        return { ok: false, error: "You haven't checked in today" };
+      }
+      return { ok: false, error: recordError.message };
+    }
+
+    if (!record) {
+      return { ok: false, error: "You haven't checked in today" };
+    }
+
+    if (record.check_out) {
+      return { ok: false, error: "You have already checked out today" };
+    }
+
+    const { error } = await supabase
+      .from("attendance")
+      .update({ check_out: new Date().toISOString() })
+      .eq("id", record.id);
+
+    if (error) return { ok: false, error: error.message };
+
+    await createNotification({
+      user_id: user.id,
+      title: "Check-out recorded",
+      body: `Your check-out for ${today} was recorded successfully.`,
+      type: "attendance",
+    });
+
+    revalidatePath("/dashboard/attendance");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to check out" };
   }
-  if (currentMinutes > latestCheckOutMinutes) {
-    throw new Error(`Check-out window has closed. Checkout was available until ${settings.checkout_latest_12h}.`);
-  }
-
-  const { data: record } = await supabase
-    .from("attendance")
-    .select("id, check_out")
-    .eq("user_id", user.id)
-    .eq("date", today)
-    .single();
-
-  if (!record) {
-    throw new Error("You haven't checked in today");
-  }
-
-  if (record.check_out) {
-    throw new Error("You have already checked out today");
-  }
-
-  const { error } = await supabase
-    .from("attendance")
-    .update({ check_out: new Date().toISOString() })
-    .eq("id", record.id);
-
-  if (error) throw new Error(error.message);
-
-  await createNotification({
-    user_id: user.id,
-    title: "Check-out recorded",
-    body: `Your check-out for ${today} was recorded successfully.`,
-    type: "attendance",
-  });
-
-  revalidatePath("/dashboard/attendance");
 }
 
 export async function getTodayAttendance() {

@@ -30,7 +30,8 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
     setLoading(true);
     setError("");
     try {
-      await checkIn();
+      const res = await checkIn();
+      if (!res.ok) setError(res.error ?? "Failed to check in");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to check in");
     }
@@ -41,7 +42,8 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
     setLoading(true);
     setError("");
     try {
-      await checkOut();
+      const res = await checkOut();
+      if (!res.ok) setError(res.error ?? "Failed to check out");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to check out");
     }
