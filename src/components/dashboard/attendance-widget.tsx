@@ -16,6 +16,12 @@ interface AttendanceWidgetProps {
   attendanceSettings?: {
     shift_start_12h: string;
     shift_end_12h: string;
+    checkout_latest_12h: string;
+    shift_end_time: string;
+    checkout_latest_time: string;
+    checkout_grace_minutes: number;
+    allow_early_checkout: boolean;
+    early_checkout_minutes: number;
   };
 }
 
@@ -116,9 +122,19 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
       )}
 
       {attendanceSettings && (
-        <div className="mt-4 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-          <Clock className="h-3 w-3" />
-          <span>Shift window: {attendanceSettings.shift_start_12h} - {attendanceSettings.shift_end_12h}</span>
+        <div className="mt-4 space-y-1 text-[11px] font-medium text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3" />
+            <span>Shift: {attendanceSettings.shift_start_12h} - {attendanceSettings.shift_end_12h}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3" />
+            <span>
+              Checkout window: {attendanceSettings.allow_early_checkout && attendanceSettings.early_checkout_minutes > 0
+                ? `${attendanceSettings.early_checkout_minutes} min before shift end`
+                : attendanceSettings.shift_end_12h} - {attendanceSettings.checkout_latest_12h}
+            </span>
+          </div>
         </div>
       )}
     </div>

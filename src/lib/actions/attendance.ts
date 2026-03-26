@@ -13,9 +13,48 @@ function toMinutesFromTimeString(time: string) {
   return Number(h) * 60 + Number(m);
 }
 
-function toCurrentMinutes() {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+function getAppTimeZone() {
+  return process.env.APP_TIMEZONE || process.env.TZ || "";
+}
+
+function getNowInTimeZone() {
+  const tz = getAppTimeZone();
+  try {
+    if (!tz) {
+      const now = new Date();
+      return {
+        minutes: now.getHours() * 60 + now.getMinutes(),
+        dateISO: now.toISOString().split("T")[0],
+      };
+    }
+
+    const dtf = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = dtf.formatToParts(new Date());
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    const year = get("year");
+    const month = get("month");
+    const day = get("day");
+    const hour = Number(get("hour"));
+    const minute = Number(get("minute"));
+    return {
+      minutes: hour * 60 + minute,
+      dateISO: `${year}-${month}-${day}`,
+    };
+  } catch {
+    const now = new Date();
+    return {
+      minutes: now.getHours() * 60 + now.getMinutes(),
+      dateISO: now.toISOString().split("T")[0],
+    };
+  }
 }
 
 export async function getAttendance(filters?: {
@@ -66,9 +105,8 @@ export async function checkIn() {
   try {
     const user = await requireAuth();
     const supabase = await createClient();
-    const today = new Date().toISOString().split("T")[0];
+    const { dateISO: today, minutes: currentMinutes } = getNowInTimeZone();
     const settings = await getAttendanceSettings();
-    const currentMinutes = toCurrentMinutes();
     const shiftStartMinutes = toMinutesFromTimeString(settings.shift_start_time);
     const latestCheckInMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
 
@@ -121,16 +159,23 @@ export async function checkOut() {
   try {
     const user = await requireAuth();
     const supabase = await createClient();
-    const today = new Date().toISOString().split("T")[0];
+    const { dateISO: today, minutes: currentMinutes } = getNowInTimeZone();
     const settings = await getAttendanceSettings();
-    const currentMinutes = toCurrentMinutes();
     const shiftEndMinutes = toMinutesFromTimeString(settings.shift_end_time);
-    const latestCheckOutMinutes = toMinutesFromTimeString(settings.checkout_latest_time);
+    const computedLatestCheckOutMinutes =
+      (settings.checkout_grace_minutes ?? 0) > 0
+        ? Math.min(24 * 60 - 1, shiftEndMinutes + Math.max(0, settings.checkout_grace_minutes))
+        : toMinutesFromTimeString(settings.checkout_latest_time);
 
-    if (currentMinutes < shiftEndMinutes) {
+    const earliestAllowedMinutes =
+      settings.allow_early_checkout
+        ? Math.max(0, shiftEndMinutes - Math.max(0, settings.early_checkout_minutes ?? 0))
+        : shiftEndMinutes;
+
+    if (currentMinutes < earliestAllowedMinutes) {
       return { ok: false, error: `Check-out is not available yet. You can checkout after ${settings.shift_end_12h}.` };
     }
-    if (currentMinutes > latestCheckOutMinutes) {
+    if (currentMinutes > computedLatestCheckOutMinutes) {
       return { ok: false, error: `Check-out window has closed. Checkout was available until ${settings.checkout_latest_12h}.` };
     }
 

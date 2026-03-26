@@ -11,6 +11,8 @@ export type MarketingCampaignType = "call" | "digital" | "other";
 export type MarketingCampaignStatus = "active" | "paused" | "completed";
 export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
 
+export type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
+
 export interface AppUser {
   id: string;
   email: string;
@@ -22,6 +24,11 @@ export interface AppUser {
   avatar_url?: string | null;
   preferred_currency?: string | null;
   allowed_modules?: string[] | null;
+  department?: string | null;
+  company_name?: string | null;
+  education_degree?: string | null;
+  joining_date?: string | null;
+  employment_type?: EmploymentType | null;
 }
 
 export interface Customer {
@@ -124,6 +131,9 @@ export interface AttendanceSettings {
   late_after_time: string;
   shift_end_time: string;
   checkout_latest_time: string;
+  checkout_grace_minutes: number;
+  allow_early_checkout: boolean;
+  early_checkout_minutes: number;
   notify_after_minutes: number;
   auto_leave_after_minutes: number;
   auto_leave_enabled: boolean;

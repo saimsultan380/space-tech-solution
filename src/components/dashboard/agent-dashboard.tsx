@@ -54,6 +54,12 @@ interface AgentDashboardProps {
   attendanceSettings: {
     shift_start_12h: string;
     shift_end_12h: string;
+    checkout_latest_12h: string;
+    shift_end_time: string;
+    checkout_latest_time: string;
+    checkout_grace_minutes: number;
+    allow_early_checkout: boolean;
+    early_checkout_minutes: number;
   };
   companySettings: CompanySettings;
 }

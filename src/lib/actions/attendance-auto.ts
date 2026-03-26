@@ -9,6 +9,9 @@ interface AttendanceSettings {
   late_after_time: string;
   shift_end_time: string;
   checkout_latest_time: string;
+  checkout_grace_minutes: number;
+  allow_early_checkout: boolean;
+  early_checkout_minutes: number;
   notify_after_minutes: number;
   auto_leave_after_minutes: number;
   auto_leave_enabled: boolean;
@@ -69,6 +72,50 @@ async function getAttendanceSettingsAdmin(): Promise<AttendanceSettings> {
   };
 }
 
+function getAppTimeZone() {
+  return process.env.APP_TIMEZONE || process.env.TZ || "";
+}
+
+function getNowInTimeZone() {
+  const tz = getAppTimeZone();
+  try {
+    if (!tz) {
+      const now = new Date();
+      return {
+        minutes: now.getHours() * 60 + now.getMinutes(),
+        dateISO: now.toISOString().split("T")[0],
+      };
+    }
+
+    const dtf = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = dtf.formatToParts(new Date());
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    const year = get("year");
+    const month = get("month");
+    const day = get("day");
+    const hour = Number(get("hour"));
+    const minute = Number(get("minute"));
+    return {
+      minutes: hour * 60 + minute,
+      dateISO: `${year}-${month}-${day}`,
+    };
+  } catch {
+    const now = new Date();
+    return {
+      minutes: now.getHours() * 60 + now.getMinutes(),
+      dateISO: now.toISOString().split("T")[0],
+    };
+  }
+}
+
 export async function processAttendanceNotifications(): Promise<{
   notificationsSent: number;
   leavesCreated: number;
@@ -76,8 +123,7 @@ export async function processAttendanceNotifications(): Promise<{
 }> {
   const supabase = createAdminClient();
   const settings = await getAttendanceSettingsAdmin();
-  const today = new Date().toISOString().split("T")[0];
-  const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const { dateISO: today, minutes: currentMinutes } = getNowInTimeZone();
   const lateAfterMinutes = toMinutes(settings.late_after_time);
   
   const result = {

@@ -3,6 +3,7 @@ import { getAttendance, getMonthlyAttendanceSummary } from "@/lib/actions/attend
 import { getUsers } from "@/lib/actions/users";
 import { AttendanceClient } from "@/components/attendance/attendance-client";
 import { getAllLeaves, getLeavesForCurrentUser } from "@/lib/actions/leaves";
+import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 
 export default async function AttendancePage(props: {
   searchParams: Promise<{ month?: string; page?: string; user_id?: string }>;
@@ -24,7 +25,7 @@ export default async function AttendancePage(props: {
   };
   const summaryMonth = month;
 
-  const [attendanceResponse, usersResponse, monthlySummary, leaves] = await Promise.all([
+  const [attendanceResponse, usersResponse, monthlySummary, leaves, attendanceSettings] = await Promise.all([
     getAttendance(attendanceFilters),
     getUsers(),
     isSuperAdmin
@@ -33,6 +34,7 @@ export default async function AttendancePage(props: {
     isSuperAdmin
       ? getAllLeaves({ status: "approved" })
       : getLeavesForCurrentUser({ status: "approved" }),
+    getAttendanceSettings(),
   ]);
 
   const allUsers = usersResponse.data;
@@ -48,6 +50,7 @@ export default async function AttendancePage(props: {
       userRole={user.role}
       monthlySummary={monthlySummary}
       leaves={leaves.data}
+      attendanceSettings={attendanceSettings}
       initialMonth={month}
     />
   );

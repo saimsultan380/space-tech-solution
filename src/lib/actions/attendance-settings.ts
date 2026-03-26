@@ -63,6 +63,9 @@ export async function getAttendanceSettings(): Promise<
     late_after_time: "09:15:00",
     shift_end_time: "18:00:00",
     checkout_latest_time: "23:00:00",
+    checkout_grace_minutes: 0,
+    allow_early_checkout: false,
+    early_checkout_minutes: 0,
     notify_after_minutes: 60,
     auto_leave_after_minutes: 240,
     auto_leave_enabled: true,
@@ -81,22 +84,71 @@ export async function getAttendanceSettings(): Promise<
 }
 
 export async function updateAttendanceSettings(input: {
-  shift_start_12h: string;
-  late_after_12h: string;
-  shift_end_12h: string;
-  checkout_latest_12h: string;
+  // Prefer 24h picker values (HH:MM). 12h fields are kept for backward compatibility.
+  shift_start_time?: string;
+  late_after_time?: string;
+  shift_end_time?: string;
+  checkout_latest_time?: string;
+  shift_start_12h?: string;
+  late_after_12h?: string;
+  shift_end_12h?: string;
+  checkout_latest_12h?: string;
   notify_after_minutes?: number;
   auto_leave_after_minutes?: number;
   auto_leave_enabled?: boolean;
   auto_leave_type?: string;
+  checkout_grace_minutes?: number;
+  allow_early_checkout?: boolean;
+  early_checkout_minutes?: number;
 }) {
   await requireRole(["super_admin"]);
   const supabase = await createClient();
 
-  const shiftStart = parse12Hour(input.shift_start_12h);
-  const lateAfter = parse12Hour(input.late_after_12h);
-  const shiftEnd = parse12Hour(input.shift_end_12h);
-  const checkoutLatest = parse12Hour(input.checkout_latest_12h);
+  function normalizeTime(value: string) {
+    const trimmed = value.trim();
+    // Accept HH:MM and convert to HH:MM:SS
+    const m = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) throw new Error(`Invalid time format: ${value}`);
+    const hh = Number(m[1]);
+    const mm = Number(m[2]);
+    const ss = Number(m[3] ?? "0");
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59 || ss < 0 || ss > 59) {
+      throw new Error(`Invalid time value: ${value}`);
+    }
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  }
+
+  const shiftStart =
+    input.shift_start_time !== undefined
+      ? normalizeTime(input.shift_start_time)
+      : parse12Hour(input.shift_start_12h ?? "");
+  const lateAfter =
+    input.late_after_time !== undefined
+      ? normalizeTime(input.late_after_time)
+      : parse12Hour(input.late_after_12h ?? "");
+  const shiftEnd =
+    input.shift_end_time !== undefined
+      ? normalizeTime(input.shift_end_time)
+      : parse12Hour(input.shift_end_12h ?? "");
+  const checkoutLatest =
+    input.checkout_latest_time !== undefined
+      ? normalizeTime(input.checkout_latest_time)
+      : parse12Hour(input.checkout_latest_12h ?? "");
+
+  const checkoutGraceMinutes = Math.max(0, input.checkout_grace_minutes ?? 0);
+  const allowEarlyCheckout = input.allow_early_checkout ?? false;
+  const earlyCheckoutMinutes = Math.max(0, input.early_checkout_minutes ?? 0);
+
+  // If grace minutes is provided (> 0), compute checkout_latest_time from shift_end_time.
+  // This avoids admins having to manually pick a "Latest Checkout" clock time.
+  let effectiveCheckoutLatest = checkoutLatest;
+  if (checkoutGraceMinutes > 0) {
+    const end = toMinutes(shiftEnd);
+    const latest = Math.min(24 * 60 - 1, end + checkoutGraceMinutes);
+    const hh = Math.floor(latest / 60);
+    const mm = latest % 60;
+    effectiveCheckoutLatest = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
+  }
 
   if (toMinutes(lateAfter) < toMinutes(shiftStart)) {
     throw new Error("Late after time cannot be before shift start");
@@ -104,8 +156,11 @@ export async function updateAttendanceSettings(input: {
   if (toMinutes(shiftEnd) <= toMinutes(shiftStart)) {
     throw new Error("Shift end must be after shift start");
   }
-  if (toMinutes(checkoutLatest) < toMinutes(shiftEnd)) {
+  if (toMinutes(effectiveCheckoutLatest) < toMinutes(shiftEnd)) {
     throw new Error("Latest checkout cannot be before shift end");
+  }
+  if (earlyCheckoutMinutes > 24 * 60) {
+    throw new Error("Early checkout minutes is too large");
   }
 
   const updateData: Record<string, unknown> = {
@@ -113,7 +168,10 @@ export async function updateAttendanceSettings(input: {
     shift_start_time: shiftStart,
     late_after_time: lateAfter,
     shift_end_time: shiftEnd,
-    checkout_latest_time: checkoutLatest,
+    checkout_latest_time: effectiveCheckoutLatest,
+    checkout_grace_minutes: checkoutGraceMinutes,
+    allow_early_checkout: allowEarlyCheckout,
+    early_checkout_minutes: earlyCheckoutMinutes,
   };
 
   if (input.notify_after_minutes !== undefined) {

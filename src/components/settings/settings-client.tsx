@@ -28,10 +28,17 @@ import {
 interface SettingsClientProps {
   user: AppUser;
   attendanceSettings: {
+    shift_start_time: string;
+    late_after_time: string;
+    shift_end_time: string;
+    checkout_latest_time: string;
     shift_start_12h: string;
     late_after_12h: string;
     shift_end_12h: string;
     checkout_latest_12h: string;
+    checkout_grace_minutes: number;
+    allow_early_checkout: boolean;
+    early_checkout_minutes: number;
     notify_after_minutes: number;
     auto_leave_after_minutes: number;
     auto_leave_enabled: boolean;
@@ -50,6 +57,11 @@ interface SettingsClientProps {
 export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings }: SettingsClientProps) {
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
+  const [department, setDepartment] = useState(user.department ?? "");
+  const [companyNameProfile, setCompanyNameProfile] = useState(user.company_name ?? "");
+  const [educationDegree, setEducationDegree] = useState(user.education_degree ?? "");
+  const [joiningDate, setJoiningDate] = useState(user.joining_date ?? "");
+  const [employmentType, setEmploymentType] = useState<string>(user.employment_type ?? "full_time");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
@@ -70,11 +82,15 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
   const [moduleLoading, setModuleLoading] = useState(false);
   const [moduleMessage, setModuleMessage] = useState<string | null>(null);
   const [moduleError, setModuleError] = useState<string | null>(null);
+  const toTimeInputValue = (time24: string) => (time24 || "09:00:00").slice(0, 5);
   const [attendanceForm, setAttendanceForm] = useState({
-    shift_start_12h: attendanceSettings.shift_start_12h,
-    late_after_12h: attendanceSettings.late_after_12h,
-    shift_end_12h: attendanceSettings.shift_end_12h,
-    checkout_latest_12h: attendanceSettings.checkout_latest_12h,
+    shift_start_time: toTimeInputValue(attendanceSettings.shift_start_time),
+    late_after_time: toTimeInputValue(attendanceSettings.late_after_time),
+    shift_end_time: toTimeInputValue(attendanceSettings.shift_end_time),
+    checkout_latest_time: toTimeInputValue(attendanceSettings.checkout_latest_time),
+    checkout_grace_minutes: attendanceSettings.checkout_grace_minutes ?? 0,
+    allow_early_checkout: attendanceSettings.allow_early_checkout ?? false,
+    early_checkout_minutes: attendanceSettings.early_checkout_minutes ?? 0,
     notify_after_minutes: attendanceSettings.notify_after_minutes,
     auto_leave_after_minutes: attendanceSettings.auto_leave_after_minutes,
     auto_leave_enabled: attendanceSettings.auto_leave_enabled,
@@ -100,10 +116,13 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
 
   useEffect(() => {
     setAttendanceForm({
-      shift_start_12h: attendanceSettings.shift_start_12h,
-      late_after_12h: attendanceSettings.late_after_12h,
-      shift_end_12h: attendanceSettings.shift_end_12h,
-      checkout_latest_12h: attendanceSettings.checkout_latest_12h,
+      shift_start_time: toTimeInputValue(attendanceSettings.shift_start_time),
+      late_after_time: toTimeInputValue(attendanceSettings.late_after_time),
+      shift_end_time: toTimeInputValue(attendanceSettings.shift_end_time),
+      checkout_latest_time: toTimeInputValue(attendanceSettings.checkout_latest_time),
+      checkout_grace_minutes: attendanceSettings.checkout_grace_minutes ?? 0,
+      allow_early_checkout: attendanceSettings.allow_early_checkout ?? false,
+      early_checkout_minutes: attendanceSettings.early_checkout_minutes ?? 0,
       notify_after_minutes: attendanceSettings.notify_after_minutes,
       auto_leave_after_minutes: attendanceSettings.auto_leave_after_minutes,
       auto_leave_enabled: attendanceSettings.auto_leave_enabled,
@@ -201,7 +220,15 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
     setProfileLoading(true);
     setProfileMessage(null);
     try {
-      await updateProfile({ full_name: fullName, avatar_url: avatarUrl });
+      await updateProfile({
+        full_name: fullName,
+        avatar_url: avatarUrl,
+        department: department || null,
+        company_name: companyNameProfile || null,
+        education_degree: educationDegree || null,
+        joining_date: joiningDate || null,
+        employment_type: employmentType || null,
+      });
       setProfileMessage("Profile updated successfully.");
     } catch (err) {
       setProfileMessage(
@@ -429,14 +456,61 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
                   </div>
                 </div>
 
-                <Input
-                  id="full_name"
-                  label="Full Name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-                <Input id="email" label="Email" value={user.email} disabled />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    id="full_name"
+                    label="Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                  <Input id="email" label="Email" value={user.email} disabled />
+                </div>
+
+                <div className="border-t border-border pt-4 mt-4">
+                  <h3 className="text-sm font-semibold mb-4">Additional Information</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      id="department"
+                      label="Department"
+                      placeholder="e.g., Sales, Engineering"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                    />
+                    <Input
+                      id="company_name_profile"
+                      label="Company"
+                      placeholder="e.g., Space Tech Solution"
+                      value={companyNameProfile}
+                      onChange={(e) => setCompanyNameProfile(e.target.value)}
+                    />
+                    <Input
+                      id="education_degree"
+                      label="Education"
+                      placeholder="e.g., Bachelor's in Computer Science"
+                      value={educationDegree}
+                      onChange={(e) => setEducationDegree(e.target.value)}
+                    />
+                    <Input
+                      id="joining_date"
+                      label="Date of Joining"
+                      type="date"
+                      value={joiningDate}
+                      onChange={(e) => setJoiningDate(e.target.value)}
+                    />
+                    <Select
+                      label="Employment Type"
+                      value={employmentType}
+                      onChange={(e) => setEmploymentType(e.target.value)}
+                      options={[
+                        { value: "full_time", label: "Full Time" },
+                        { value: "part_time", label: "Part Time" },
+                        { value: "contract", label: "Contract" },
+                        { value: "intern", label: "Intern" },
+                      ]}
+                    />
+                  </div>
+                </div>
 
                 {profileMessage && (
                   <p className="text-sm text-emerald-600 flex items-center gap-1">
@@ -633,115 +707,93 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
                 <form onSubmit={handleSaveAttendanceSettings} className="space-y-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Input
-                      id="shift_start_12h"
-                      label="Shift Start (AM/PM)"
-                      placeholder="09:00 AM"
-                      value={attendanceForm.shift_start_12h}
+                      id="shift_start_time"
+                      label="Shift Start"
+                      type="time"
+                      value={attendanceForm.shift_start_time}
                       onChange={(e) =>
-                        setAttendanceForm((prev) => ({ ...prev, shift_start_12h: e.target.value }))
+                        setAttendanceForm((prev) => ({ ...prev, shift_start_time: e.target.value }))
                       }
                       required
                     />
                     <Input
-                      id="late_after_12h"
-                      label="Late After (AM/PM)"
-                      placeholder="09:15 AM"
-                      value={attendanceForm.late_after_12h}
+                      id="late_after_time"
+                      label="Late After"
+                      type="time"
+                      value={attendanceForm.late_after_time}
                       onChange={(e) =>
-                        setAttendanceForm((prev) => ({ ...prev, late_after_12h: e.target.value }))
+                        setAttendanceForm((prev) => ({ ...prev, late_after_time: e.target.value }))
                       }
                       required
                     />
                     <Input
-                      id="shift_end_12h"
-                      label="Shift End (AM/PM)"
-                      placeholder="06:00 PM"
-                      value={attendanceForm.shift_end_12h}
+                      id="shift_end_time"
+                      label="Shift End"
+                      type="time"
+                      value={attendanceForm.shift_end_time}
                       onChange={(e) =>
-                        setAttendanceForm((prev) => ({ ...prev, shift_end_12h: e.target.value }))
+                        setAttendanceForm((prev) => ({ ...prev, shift_end_time: e.target.value }))
                       }
                       required
                     />
                     <Input
-                      id="checkout_latest_12h"
-                      label="Latest Checkout (AM/PM)"
-                      placeholder="11:00 PM"
-                      value={attendanceForm.checkout_latest_12h}
+                      id="checkout_latest_time"
+                      label="Latest Checkout"
+                      type="time"
+                      value={attendanceForm.checkout_latest_time}
                       onChange={(e) =>
-                        setAttendanceForm((prev) => ({ ...prev, checkout_latest_12h: e.target.value }))
+                        setAttendanceForm((prev) => ({ ...prev, checkout_latest_time: e.target.value }))
                       }
                       required
                     />
                   </div>
 
-                  <div className="border-t border-border pt-4">
-                    <h3 className="text-sm font-semibold mb-3">Auto Attendance & Leave Settings</h3>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      Configure automatic notifications and leave creation for employees who miss check-in.
-                    </p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Input
-                        id="notify_after_minutes"
-                        label="Send Reminder After (minutes)"
-                        type="number"
-                        min="0"
-                        placeholder="60"
-                        value={String(attendanceForm.notify_after_minutes)}
-                        onChange={(e) =>
-                          setAttendanceForm((prev) => ({
-                            ...prev,
-                            notify_after_minutes: parseInt(e.target.value) || 0,
-                          }))
-                        }
-                      />
-                      <Input
-                        id="auto_leave_after_minutes"
-                        label="Auto-Create Leave After (minutes)"
-                        type="number"
-                        min="0"
-                        placeholder="240"
-                        value={String(attendanceForm.auto_leave_after_minutes)}
-                        onChange={(e) =>
-                          setAttendanceForm((prev) => ({
-                            ...prev,
-                            auto_leave_after_minutes: parseInt(e.target.value) || 0,
-                          }))
-                        }
-                      />
-                      <Select
-                        label="Auto Leave Type"
-                        value={attendanceForm.auto_leave_type}
-                        onChange={(e) =>
-                          setAttendanceForm((prev) => ({ ...prev, auto_leave_type: e.target.value }))
-                        }
-                        options={[
-                          { value: "casual", label: "Casual Leave" },
-                          { value: "sick", label: "Sick Leave" },
-                          { value: "annual", label: "Annual Leave" },
-                          { value: "other", label: "Other" },
-                        ]}
-                      />
-                      <div className="flex items-center gap-3 pt-6">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-border text-primary"
-                            checked={attendanceForm.auto_leave_enabled}
-                            onChange={(e) =>
-                              setAttendanceForm((prev) => ({
-                                ...prev,
-                                auto_leave_enabled: e.target.checked,
-                              }))
-                            }
-                          />
-                          <span className="text-sm">Enable Auto Leave Creation</span>
-                        </label>
-                      </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      id="checkout_grace_minutes"
+                      label="Late Checkout Grace (minutes after shift end)"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={String(attendanceForm.checkout_grace_minutes)}
+                      onChange={(e) =>
+                        setAttendanceForm((prev) => ({
+                          ...prev,
+                          checkout_grace_minutes: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                    />
+                    <div className="flex items-center gap-3 pt-6">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-border text-primary"
+                          checked={attendanceForm.allow_early_checkout}
+                          onChange={(e) =>
+                            setAttendanceForm((prev) => ({
+                              ...prev,
+                              allow_early_checkout: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span className="text-sm">Allow Early Checkout</span>
+                      </label>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-3">
-                      Times are calculated from the "Late After" time. E.g., if Late After is 9:15 AM and 
-                      Reminder is 60 min, notification is sent at 10:15 AM.
-                    </p>
+                    <Input
+                      id="early_checkout_minutes"
+                      label="Early Checkout Allowed (minutes before shift end)"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={String(attendanceForm.early_checkout_minutes)}
+                      onChange={(e) =>
+                        setAttendanceForm((prev) => ({
+                          ...prev,
+                          early_checkout_minutes: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      disabled={!attendanceForm.allow_early_checkout}
+                    />
                   </div>
 
                   {attendanceError && <p className="text-sm text-destructive">{attendanceError}</p>}

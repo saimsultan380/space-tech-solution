@@ -10,6 +10,34 @@ import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon } from
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Notification, UserRole } from "@/lib/types";
 
+function formatEmploymentType(type: string | null | undefined): string | null {
+  if (!type) return null;
+  const labels: Record<string, string> = {
+    full_time: "Full Time",
+    part_time: "Part Time",
+    contract: "Contract",
+    intern: "Intern",
+  };
+  return labels[type] || type;
+}
+
+function ProfileField({ label, value, badge }: { label: string; value: string | null | undefined; badge?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {badge && value ? (
+        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+          {value}
+        </span>
+      ) : (
+        <span className={cn("text-sm font-medium", value ? "text-foreground" : "text-muted-foreground/50")}>
+          {value || "—"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface HeaderProps {
   userName: string;
   role: UserRole;
@@ -450,36 +478,81 @@ export function Header({
             </button>
           </div>
 
-          <div className="px-5 py-4">
+          <div className="flex-1 overflow-y-auto px-5 py-4">
             {loadingProfile ? (
               <p className="py-10 text-center text-sm text-muted-foreground">Loading profile…</p>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3 rounded-md border border-border bg-muted/20 p-4">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Full Name</span>
-                  <span className="col-span-2 text-sm">{profile?.full_name || userName}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</span>
-                  <span className="col-span-2 text-sm">{profile?.email || "-"}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</span>
-                  <span className="col-span-2 text-sm">{ROLE_LABELS[(profile?.role || role) as UserRole] || role}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Department</span>
-                  <span className="col-span-2 text-sm">{profile?.department || "-"}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company</span>
-                  <span className="col-span-2 text-sm">{profile?.company_name || "-"}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Education</span>
-                  <span className="col-span-2 text-sm">{profile?.education_degree || "-"}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date of Joining</span>
-                  <span className="col-span-2 text-sm">{profile?.joining_date || "-"}</span>
-
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Employment Type</span>
-                  <span className="col-span-2 text-sm">{profile?.employment_type || "-"}</span>
+                {/* Basic Info Card */}
+                <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </span>
+                    Basic Information
+                  </h3>
+                  <div className="space-y-3">
+                    <ProfileField label="Full Name" value={profile?.full_name || userName} />
+                    <ProfileField label="Email" value={profile?.email} />
+                    <ProfileField 
+                      label="Role" 
+                      value={ROLE_LABELS[(profile?.role || role) as UserRole] || role}
+                      badge
+                    />
+                  </div>
                 </div>
+
+                {/* Work Info Card */}
+                <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </span>
+                    Work Information
+                  </h3>
+                  <div className="space-y-3">
+                    <ProfileField label="Department" value={profile?.department} />
+                    <ProfileField label="Company" value={profile?.company_name} />
+                    <ProfileField 
+                      label="Employment Type" 
+                      value={formatEmploymentType(profile?.employment_type)}
+                      badge
+                    />
+                    <ProfileField 
+                      label="Date of Joining" 
+                      value={profile?.joining_date ? new Date(profile.joining_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} 
+                    />
+                  </div>
+                </div>
+
+                {/* Education Card */}
+                <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                      </svg>
+                    </span>
+                    Education
+                  </h3>
+                  <div className="space-y-3">
+                    <ProfileField label="Degree" value={profile?.education_degree} />
+                  </div>
+                </div>
+
+                {/* Employee ID */}
+                {profile?.employee_id && (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-center">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Employee ID</span>
+                    <p className="mt-1 font-mono text-sm font-bold text-foreground">{profile.employee_id}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

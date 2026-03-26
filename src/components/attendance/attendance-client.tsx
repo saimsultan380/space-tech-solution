@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
-import type { UserRole, Leave } from "@/lib/types";
+import type { AttendanceSettings, UserRole, Leave } from "@/lib/types";
 import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Download, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -61,6 +61,10 @@ interface AttendanceClientProps {
   userRole: UserRole;
   monthlySummary: MonthlySummary[];
   leaves: Leave[];
+  attendanceSettings: Pick<
+    AttendanceSettings,
+    "shift_end_time" | "checkout_latest_time" | "checkout_grace_minutes" | "allow_early_checkout" | "early_checkout_minutes"
+  >;
   initialMonth?: string | null;
 }
 
@@ -70,6 +74,7 @@ export function AttendanceClient({
   userRole,
   monthlySummary,
   leaves,
+  attendanceSettings,
   initialMonth,
 }: AttendanceClientProps) {
   const router = useRouter();
@@ -166,11 +171,32 @@ export function AttendanceClient({
   };
 
 
-  const today = new Date().toISOString().split("T")[0];
+  const getLocalISODate = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const today = getLocalISODate();
+  const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+
+  const toMinutesFromTimeString = (time: string) => {
+    const [h = "0", m = "0"] = time.split(":");
+    return Number(h) * 60 + Number(m);
+  };
+
+  const shiftEndMinutes = toMinutesFromTimeString(attendanceSettings.shift_end_time);
+  const latestCheckOutMinutes =
+    (attendanceSettings.checkout_grace_minutes ?? 0) > 0
+      ? Math.min(24 * 60 - 1, shiftEndMinutes + Math.max(0, attendanceSettings.checkout_grace_minutes))
+      : toMinutesFromTimeString(attendanceSettings.checkout_latest_time);
 
   const calculateHours = (checkIn: string, checkOut: string | null, date: string) => {
     if (!checkOut) {
-      return date === today ? "In progress" : "—";
+      if (date !== today) return "—";
+      return currentMinutes > latestCheckOutMinutes ? "—" : "In progress";
     }
     const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
     const hours = Math.floor(diff / 3600000);
@@ -201,6 +227,9 @@ export function AttendanceClient({
     }
     
     if (isToday) {
+      if (currentMinutes > latestCheckOutMinutes) {
+        return { label: "Missed Checkout", variant: "destructive" as const };
+      }
       return { label: "Active", variant: "warning" as const };
     }
     

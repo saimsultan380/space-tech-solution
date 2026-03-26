@@ -8,16 +8,39 @@ import { revalidatePath } from "next/cache";
 export async function updateProfile(formData: {
   full_name: string;
   avatar_url?: string | null;
+  department?: string | null;
+  company_name?: string | null;
+  education_degree?: string | null;
+  joining_date?: string | null;
+  employment_type?: string | null;
 }) {
   const user = await requireAuth();
   const admin = createAdminClient();
 
+  const updateData: Record<string, unknown> = {
+    full_name: formData.full_name,
+    avatar_url: formData.avatar_url ?? null,
+  };
+
+  if (formData.department !== undefined) {
+    updateData.department = formData.department || null;
+  }
+  if (formData.company_name !== undefined) {
+    updateData.company_name = formData.company_name || null;
+  }
+  if (formData.education_degree !== undefined) {
+    updateData.education_degree = formData.education_degree || null;
+  }
+  if (formData.joining_date !== undefined) {
+    updateData.joining_date = formData.joining_date || null;
+  }
+  if (formData.employment_type !== undefined) {
+    updateData.employment_type = formData.employment_type || null;
+  }
+
   const { error } = await admin
     .from("users")
-    .update({
-      full_name: formData.full_name,
-      avatar_url: formData.avatar_url ?? null,
-    })
+    .update(updateData)
     .eq("id", user.id);
 
   if (error) throw new Error(error.message);
