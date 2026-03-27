@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { BouncingDots } from "@/components/ui/bouncing-dots";
 import { Loader2 } from "lucide-react";
 
 export function Spinner({ className }: { className?: string }) {
@@ -7,8 +8,8 @@ export function Spinner({ className }: { className?: string }) {
 
 export function PageLoader() {
   return (
-    <div className="flex h-[50vh] items-center justify-center">
-      <Spinner className="h-8 w-8" />
+    <div className="flex min-h-screen items-center justify-center">
+      <BouncingDots message="Loading..." />
     </div>
   );
 }

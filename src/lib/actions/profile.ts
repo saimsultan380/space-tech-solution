@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { formatCnic } from "@/lib/utils";
 
 export async function updateProfile(formData: {
   full_name: string;
@@ -13,6 +14,18 @@ export async function updateProfile(formData: {
   education_degree?: string | null;
   joining_date?: string | null;
   employment_type?: string | null;
+  category?: string | null;
+  job_position?: string | null;
+  father_name?: string | null;
+  cnic?: string | null;
+  address?: string | null;
+  pay_days?: number | null;
+  pay_rate?: number | null;
+  gross_pay?: number | null;
+  basic_salary?: number | null;
+  paid_through?: string | null;
+  bank_account_no?: string | null;
+  bank_branch?: string | null;
 }) {
   const user = await requireAuth();
   const admin = createAdminClient();
@@ -36,6 +49,42 @@ export async function updateProfile(formData: {
   }
   if (formData.employment_type !== undefined) {
     updateData.employment_type = formData.employment_type || null;
+  }
+  if (formData.category !== undefined) {
+    updateData.category = formData.category || null;
+  }
+  if (formData.job_position !== undefined) {
+    updateData.job_position = formData.job_position || null;
+  }
+  if (formData.father_name !== undefined) {
+    updateData.father_name = formData.father_name || null;
+  }
+  if (formData.cnic !== undefined) {
+    updateData.cnic = formData.cnic ? formatCnic(formData.cnic) : null;
+  }
+  if (formData.address !== undefined) {
+    updateData.address = formData.address || null;
+  }
+  if (formData.pay_days !== undefined) {
+    updateData.pay_days = formData.pay_days;
+  }
+  if (formData.pay_rate !== undefined) {
+    updateData.pay_rate = formData.pay_rate;
+  }
+  if (formData.gross_pay !== undefined) {
+    updateData.gross_pay = formData.gross_pay;
+  }
+  if (formData.basic_salary !== undefined) {
+    updateData.basic_salary = formData.basic_salary;
+  }
+  if (formData.paid_through !== undefined) {
+    updateData.paid_through = formData.paid_through || null;
+  }
+  if (formData.bank_account_no !== undefined) {
+    updateData.bank_account_no = formData.bank_account_no || null;
+  }
+  if (formData.bank_branch !== undefined) {
+    updateData.bank_branch = formData.bank_branch || null;
   }
 
   const { error } = await admin

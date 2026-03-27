@@ -2,7 +2,7 @@
 
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, cn, formatCnic } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { downloadPayslipPdf } from "@/lib/payslip-pdf";
 import { Download, FileText, User, Briefcase, Calendar, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
@@ -49,7 +49,7 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
             <DetailItem label="Full Name" value={payslip.user?.full_name} />
             <DetailItem label="Employee ID" value={payslip.employee_id_display} />
             <DetailItem label="Father Name" value={payslip.father_name} />
-            <DetailItem label="CNIC No" value={payslip.cnic_no} />
+            <DetailItem label="CNIC No" value={formatCnic(payslip.cnic_no)} />
             <DetailItem label="Department" value={payslip.department} />
             <DetailItem label="Job Position" value={payslip.job_position} />
             <DetailItem label="Category" value={payslip.category} />

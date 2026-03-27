@@ -57,7 +57,6 @@ export function LeaveFormDialog({ open, onClose }: LeaveFormDialogProps) {
           options={LEAVE_TYPES}
           value={form.type}
           onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-          required
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
@@ -66,7 +65,6 @@ export function LeaveFormDialog({ open, onClose }: LeaveFormDialogProps) {
             type="date"
             value={form.start_date}
             onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-            required
           />
           <Input
             id="end_date"
@@ -74,7 +72,6 @@ export function LeaveFormDialog({ open, onClose }: LeaveFormDialogProps) {
             type="date"
             value={form.end_date}
             onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-            required
           />
         </div>
         <Textarea
@@ -83,7 +80,6 @@ export function LeaveFormDialog({ open, onClose }: LeaveFormDialogProps) {
           placeholder="Describe the reason for this leave..."
           value={form.reason}
           onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-          required
         />
 
         {error && (

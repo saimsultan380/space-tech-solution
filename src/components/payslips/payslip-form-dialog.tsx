@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/loading";
 import { createPayslip, getPayslipAttendanceSummary, updatePayslip } from "@/lib/actions/payslips";
 import type { Payslip, PayslipStatus } from "@/lib/types";
+import { formatCnic } from "@/lib/utils";
 
 interface EmployeeOption {
   id: string;
@@ -15,6 +16,20 @@ interface EmployeeOption {
   role: string;
   employee_id?: string | null;
   preferred_currency?: string | null;
+  joining_date?: string | null;
+  category?: string | null;
+  department?: string | null;
+  job_position?: string | null;
+  father_name?: string | null;
+  cnic?: string | null;
+  address?: string | null;
+  pay_days?: number | null;
+  pay_rate?: number | null;
+  gross_pay?: number | null;
+  basic_salary?: number | null;
+  paid_through?: string | null;
+  bank_account_no?: string | null;
+  bank_branch?: string | null;
 }
 
 interface PayslipFormDialogProps {
@@ -33,6 +48,7 @@ export function PayslipFormDialog({
   initialPayslip = null,
 }: PayslipFormDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     user_id: initialPayslip?.user_id || "",
@@ -52,7 +68,7 @@ export function PayslipFormDialog({
     job_position: initialPayslip?.job_position || "",
     father_name: initialPayslip?.father_name || "",
     pay_days: initialPayslip ? String(initialPayslip.pay_days) : "30",
-    cnic_no: initialPayslip?.cnic_no || "",
+    cnic_no: formatCnic(initialPayslip?.cnic_no || ""),
     address: initialPayslip?.address || "",
     pay_rate: initialPayslip ? String(initialPayslip.pay_rate) : "0",
     gross_pay: initialPayslip ? String(initialPayslip.gross_pay) : "0",
@@ -87,7 +103,7 @@ export function PayslipFormDialog({
       job_position: initialPayslip?.job_position || "",
       father_name: initialPayslip?.father_name || "",
       pay_days: initialPayslip ? String(initialPayslip.pay_days) : "30",
-      cnic_no: initialPayslip?.cnic_no || "",
+      cnic_no: formatCnic(initialPayslip?.cnic_no || ""),
       address: initialPayslip?.address || "",
       pay_rate: initialPayslip ? String(initialPayslip.pay_rate) : "0",
       gross_pay: initialPayslip ? String(initialPayslip.gross_pay) : "0",
@@ -113,8 +129,25 @@ export function PayslipFormDialog({
   useEffect(() => {
     if (mode === "create" && form.user_id) {
       const emp = employeeMap.get(form.user_id);
-      if (emp?.employee_id) {
-        setForm((prev) => ({ ...prev, employee_id_display: emp.employee_id || "" }));
+      if (emp) {
+        setForm((prev) => ({
+          ...prev,
+          employee_id_display: emp.employee_id || "",
+          joining_date: emp.joining_date || "",
+          category: emp.category || "Permanent",
+          department: emp.department || "",
+          job_position: emp.job_position || "",
+          father_name: emp.father_name || "",
+          cnic_no: formatCnic(emp.cnic || ""),
+          address: emp.address || "",
+          pay_days: emp.pay_days?.toString() || "30",
+          pay_rate: emp.pay_rate?.toString() || "0",
+          gross_pay: emp.gross_pay?.toString() || "0",
+          basic_salary: emp.basic_salary?.toString() || "",
+          paid_through: emp.paid_through || "Bank",
+          bank_account_no: emp.bank_account_no || "",
+          bank_branch: emp.bank_branch || "",
+        }));
       }
     }
   }, [form.user_id, mode, employeeMap]);
@@ -125,6 +158,8 @@ export function PayslipFormDialog({
 
     let active = true;
     (async () => {
+      setError("");
+      setAttendanceLoading(true);
       try {
         const summary = await getPayslipAttendanceSummary({
           user_id: form.user_id,
@@ -138,7 +173,10 @@ export function PayslipFormDialog({
           leaves: String(summary.leaves ?? 0),
         }));
       } catch {
-        setForm((prev) => prev);
+        if (!active) return;
+        setError("Could not load late attendance/leaves from records.");
+      } finally {
+        if (active) setAttendanceLoading(false);
       }
     })();
 
@@ -321,7 +359,8 @@ export function PayslipFormDialog({
               label="CNIC No"
               placeholder="XXXXX-XXXXXXX-X"
               value={form.cnic_no}
-              onChange={(e) => setForm((prev) => ({ ...prev, cnic_no: e.target.value }))}
+              maxLength={15}
+              onChange={(e) => setForm((prev) => ({ ...prev, cnic_no: formatCnic(e.target.value) }))}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -484,17 +523,17 @@ export function PayslipFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               id="late_attendance"
-              label="Late Attendance (Count)"
+              label={attendanceLoading ? "Late Attendance (Count) - calculating..." : "Late Attendance (Count)"}
               type="number"
               value={form.late_attendance}
-              onChange={(e) => setForm((prev) => ({ ...prev, late_attendance: e.target.value }))}
+              disabled={mode === "create"}
             />
             <Input
               id="leaves"
-              label="Leaves (Count)"
+              label={attendanceLoading ? "Leaves (Count) - calculating..." : "Leaves (Count)"}
               type="number"
               value={form.leaves}
-              onChange={(e) => setForm((prev) => ({ ...prev, leaves: e.target.value }))}
+              disabled={mode === "create"}
             />
           </div>
         </div>
@@ -512,21 +551,41 @@ export function PayslipFormDialog({
                 { value: "Cheque", label: "Cheque" },
               ]}
               value={form.paid_through}
-              onChange={(e) => setForm((prev) => ({ ...prev, paid_through: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  paid_through: e.target.value,
+                  bank_account_no: e.target.value === "Cash" ? "" : prev.bank_account_no,
+                  bank_branch: e.target.value === "Cash" ? "" : prev.bank_branch,
+                }))
+              }
             />
-            <Input
-              id="bank_account_no"
-              label="Account Number"
-              value={form.bank_account_no}
-              onChange={(e) => setForm((prev) => ({ ...prev, bank_account_no: e.target.value }))}
-            />
+            {form.paid_through !== "Cash" ? (
+              <Input
+                id="bank_account_no"
+                label={form.paid_through === "Cheque" ? "Cheque Number" : "Account Number"}
+                value={form.bank_account_no}
+                onChange={(e) => setForm((prev) => ({ ...prev, bank_account_no: e.target.value }))}
+              />
+            ) : (
+              <div className="space-y-1.5 text-left">
+                <label className="text-sm font-medium text-foreground block text-left opacity-0 select-none">
+                  Account Number
+                </label>
+                <div className="flex h-12 w-full items-center rounded-md border border-input bg-muted/30 px-3.5 text-sm text-muted-foreground sm:h-11">
+                  Cash payment selected. Account details are not required.
+                </div>
+              </div>
+            )}
           </div>
-          <Input
-            id="bank_branch"
-            label="Bank Branch"
-            value={form.bank_branch}
-            onChange={(e) => setForm((prev) => ({ ...prev, bank_branch: e.target.value }))}
-          />
+          {form.paid_through !== "Cash" && (
+            <Input
+              id="bank_branch"
+              label={form.paid_through === "Cheque" ? "Cheque Bank" : "Bank Branch"}
+              value={form.bank_branch}
+              onChange={(e) => setForm((prev) => ({ ...prev, bank_branch: e.target.value }))}
+            />
+          )}
         </div>
 
         <div className="rounded-xl border border-border bg-muted/20 p-4">

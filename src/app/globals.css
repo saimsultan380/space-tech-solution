@@ -84,7 +84,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-poppins);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-background: #0f1117;
   --color-sidebar-foreground: #ffffff;
@@ -141,7 +141,7 @@ html {
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

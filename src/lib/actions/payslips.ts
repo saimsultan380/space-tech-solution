@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
+import { formatCnic } from "@/lib/utils";
 
 interface CreatePayslipInput {
   user_id: string;
@@ -127,21 +128,27 @@ export async function getRecentPayslips(limit = 5) {
   return data || [];
 }
 
-export async function getPayslipAttendanceSummary(input: {
-  user_id: string;
-  period_start: string;
-  period_end: string;
-}) {
-  await requireRole(["super_admin", "processor"]);
-  const supabase = await createClient();
-
+async function computePayslipAttendanceSummary(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  input: {
+    user_id: string;
+    period_start: string;
+    period_end: string;
+  }
+) {
   if (!input.user_id || !input.period_start || !input.period_end) {
     return { late_attendance: 0, leaves: 0 };
   }
 
-  const settings = await getAttendanceSettings();
-  const [lateHour, lateMinute] = settings.late_after_time.split(":").map(Number);
-  const lateAfterMinutes = (lateHour || 0) * 60 + (lateMinute || 0);
+  // Fallback keeps payroll usable even if attendance settings are missing.
+  let lateAfterMinutes = 9 * 60 + 15;
+  try {
+    const settings = await getAttendanceSettings();
+    const [lateHour, lateMinute] = settings.late_after_time.split(":").map(Number);
+    lateAfterMinutes = (lateHour || 0) * 60 + (lateMinute || 0);
+  } catch {
+    lateAfterMinutes = 9 * 60 + 15;
+  }
 
   const { data: attendanceRows, error: attendanceError } = await supabase
     .from("attendance")
@@ -188,6 +195,16 @@ export async function getPayslipAttendanceSummary(input: {
   };
 }
 
+export async function getPayslipAttendanceSummary(input: {
+  user_id: string;
+  period_start: string;
+  period_end: string;
+}) {
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+  return computePayslipAttendanceSummary(supabase, input);
+}
+
 export async function createPayslip(input: CreatePayslipInput) {
   const admin = await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
@@ -230,6 +247,11 @@ export async function createPayslip(input: CreatePayslipInput) {
 
   const status = input.status || "processed";
   const nowIso = new Date().toISOString();
+  const attendanceSummary = await computePayslipAttendanceSummary(supabase, {
+    user_id: input.user_id,
+    period_start: input.period_start,
+    period_end: input.period_end,
+  });
 
   const { data, error } = await supabase
     .from("payslips")
@@ -256,15 +278,15 @@ export async function createPayslip(input: CreatePayslipInput) {
       job_position: input.job_position,
       father_name: input.father_name,
       pay_days: input.pay_days,
-      cnic_no: input.cnic_no,
+      cnic_no: input.cnic_no ? formatCnic(input.cnic_no) : null,
       address: input.address,
       pay_rate: input.pay_rate,
       gross_pay: input.gross_pay,
       monthly_revenue: input.monthly_revenue,
       chargeback_amount: input.chargeback_amount,
       remaining: input.remaining,
-      late_attendance: input.late_attendance,
-      leaves: input.leaves,
+      late_attendance: attendanceSummary.late_attendance,
+      leaves: attendanceSummary.leaves,
       paid_through: input.paid_through,
       bank_account_no: input.bank_account_no,
       bank_branch: input.bank_branch,
@@ -321,6 +343,11 @@ export async function updatePayslip(input: UpdatePayslipInput) {
 
   const status = input.status || "processed";
   const sentAt = status === "paid" ? new Date().toISOString() : null;
+  const attendanceSummary = await computePayslipAttendanceSummary(supabase, {
+    user_id: input.user_id,
+    period_start: input.period_start,
+    period_end: input.period_end,
+  });
 
   const { error } = await supabase
     .from("payslips")
@@ -347,15 +374,15 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       job_position: input.job_position,
       father_name: input.father_name,
       pay_days: input.pay_days,
-      cnic_no: input.cnic_no,
+      cnic_no: input.cnic_no ? formatCnic(input.cnic_no) : null,
       address: input.address,
       pay_rate: input.pay_rate,
       gross_pay: input.gross_pay,
       monthly_revenue: input.monthly_revenue,
       chargeback_amount: input.chargeback_amount,
       remaining: input.remaining,
-      late_attendance: input.late_attendance,
-      leaves: input.leaves,
+      late_attendance: attendanceSummary.late_attendance,
+      leaves: attendanceSummary.leaves,
       paid_through: input.paid_through,
       bank_account_no: input.bank_account_no,
       bank_branch: input.bank_branch,

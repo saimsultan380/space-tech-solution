@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/loading";
 import { CURRENCIES, NAV_ITEMS, ROLE_LABELS } from "@/lib/constants";
 import type { AppUser } from "@/lib/types";
+import { formatCnic } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { updateProfile, updatePreferences, changePassword } from "@/lib/actions/profile";
 import { updateUserAllowedModules } from "@/lib/actions/users";
@@ -62,6 +63,9 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
   const [educationDegree, setEducationDegree] = useState(user.education_degree ?? "");
   const [joiningDate, setJoiningDate] = useState(user.joining_date ?? "");
   const [employmentType, setEmploymentType] = useState<string>(user.employment_type ?? "full_time");
+  const [fatherName, setFatherName] = useState(user.father_name ?? "");
+  const [cnic, setCnic] = useState(formatCnic(user.cnic ?? ""));
+  const [address, setAddress] = useState(user.address ?? "");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
@@ -228,6 +232,9 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
         education_degree: educationDegree || null,
         joining_date: joiningDate || null,
         employment_type: employmentType || null,
+        father_name: fatherName || null,
+        cnic: cnic || null,
+        address: address || null,
       });
       setProfileMessage("Profile updated successfully.");
     } catch (err) {
@@ -508,6 +515,26 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
                         { value: "contract", label: "Contract" },
                         { value: "intern", label: "Intern" },
                       ]}
+                    />
+                    <Input
+                      id="father_name"
+                      label="Father Name"
+                      value={fatherName}
+                      onChange={(e) => setFatherName(e.target.value)}
+                    />
+                    <Input
+                      id="cnic_profile"
+                      label="CNIC"
+                      placeholder="XXXXX-XXXXXXX-X"
+                      value={cnic}
+                      maxLength={15}
+                      onChange={(e) => setCnic(formatCnic(e.target.value))}
+                    />
+                    <Input
+                      id="address_profile"
+                      label="Address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
                     />
                   </div>
                 </div>

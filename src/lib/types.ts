@@ -12,6 +12,9 @@ export type MarketingCampaignStatus = "active" | "paused" | "completed";
 export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
 
 export type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
+export type PaidThrough = "Bank" | "Cash" | "Cheque";
+
+export type EmployeeCategory = "Permanent" | "Contract";
 
 export interface AppUser {
   id: string;
@@ -29,6 +32,18 @@ export interface AppUser {
   education_degree?: string | null;
   joining_date?: string | null;
   employment_type?: EmploymentType | null;
+  category?: EmployeeCategory | null;
+  job_position?: string | null;
+  father_name?: string | null;
+  cnic?: string | null;
+  address?: string | null;
+  pay_days?: number | null;
+  pay_rate?: number | null;
+  gross_pay?: number | null;
+  basic_salary?: number | null;
+  paid_through?: PaidThrough | null;
+  bank_account_no?: string | null;
+  bank_branch?: string | null;
 }
 
 export interface Customer {

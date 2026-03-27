@@ -26,6 +26,19 @@ interface EmployeeRow {
   role: string;
   employee_id?: string | null;
   preferred_currency?: string | null;
+  joining_date?: string | null;
+  category?: string | null;
+  department?: string | null;
+  job_position?: string | null;
+  father_name?: string | null;
+  cnic?: string | null;
+  address?: string | null;
+  pay_days?: number | null;
+  pay_rate?: number | null;
+  gross_pay?: number | null;
+  basic_salary?: number | null;
+  bank_account_no?: string | null;
+  bank_branch?: string | null;
 }
 
 interface PayslipsAdminClientProps {

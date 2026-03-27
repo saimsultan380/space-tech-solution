@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { getInitials, formatDateTime, cn } from "@/lib/utils";
+import { useRouteLoading } from "@/components/providers/route-loading-provider";
+import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
 import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Notification, UserRole } from "@/lib/types";
@@ -19,6 +20,16 @@ function formatEmploymentType(type: string | null | undefined): string | null {
     intern: "Intern",
   };
   return labels[type] || type;
+}
+
+function formatPaidThrough(method: string | null | undefined): string | null {
+  if (!method) return null;
+  const labels: Record<string, string> = {
+    Bank: "Bank",
+    Cash: "Cash",
+    Cheque: "Cheque",
+  };
+  return labels[method] || method;
 }
 
 function ProfileField({ label, value, badge }: { label: string; value: string | null | undefined; badge?: boolean }) {
@@ -58,6 +69,7 @@ export function Header({
   isMobile = false,
 }: HeaderProps) {
   const router = useRouter();
+  const { startLoading } = useRouteLoading();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -79,6 +91,7 @@ export function Header({
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const handleSignOut = async () => {
+    startLoading();
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
@@ -144,6 +157,7 @@ export function Header({
     e.preventDefault();
     const q = searchTerm.trim();
     if (!q) return;
+    startLoading();
     router.push(`/dashboard/search?q=${encodeURIComponent(q)}`);
   };
 
@@ -446,7 +460,7 @@ export function Header({
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
         <div
           className={cn(
-            "absolute right-0 top-0 h-full w-full max-w-md bg-card border-l border-border shadow-2xl",
+            "absolute right-0 top-0 h-full w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col",
             "animate-[slide-in-from-right_0.2s_ease-out]"
           )}
           onClick={(e) => e.stopPropagation()}
@@ -478,73 +492,121 @@ export function Header({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {loadingProfile ? (
               <p className="py-10 text-center text-sm text-muted-foreground">Loading profile…</p>
             ) : (
               <div className="space-y-4">
                 {/* Basic Info Card */}
-                <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
-                  <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
-                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
+                <details className="group rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4" open>
+                  <summary className="mb-3 flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                        <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </span>
+                      Basic Information
                     </span>
-                    Basic Information
-                  </h3>
+                    <span className="text-sm font-semibold normal-case text-muted-foreground transition-transform group-open:rotate-180">⌄</span>
+                  </summary>
                   <div className="space-y-3">
                     <ProfileField label="Full Name" value={profile?.full_name || userName} />
                     <ProfileField label="Email" value={profile?.email} />
-                    <ProfileField 
-                      label="Role" 
+                    <ProfileField
+                      label="Role"
                       value={ROLE_LABELS[(profile?.role || role) as UserRole] || role}
                       badge
                     />
                   </div>
-                </div>
+                </details>
 
                 {/* Work Info Card */}
-                <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
-                  <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
-                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
+                <details className="group rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+                  <summary className="mb-3 flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                        <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </span>
+                      Work Information
                     </span>
-                    Work Information
-                  </h3>
+                    <span className="text-sm font-semibold normal-case text-muted-foreground transition-transform group-open:rotate-180">⌄</span>
+                  </summary>
                   <div className="space-y-3">
                     <ProfileField label="Department" value={profile?.department} />
+                    <ProfileField label="Job Position" value={profile?.job_position} />
                     <ProfileField label="Company" value={profile?.company_name} />
-                    <ProfileField 
-                      label="Employment Type" 
+                    <ProfileField label="Category" value={profile?.category} badge />
+                    <ProfileField
+                      label="Employment Type"
                       value={formatEmploymentType(profile?.employment_type)}
                       badge
                     />
-                    <ProfileField 
-                      label="Date of Joining" 
-                      value={profile?.joining_date ? new Date(profile.joining_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null} 
+                    <ProfileField
+                      label="Date of Joining"
+                      value={profile?.joining_date ? new Date(profile.joining_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : null}
                     />
+                    <ProfileField label="Father Name" value={profile?.father_name} />
+                    <ProfileField label="CNIC" value={formatCnic(profile?.cnic)} />
+                    <ProfileField label="Address" value={profile?.address} />
                   </div>
-                </div>
+                </details>
 
                 {/* Education Card */}
-                <div className="rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
-                  <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
-                      <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
-                        <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-                      </svg>
+                <details className="group rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+                  <summary className="mb-3 flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                        <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                          <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                        </svg>
+                      </span>
+                      Education
                     </span>
-                    Education
-                  </h3>
+                    <span className="text-sm font-semibold normal-case text-muted-foreground transition-transform group-open:rotate-180">⌄</span>
+                  </summary>
                   <div className="space-y-3">
                     <ProfileField label="Degree" value={profile?.education_degree} />
                   </div>
-                </div>
+                </details>
+
+                {/* Payroll & Payment Card */}
+                <details className="group rounded-xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+                  <summary className="mb-3 flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+                        <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-2.761 0-5 1.343-5 3s2.239 3 5 3 5-1.343 5-3-2.239-3-5-3zm0 0V5m0 9v5m-7-8h14" />
+                        </svg>
+                      </span>
+                      Payroll & Payment
+                    </span>
+                    <span className="text-sm font-semibold normal-case text-muted-foreground transition-transform group-open:rotate-180">⌄</span>
+                  </summary>
+                  <div className="space-y-3">
+                    <ProfileField label="Pay Days" value={profile?.pay_days ? String(profile.pay_days) : null} />
+                    <ProfileField label="Pay Rate" value={profile?.pay_rate ? String(profile.pay_rate) : null} />
+                    <ProfileField label="Gross Pay" value={profile?.gross_pay ? String(profile.gross_pay) : null} />
+                    <ProfileField label="Basic Salary" value={profile?.basic_salary ? String(profile.basic_salary) : null} />
+                    <ProfileField label="Paid Through" value={formatPaidThrough(profile?.paid_through)} badge />
+                    {profile?.paid_through !== "Cash" && (
+                      <>
+                        <ProfileField
+                          label={profile?.paid_through === "Cheque" ? "Cheque Number" : "Account Number"}
+                          value={profile?.bank_account_no}
+                        />
+                        <ProfileField
+                          label={profile?.paid_through === "Cheque" ? "Cheque Bank" : "Bank Branch"}
+                          value={profile?.bank_branch}
+                        />
+                      </>
+                    )}
+                  </div>
+                </details>
 
                 {/* Employee ID */}
                 {profile?.employee_id && (

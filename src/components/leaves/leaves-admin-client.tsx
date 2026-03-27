@@ -221,7 +221,6 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Applied</TableHead>
-                  <TableHead>Approver Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -262,9 +261,6 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(leave.created_at)}</TableCell>
-                    <TableCell className="max-w-[220px] truncate" title={leave.approver_notes || ""}>
-                      {leave.approver_notes || "-"}
-                    </TableCell>
                     <TableCell className="text-right">
                       {leave.status === "pending" ? (
                         <div className="flex items-center justify-end gap-2">

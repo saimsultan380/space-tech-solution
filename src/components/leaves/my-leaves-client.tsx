@@ -103,7 +103,6 @@ export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps
                     <TableHead>Reason</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Applied</TableHead>
-                    <TableHead>Approver Notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -135,9 +134,6 @@ export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDate(leave.created_at)}</TableCell>
-                      <TableCell className="max-w-[200px] truncate italic text-muted-foreground">
-                        {leave.approver_notes || "-"}
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
