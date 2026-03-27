@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
@@ -24,7 +26,6 @@ import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Download } from "luci
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Pagination } from "@/components/ui/pagination";
 
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
   pending: "warning",
@@ -50,6 +51,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currency } = useCurrency();
+  const [isPending, startTransition] = useTransition();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -65,11 +67,12 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
         params.set(key, String(value));
       }
     });
-    // Reset to page 1 on filter change unless specifically changing page
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const search = searchParams.get("q") || "";
@@ -261,7 +264,8 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             </div>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           <div className="overflow-x-auto">
             {sales.length === 0 ? (
               <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />

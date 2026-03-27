@@ -20,8 +20,8 @@ export default async function AttendancePage(props: {
   const attendanceFilters = {
     month,
     user_id,
-    page,
-    pageSize: 10,
+    page: 1,
+    pageSize: 1000,
   };
   const summaryMonth = month;
 

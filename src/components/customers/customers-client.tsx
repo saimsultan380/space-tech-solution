@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
@@ -21,7 +23,6 @@ import { Plus, Search, Eye } from "lucide-react";
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Pagination } from "@/components/ui/pagination";
 
 interface CustomersClientProps {
   customersResponse: {
@@ -38,6 +39,7 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const [showForm, setShowForm] = useState(false);
 
@@ -55,7 +57,9 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const search = searchParams.get("q") || "";
@@ -93,7 +97,8 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {customers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"

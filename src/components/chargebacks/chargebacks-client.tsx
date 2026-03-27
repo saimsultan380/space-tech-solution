@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select as SelectField } from "@/components/ui/select";
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { ChargebackFormDialog } from "./chargeback-form-dialog";
 import { deleteChargeback, updateChargebackStatus } from "@/lib/actions/chargebacks";
 import { formatDate } from "@/lib/utils";
@@ -28,28 +31,55 @@ const statusVariant: Record<string, "default" | "success" | "destructive" | "war
 };
 
 interface ChargebacksClientProps {
-  chargebacks: Array<{
-    id: string;
-    date: string;
-    reason: string;
-    status: string;
-    created_at: string;
-    sale: {
+  chargebacksResponse: {
+    data: Array<{
       id: string;
-      company_name: string;
-      agent_id: string;
-      agent: { full_name: string } | null;
-    } | null;
-  }>;
+      date: string;
+      reason: string;
+      status: string;
+      created_at: string;
+      sale: {
+        id: string;
+        company_name: string;
+        agent_id: string;
+        agent: { full_name: string } | null;
+      } | null;
+    }>;
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   userRole: UserRole;
 }
 
-export function ChargebacksClient({ chargebacks, userRole }: ChargebacksClientProps) {
+export function ChargebacksClient({ chargebacksResponse, userRole }: ChargebacksClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const { data: chargebacks, count, page, totalPages, pageSize } = chargebacksResponse;
+
   const [showForm, setShowForm] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const canCreate = userRole === "super_admin" || userRole === "processor";
   const canManage = userRole === "super_admin" || userRole === "processor";
+
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
 
   const handleDownloadReport = () => {
     if (chargebacks.length === 0) return;
@@ -132,10 +162,11 @@ export function ChargebacksClient({ chargebacks, userRole }: ChargebacksClientPr
       <Card>
         <CardHeader>
           <CardTitle className="text-sm text-muted-foreground">
-            {chargebacks.length} chargeback{chargebacks.length !== 1 ? "s" : ""}
+            {count} chargeback{count !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {chargebacks.length === 0 ? (
             <EmptyState title="No chargebacks" description="Chargebacks will appear here" />
           ) : (
@@ -196,6 +227,13 @@ export function ChargebacksClient({ chargebacks, userRole }: ChargebacksClientPr
               </TableBody>
             </Table>
           )}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
         </CardContent>
       </Card>
 

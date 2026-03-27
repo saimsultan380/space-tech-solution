@@ -3,12 +3,11 @@ import { getSales } from "@/lib/actions/sales";
 import { getUsers } from "@/lib/actions/users";
 import { SalesClient } from "@/components/sales/sales-client";
 
-export default async function SalesPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; status?: string; type?: string; agent_id?: string; q?: string };
+export default async function SalesPage(props: {
+  searchParams: Promise<{ page?: string; status?: string; type?: string; agent_id?: string; q?: string }>;
 }) {
   const user = await requireAuth();
+  const searchParams = await props.searchParams;
   
   const page = Number(searchParams.page) || 1;
   const status = searchParams.status || "all";

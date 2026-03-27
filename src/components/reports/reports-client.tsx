@@ -1,7 +1,7 @@
- "use client";
+"use client";
 
-import { useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useMemo, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -14,6 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import { SalesPerAgentChart } from "./charts/sales-per-agent-chart";
@@ -75,16 +77,39 @@ export function ReportsClient({
   salesPerProcessor,
   revenueData,
   chargebacksPerEmployee,
-      attendanceVsPerformance,
-      employeeMonthlyStats,
-      month,
+  attendanceVsPerformance,
+  employeeMonthlyStats,
+  month,
 }: ReportsClientProps) {
   const [revenuePeriod, setRevenuePeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const { currency } = useCurrency();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const [selectedMonth, setSelectedMonth] = useState(month);
+
+  const empPage = Math.max(1, Number(searchParams.get("emp_page") || "1") || 1);
+  const empPageSize = 10;
+  const empTotalPages = Math.max(1, Math.ceil(employeeMonthlyStats.length / empPageSize));
+  const empCurrentPage = Math.min(empPage, empTotalPages);
+  const empStartIndex = (empCurrentPage - 1) * empPageSize;
+  const paginatedEmployees = employeeMonthlyStats.slice(empStartIndex, empStartIndex + empPageSize);
+
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
 
   const monthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
@@ -106,9 +131,7 @@ export function ReportsClient({
 
   const handleMonthChange = (value: string) => {
     setSelectedMonth(value);
-    const params = new URLSearchParams(searchParams?.toString());
-    params.set("month", value);
-    router.push(`/dashboard/reports?${params.toString()}`);
+    updateFilters({ month: value, emp_page: 1 });
   };
 
   const topPerformer = [...employeeMonthlyStats]
@@ -178,7 +201,8 @@ export function ReportsClient({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {employeeMonthlyStats.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               No employee data for this period.
@@ -198,7 +222,7 @@ export function ReportsClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employeeMonthlyStats.map((emp) => (
+                {paginatedEmployees.map((emp) => (
                   <TableRow key={emp.id}>
                     <TableCell className="font-medium">{emp.name}</TableCell>
                     <TableCell>
@@ -219,6 +243,13 @@ export function ReportsClient({
               </TableBody>
             </Table>
           )}
+          <Pagination
+            currentPage={empCurrentPage}
+            totalPages={empTotalPages}
+            onPageChange={(p) => updateFilters({ emp_page: p })}
+            totalItems={employeeMonthlyStats.length}
+            pageSize={empPageSize}
+          />
         </CardContent>
       </Card>
 

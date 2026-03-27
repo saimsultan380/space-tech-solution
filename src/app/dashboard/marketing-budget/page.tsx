@@ -11,13 +11,14 @@ import {
 import { MarketingBudgetClient } from "@/components/marketing-budget/marketing-budget-client";
 
 interface MarketingBudgetPageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     month?: string;
-  };
+  }>;
 }
 
-export default async function MarketingBudgetPage({ searchParams }: MarketingBudgetPageProps) {
+export default async function MarketingBudgetPage(props: MarketingBudgetPageProps) {
   await requireRole(["super_admin", "processor"]);
+  const searchParams = props.searchParams ? await props.searchParams : undefined;
   const month = (searchParams?.month as string | undefined) || new Date().toISOString().slice(0, 7);
 
   const [overview, campaigns, users, dailyCallLogs, dailyCampaignBudgets, monthlyTotals, transactions] =

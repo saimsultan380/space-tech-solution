@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 interface SearchPageProps {
-  searchParams?: { q?: string };
+  searchParams?: Promise<{ q?: string }>;
 }
 
-export default async function SearchPage({ searchParams }: SearchPageProps) {
+export default async function SearchPage(props: SearchPageProps) {
   const user = await requireAuth();
+  const searchParams = props.searchParams ? await props.searchParams : undefined;
   const query = (searchParams?.q || "").trim();
   const currency = user.preferred_currency ?? "USD";
 

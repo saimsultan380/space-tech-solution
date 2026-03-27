@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatDate } from "@/lib/utils";
 import type { Leave, UserRole } from "@/lib/types";
 import { LeaveFormDialog } from "./leave-form-dialog";
 import { CalendarDays, Bot } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Pagination } from "@/components/ui/pagination";
 
 interface MyLeavesClientProps {
   leavesResponse: {
@@ -41,6 +42,7 @@ export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const { data: leaves, count, page, totalPages, pageSize } = leavesResponse;
 
@@ -58,7 +60,9 @@ export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const title = userRole === "sales_agent" ? "My Leaves" : "Leave Requests";
@@ -86,7 +90,8 @@ export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps
             {count} request{count !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {leaves.length === 0 ? (
             <EmptyState
               title="No leave requests yet"

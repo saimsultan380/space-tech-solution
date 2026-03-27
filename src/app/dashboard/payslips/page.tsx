@@ -5,12 +5,11 @@ import { PayslipsAdminClient } from "@/components/payslips/payslips-admin-client
 import { PayslipsMyClient } from "@/components/payslips/payslips-my-client";
 import { getCompanySettings } from "@/lib/actions/company-settings";
 
-export default async function PayslipsPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; q?: string };
+export default async function PayslipsPage(props: {
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
   const user = await requireAuth();
+  const searchParams = await props.searchParams;
   const page = Number(searchParams.page) || 1;
   const search = searchParams.q || "";
   const companySettings = await getCompanySettings();

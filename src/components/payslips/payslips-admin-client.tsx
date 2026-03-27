@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { clonePayslipToNextMonth, deletePayslip, markPayslipAsPaid } from "@/lib/actions/payslips";
 import type { Payslip } from "@/lib/types";
@@ -18,7 +20,6 @@ import { Select } from "@/components/ui/select";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Pagination } from "@/components/ui/pagination";
 
 interface EmployeeRow {
   id: string;
@@ -60,6 +61,7 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
 
@@ -82,7 +84,9 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const searchTerm = searchParams.get("q") || "";
@@ -254,7 +258,8 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
             />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {filteredPayslips.length === 0 ? (
             <EmptyState
               title="No payslips found"

@@ -5,15 +5,30 @@ import { requireAuth, requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { ChargebackStatus } from "@/lib/types";
 
-export async function getChargebacks() {
+export async function getChargebacks(filters?: {
+  page?: number;
+  pageSize?: number;
+}) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 10;
+  const offset = (page - 1) * pageSize;
+
+  const { data, error, count } = await supabase
     .from("chargebacks")
-    .select("*, sale:sales(id, company_name, agent_id, agent:users!sales_agent_id_fkey(full_name))")
-    .order("created_at", { ascending: false });
+    .select("*, sale:sales(id, company_name, agent_id, agent:users!sales_agent_id_fkey(full_name))", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
-  return data;
+  
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function createChargeback(formData: {

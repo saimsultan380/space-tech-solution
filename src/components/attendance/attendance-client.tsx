@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
+import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { AttendanceSettings, UserRole, Leave } from "@/lib/types";
@@ -22,7 +24,6 @@ import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Download, Bot } fro
 import { Button } from "@/components/ui/button";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Pagination } from "@/components/ui/pagination";
 
 interface AttendanceRecord {
   id: string;
@@ -80,10 +81,12 @@ export function AttendanceClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  const { data: attendance, count, page, totalPages, pageSize } = attendanceResponse;
-
-  const [activeTab, setActiveTab] = useState("daily");
+  const { data: attendance } = attendanceResponse;
+  const activeTab = searchParams.get("tab") === "monthly" ? "monthly" : "daily";
+  const monthlyPage = Math.max(1, Number(searchParams.get("monthly_page") || "1") || 1);
+  const monthlyPageSize = 10;
   
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -94,10 +97,15 @@ export function AttendanceClient({
         params.set(key, String(value));
       }
     });
-    if (!updates.page) {
+    if (!Object.prototype.hasOwnProperty.call(updates, "page")) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    if (!Object.prototype.hasOwnProperty.call(updates, "monthly_page")) {
+      params.delete("monthly_page");
+    }
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -107,7 +115,7 @@ export function AttendanceClient({
 
   const handleMonthChange = (value: string) => {
     if (!value) return;
-    updateFilters({ month: value });
+    updateFilters({ month: value, page: 1, monthly_page: 1 });
   };
 
   const monthStart = `${monthParam}-01`;
@@ -159,6 +167,12 @@ export function AttendanceClient({
       (a.user?.role as UserRole | undefined) === roleFilter;
     return matchesUser && matchesRole;
   });
+  const dailyPage = Math.max(1, Number(searchParams.get("page") || "1") || 1);
+  const dailyPageSize = 10;
+  const dailyTotalPages = Math.max(1, Math.ceil(filtered.length / dailyPageSize));
+  const dailyCurrentPage = Math.min(dailyPage, dailyTotalPages);
+  const dailyStartIndex = (dailyCurrentPage - 1) * dailyPageSize;
+  const paginatedDailyRows = filtered.slice(dailyStartIndex, dailyStartIndex + dailyPageSize);
 
   const isOnLeave = (userId: string | undefined, date: string) => {
     if (!userId) return false;
@@ -263,6 +277,10 @@ export function AttendanceClient({
       (s.role as UserRole | undefined) === roleFilter;
     return matchesUser && matchesRole;
   });
+  const monthlyTotalPages = Math.max(1, Math.ceil(filteredSummary.length / monthlyPageSize));
+  const monthlyCurrentPage = Math.min(monthlyPage, monthlyTotalPages);
+  const monthlyStartIndex = (monthlyCurrentPage - 1) * monthlyPageSize;
+  const paginatedSummary = filteredSummary.slice(monthlyStartIndex, monthlyStartIndex + monthlyPageSize);
 
   const roleSummary = monthlySummary.reduce<
     Record<
@@ -428,13 +446,13 @@ export function AttendanceClient({
         </Card>
       )}
 
-      <Tabs defaultValue="daily">
+      <Tabs key={activeTab} defaultValue={activeTab}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
-            <TabsTrigger value="daily" onClick={() => setActiveTab("daily")}>
+            <TabsTrigger value="daily" onClick={() => updateFilters({ tab: "daily" })}>
               <Clock className="mr-1.5 h-3.5 w-3.5" /> Daily Log
             </TabsTrigger>
-            <TabsTrigger value="monthly" onClick={() => setActiveTab("monthly")}>
+            <TabsTrigger value="monthly" onClick={() => updateFilters({ tab: "monthly" })}>
               <CalendarDays className="mr-1.5 h-3.5 w-3.5" /> Monthly Summary
             </TabsTrigger>
           </TabsList>
@@ -452,7 +470,7 @@ export function AttendanceClient({
                 ]}
                 value={roleFilter}
                 onChange={(e) =>
-                  updateFilters({ role: e.target.value })
+                  updateFilters({ role: e.target.value, page: 1, monthly_page: 1 })
                 }
               />
               <Select
@@ -464,7 +482,7 @@ export function AttendanceClient({
                 ]}
                 value={selectedEmployeeId}
                 onChange={(e) => {
-                  updateFilters({ user_id: e.target.value });
+                  updateFilters({ user_id: e.target.value, page: 1, monthly_page: 1 });
                 }}
               />
               {(roleFilter !== "all" || selectedEmployeeId !== "all") && (
@@ -473,7 +491,7 @@ export function AttendanceClient({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    updateFilters({ role: "all", user_id: "all" });
+                    updateFilters({ role: "all", user_id: "all", page: 1, monthly_page: 1 });
                   }}
                   className="shrink-0"
                 >
@@ -505,7 +523,8 @@ export function AttendanceClient({
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
+              <TableLoadingOverlay isLoading={isPending} />
               {filtered.length === 0 ? (
                 <EmptyState title="No attendance records" description="Records will appear here" />
               ) : (
@@ -522,7 +541,7 @@ export function AttendanceClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((record) => {
+                    {paginatedDailyRows.map((record) => {
                       const leaveOnly = record.isLeaveOnly === true;
                       return (
                   <TableRow key={record.id}>
@@ -569,11 +588,11 @@ export function AttendanceClient({
               )}
 
               <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChange={(p) => updateFilters({ page: p })}
-                totalItems={count}
-                pageSize={pageSize}
+                currentPage={dailyCurrentPage}
+                totalPages={dailyTotalPages}
+                onPageChange={(p) => updateFilters({ tab: "daily", page: p })}
+                totalItems={filtered.length}
+                pageSize={dailyPageSize}
               />
             </CardContent>
           </Card>
@@ -587,7 +606,8 @@ export function AttendanceClient({
                 Monthly Attendance Summary
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
+              <TableLoadingOverlay isLoading={isPending} />
               {filteredSummary.length === 0 ? (
                 <EmptyState
                   title="No attendance data"
@@ -609,7 +629,7 @@ export function AttendanceClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSummary.map((emp) => (
+                    {paginatedSummary.map((emp) => (
                       <TableRow key={emp.userId}>
                         <TableCell className="font-medium">{emp.name}</TableCell>
                         <TableCell>
@@ -643,6 +663,13 @@ export function AttendanceClient({
                   </TableBody>
                 </Table>
               )}
+              <Pagination
+                currentPage={monthlyCurrentPage}
+                totalPages={monthlyTotalPages}
+                onPageChange={(p) => updateFilters({ tab: "monthly", monthly_page: p })}
+                totalItems={filteredSummary.length}
+                pageSize={monthlyPageSize}
+              />
             </CardContent>
           </Card>
         </TabsContent>

@@ -3,12 +3,11 @@ import { getAllLeaves, getLeavesForCurrentUser } from "@/lib/actions/leaves";
 import { LeavesAdminClient } from "@/components/leaves/leaves-admin-client";
 import { MyLeavesClient } from "@/components/leaves/my-leaves-client";
 
-export default async function LeavesPage({
-  searchParams,
-}: {
-  searchParams: { page?: string; status?: string };
+export default async function LeavesPage(props: {
+  searchParams: Promise<{ page?: string; status?: string }>;
 }) {
   const user = await requireAuth();
+  const searchParams = await props.searchParams;
   const page = Number(searchParams.page) || 1;
   const status = (searchParams.status as any) || "all";
 
