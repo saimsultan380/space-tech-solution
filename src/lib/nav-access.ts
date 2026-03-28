@@ -23,6 +23,7 @@ export function dismissProcessorCallLogsDashboardCta(): void {
 
 const CALL_LOGS_HREF = "/dashboard/call-logs-responses";
 const LEGACY_CUSTOMERS_HREF = "/dashboard/customers";
+const PROCESSING_ACCOUNTS_HREF = "/dashboard/processing-accounts";
 
 /** Whether the user may see Call Logs / customers (after sidebar module filtering). */
 export function canAccessCallLogsResponses(
@@ -43,6 +44,24 @@ export function canAccessCallLogsResponses(
   if (role === "processor") {
     if (!allowedModules || allowedModules.length === 0) return false;
     return hasModule(CALL_LOGS_HREF);
+  }
+  return false;
+}
+
+/** Whether the user may see Processing Accounts (after sidebar module filtering). */
+export function canAccessProcessingAccounts(
+  role: UserRole,
+  allowedModules: string[] | null | undefined
+): boolean {
+  if (role === "super_admin") return true;
+
+  if (role === "sales_agent") {
+    if (!allowedModules || allowedModules.length === 0) return true;
+    return allowedModules.includes(PROCESSING_ACCOUNTS_HREF);
+  }
+  if (role === "processor") {
+    if (!allowedModules || allowedModules.length === 0) return true;
+    return allowedModules.includes(PROCESSING_ACCOUNTS_HREF);
   }
   return false;
 }

@@ -73,6 +73,14 @@ export const PAYMENT_METHODS = [
   { value: "bank", label: "Bank Transfer" },
 ];
 
+export const PROCESSING_ACCOUNT_STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "not_working", label: "Not Working" },
+  { value: "closed", label: "Closed" },
+  { value: "reversal_issue", label: "Reversal Issue" },
+  { value: "under_review", label: "Under Review" },
+];
+
 export const CURRENCIES = [
   { value: "PKR", label: "Pakistani Rupee (PKR)" },
   { value: "USD", label: "US Dollar (USD)" },
@@ -89,6 +97,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/users", label: "Users", icon: "Users" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
+    { href: "/dashboard/processing-accounts", label: "Processing Accounts", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "Sales", icon: "TrendingUp" },
     // { href: "/dashboard/payments", label: "Payments", icon: "CreditCard" },
     { href: "/dashboard/marketing-budget", label: "Marketing Budget", icon: "Megaphone" },
@@ -102,6 +111,7 @@ export const NAV_ITEMS = {
   sales_agent: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
+    { href: "/dashboard/processing-accounts", label: "Processing Accounts", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
     { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
@@ -112,6 +122,7 @@ export const NAV_ITEMS = {
   processor: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
+    { href: "/dashboard/processing-accounts", label: "Processing Accounts", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "Sales Queue", icon: "TrendingUp" },
     { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },

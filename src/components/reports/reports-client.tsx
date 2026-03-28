@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import { SalesPerAgentChart } from "./charts/sales-per-agent-chart";
@@ -86,8 +85,6 @@ export function ReportsClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-
   const [selectedMonth, setSelectedMonth] = useState(month);
 
   const empPage = Math.max(1, Number(searchParams.get("emp_page") || "1") || 1);
@@ -106,9 +103,7 @@ export function ReportsClient({
         params.set(key, String(value));
       }
     });
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const monthOptions = useMemo(() => {
@@ -201,8 +196,7 @@ export function ReportsClient({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+        <CardContent>
           {employeeMonthlyStats.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               No employee data for this period.

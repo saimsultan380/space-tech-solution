@@ -10,6 +10,7 @@ export type PayslipStatus = "processed" | "paid";
 export type MarketingCampaignType = "call" | "digital" | "other";
 export type MarketingCampaignStatus = "active" | "paused" | "completed";
 export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
+export type ProcessingAccountStatus = "active" | "not_working" | "closed" | "reversal_issue" | "under_review";
 
 export type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 export type PaidThrough = "Bank" | "Cash" | "Cheque";
@@ -310,4 +311,18 @@ export interface DashboardFilters {
   dateTo: string;
   employeeId: string;
   saleType: SaleType | "all";
+}
+
+export interface ProcessingAccount {
+  id: string;
+  account_holder_name: string;
+  routing_number_encrypted: string;
+  account_number_encrypted: string;
+  billing_address: string;
+  status: ProcessingAccountStatus;
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  creator?: Pick<AppUser, "id" | "full_name"> | null;
 }

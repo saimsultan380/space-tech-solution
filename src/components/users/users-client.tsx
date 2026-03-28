@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { CreateUserDialog } from "./create-user-dialog";
 import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
@@ -45,8 +44,6 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-
   const { data: users, count, page, totalPages, pageSize } = usersResponse;
 
   const [showCreate, setShowCreate] = useState(false);
@@ -65,9 +62,7 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const search = searchParams.get("q") || "";
@@ -124,8 +119,7 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+        <CardContent>
           {users.length === 0 ? (
             <EmptyState
               title="No users found"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
@@ -43,8 +42,6 @@ export function CustomersClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
@@ -75,9 +72,7 @@ export function CustomersClient({
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const search = searchParams.get("q") || "";
@@ -121,8 +116,7 @@ export function CustomersClient({
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+        <CardContent>
           {customers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"

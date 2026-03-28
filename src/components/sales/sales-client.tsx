@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -16,7 +16,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
@@ -51,8 +50,6 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currency } = useCurrency();
-  const [isPending, startTransition] = useTransition();
-
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
@@ -70,9 +67,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const search = searchParams.get("q") || "";
@@ -264,8 +259,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             </div>
           )}
         </CardHeader>
-        <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+        <CardContent>
           <div className="overflow-x-auto">
             {sales.length === 0 ? (
               <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />

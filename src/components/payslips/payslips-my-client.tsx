@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/loading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { Download, ChevronLeft, ChevronRight, Eye } from "lucide-react";
@@ -33,8 +32,6 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-
   const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
 
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
@@ -49,9 +46,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const searchTerm = searchParams.get("q") || "";
@@ -110,8 +105,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
             className="h-10"
           />
         </CardHeader>
-        <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+        <CardContent>
           {filteredPayslips.length === 0 ? (
             <EmptyState
               title="No payslips found"

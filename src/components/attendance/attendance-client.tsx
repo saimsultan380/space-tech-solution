@@ -1,6 +1,5 @@
 "use client";
 
-import { useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { AttendanceSettings, UserRole, Leave } from "@/lib/types";
@@ -81,8 +79,6 @@ export function AttendanceClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
-
   const { data: attendance } = attendanceResponse;
   const activeTab = searchParams.get("tab") === "monthly" ? "monthly" : "daily";
   const monthlyPage = Math.max(1, Number(searchParams.get("monthly_page") || "1") || 1);
@@ -103,9 +99,7 @@ export function AttendanceClient({
     if (!Object.prototype.hasOwnProperty.call(updates, "monthly_page")) {
       params.delete("monthly_page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -523,8 +517,7 @@ export function AttendanceClient({
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="relative">
-              <TableLoadingOverlay isLoading={isPending} />
+            <CardContent>
               {filtered.length === 0 ? (
                 <EmptyState title="No attendance records" description="Records will appear here" />
               ) : (
@@ -606,8 +599,7 @@ export function AttendanceClient({
                 Monthly Attendance Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="relative">
-              <TableLoadingOverlay isLoading={isPending} />
+            <CardContent>
               {filteredSummary.length === 0 ? (
                 <EmptyState
                   title="No attendance data"

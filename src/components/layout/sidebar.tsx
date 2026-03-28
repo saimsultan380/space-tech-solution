@@ -35,6 +35,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   CalendarDays,
   ReceiptText,
   Megaphone,
+  Landmark: CreditCard,
 };
 
 interface SidebarProps {
@@ -59,7 +60,7 @@ const SECTION_CONFIG: Record<UserRole, Array<{ title: string; hrefs: string[] }>
     },
     {
       title: "Employee Management",
-      hrefs: ["/dashboard/users", "/dashboard/call-logs-responses", "/dashboard/sales", "/dashboard/chargebacks"],
+      hrefs: ["/dashboard/users", "/dashboard/call-logs-responses", "/dashboard/processing-accounts", "/dashboard/sales", "/dashboard/chargebacks"],
     },
     {
       title: "Finance & System",
@@ -69,7 +70,7 @@ const SECTION_CONFIG: Record<UserRole, Array<{ title: string; hrefs: string[] }>
   sales_agent: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/call-logs-responses", "/dashboard/sales"],
+      hrefs: ["/dashboard", "/dashboard/call-logs-responses", "/dashboard/processing-accounts", "/dashboard/sales"],
     },
     {
       title: "HR Services",
@@ -83,7 +84,7 @@ const SECTION_CONFIG: Record<UserRole, Array<{ title: string; hrefs: string[] }>
   processor: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/call-logs-responses", "/dashboard/sales"],
+      hrefs: ["/dashboard", "/dashboard/call-logs-responses", "/dashboard/processing-accounts", "/dashboard/sales"],
     },
     {
       title: "HR Services",
