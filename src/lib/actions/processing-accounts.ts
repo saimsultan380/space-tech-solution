@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
-import type { ProcessingAccountStatus } from "@/lib/types";
+import type { ProcessingAccountImportPayload, ProcessingAccountStatus } from "@/lib/types";
 
 function safeDecrypt(ciphertext: string | null | undefined): string {
   if (!ciphertext?.trim()) return "";
@@ -138,6 +138,73 @@ export async function createProcessingAccount(formData: {
   if (error) throw new Error(error.message);
   revalidateProcessingAccountsPaths();
   return data.id as string;
+}
+
+const IMPORT_STATUS_SET = new Set<ProcessingAccountStatus>([
+  "active",
+  "not_working",
+  "closed",
+  "reversal_issue",
+  "under_review",
+]);
+
+const MAX_IMPORT_ROWS = 500;
+
+export async function bulkImportProcessingAccounts(
+  rows: ProcessingAccountImportPayload[]
+): Promise<{ inserted: number; error?: string }> {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  if (!rows.length) {
+    return { inserted: 0 };
+  }
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return {
+      inserted: 0,
+      error: `Too many rows. Maximum ${MAX_IMPORT_ROWS} per import.`,
+    };
+  }
+
+  const filtered = rows.filter((r) => (r.account_holder_name || "").trim());
+  if (filtered.length === 0) {
+    return { inserted: 0, error: "No rows with an account holder name to import." };
+  }
+
+  const records = filtered.map((r) => {
+    const status: ProcessingAccountStatus = IMPORT_STATUS_SET.has(r.status)
+      ? r.status
+      : "active";
+    return {
+      account_holder_name: (r.account_holder_name || "").trim(),
+      routing_number_encrypted: encrypt((r.routing_number || "").trim()),
+      account_number_encrypted: encrypt((r.account_number || "").trim()),
+      billing_address: (r.billing_address || "").trim(),
+      status,
+      notes: r.notes?.trim() ? r.notes.trim() : null,
+      created_by: user.id,
+    };
+  });
+
+  const chunkSize = 50;
+  let inserted = 0;
+  for (let i = 0; i < records.length; i += chunkSize) {
+    const chunk = records.slice(i, i + chunkSize);
+    const { error } = await supabase.from("processing_accounts").insert(chunk);
+    if (error) {
+      return {
+        inserted,
+        error:
+          inserted > 0
+            ? `${error.message} (${inserted} rows were imported before this error.)`
+            : error.message,
+      };
+    }
+    inserted += chunk.length;
+  }
+
+  revalidateProcessingAccountsPaths();
+  return { inserted };
 }
 
 export async function updateProcessingAccount(

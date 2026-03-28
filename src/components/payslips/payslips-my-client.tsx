@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/loading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { Download, ChevronLeft, ChevronRight, Eye } from "lucide-react";
@@ -93,7 +94,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
         <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="text-lg font-bold text-foreground">Payslip History</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(-1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -103,6 +104,17 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
               <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+              <TableDataExport
+                filenameBase={`my-payslips-${activeMonth}`}
+                headers={["Period", "Pay Date", "Net Pay", "Status"]}
+                rows={filteredPayslips.map((p) => [
+                  `${formatDate(p.period_start)} - ${formatDate(p.period_end)}`,
+                  formatDate(p.pay_date),
+                  formatCurrency(Number(p.net_pay || 0), p.currency || "PKR"),
+                  p.status,
+                ])}
+                disabled={filteredPayslips.length === 0}
+              />
             </div>
           </div>
           <Input

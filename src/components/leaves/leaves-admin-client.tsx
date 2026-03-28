@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { ROLE_LABELS, LEAVE_STATUSES } from "@/lib/constants";
 import type { Leave } from "@/lib/types";
 import { updateLeaveStatus } from "@/lib/actions/leaves";
@@ -205,6 +206,35 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             <CardTitle className="text-sm text-muted-foreground">
               {filtered.length} total request{filtered.length !== 1 ? "s" : ""} matching filters
             </CardTitle>
+            <TableDataExport
+              filenameBase="leave-requests"
+              headers={[
+                "Employee",
+                "Role",
+                "Dates",
+                "Type",
+                "Source",
+                "Reason",
+                "Status",
+                "Applied",
+              ]}
+              rows={filtered.map((leave) => [
+                leave.user?.full_name || "Unknown",
+                ROLE_LABELS[leave.user?.role || ""] || leave.user?.role || "N/A",
+                `${formatDate(leave.start_date)}${
+                  leave.end_date && leave.end_date !== leave.start_date
+                    ? ` - ${formatDate(leave.end_date)}`
+                    : ""
+                }`,
+                leave.type || "N/A",
+                leave.source === "auto" ? "Auto" : "Manual",
+                leave.reason,
+                leave.status,
+                formatDate(leave.created_at),
+              ])}
+              disabled={filtered.length === 0}
+              className="shrink-0"
+            />
           </div>
         </CardHeader>
         <CardContent className="relative">

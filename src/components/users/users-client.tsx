@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { CreateUserDialog } from "./create-user-dialog";
 import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
@@ -111,20 +112,36 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={inputRef}
-                placeholder="Search users..."
-                value={searchInput}
-                onChange={(e) => onInputChange(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 w-full flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={inputRef}
+                  placeholder="Search users..."
+                  value={searchInput}
+                  onChange={(e) => onInputChange(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <CardTitle className="text-sm text-muted-foreground sm:shrink-0 sm:whitespace-nowrap">
+                {count} user{count !== 1 ? "s" : ""}
+              </CardTitle>
             </div>
-            <CardTitle className="text-sm text-muted-foreground whitespace-nowrap">
-              {count} user{count !== 1 ? "s" : ""}
-            </CardTitle>
+            <TableDataExport
+              filenameBase="users"
+              headers={["Name", "Email", "Employee ID", "Role", "Status", "Joined"]}
+              rows={users.map((u) => [
+                u.full_name,
+                u.email,
+                u.employee_id || "-",
+                ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] || u.role,
+                u.is_active ? "Active" : "Inactive",
+                formatDate(u.created_at),
+              ])}
+              disabled={users.length === 0}
+              className="shrink-0"
+            />
           </div>
         </CardHeader>
         <CardContent className="relative">

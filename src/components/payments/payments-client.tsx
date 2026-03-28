@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/loading";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { PaymentFormDialog } from "./payment-form-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
@@ -54,9 +55,24 @@ export function PaymentsClient({ payments, userRole }: PaymentsClientProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground">
-            {payments.length} payment{payments.length !== 1 ? "s" : ""}
-          </CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-sm text-muted-foreground">
+              {payments.length} payment{payments.length !== 1 ? "s" : ""}
+            </CardTitle>
+            <TableDataExport
+              filenameBase="payments"
+              headers={["Customer", "Sale", "Method", "Details", "Amount", "Date"]}
+              rows={payments.map((p) => [
+                p.customer?.name || "N/A",
+                p.sale?.company_name || "N/A",
+                p.method === "card" ? "Card" : "Bank",
+                p.method === "card" ? `****${p.card_last_four || ""}` : p.bank_name || "N/A",
+                formatCurrency(p.amount, currency),
+                formatDate(p.created_at),
+              ])}
+              disabled={payments.length === 0}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {payments.length === 0 ? (

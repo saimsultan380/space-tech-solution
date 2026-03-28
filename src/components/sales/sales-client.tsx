@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -17,12 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
 import { bulkUpdateSaleStatus } from "@/lib/actions/sales";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Download } from "lucide-react";
+import { Plus, Search, CheckCircle, XCircle, Loader2, Eye } from "lucide-react";
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -109,54 +110,21 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
     }
   };
 
-  const handleDownloadReport = () => {
-    if (sales.length === 0) return;
-
-    const headers = [
-      "Customer",
-      "Type",
-      "Subtype",
-      "Company",
-      "Charged Amount",
-      "Status",
-      "Agent",
-      "Created At",
-    ];
-
-    const rows = sales.map((sale) => [
-      sale.customer?.name || "",
-      sale.sale_type,
-      sale.subtype,
-      sale.company_name,
-      sale.charged_amount.toString(),
-      sale.status,
-      sale.agent?.full_name || "",
-      sale.created_at,
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((value) => {
-            const v = value ?? "";
-            const needsQuotes = /[",\n]/.test(v);
-            const escaped = v.replace(/"/g, '""');
-            return needsQuotes ? `"${escaped}"` : escaped;
-          })
-          .join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "sales-report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  const salesExportRows = useMemo(
+    () =>
+      sales.map((sale) => [
+        sale.customer?.name || "N/A",
+        sale.customer?.email || "",
+        sale.company_name,
+        sale.sale_type,
+        sale.subtype,
+        formatCurrency(sale.charged_amount, currency),
+        sale.status,
+        sale.agent?.full_name || "N/A",
+        formatDate(sale.created_at),
+      ]),
+    [sales, currency],
+  );
 
   const handleBulkAction = async (status: "approved" | "rejected") => {
     if (pendingSelected.length === 0) return;
@@ -184,10 +152,6 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDownloadReport}>
-            <Download className="h-4 w-4" />
-            <span className="ml-2">Download Sales Report</span>
-          </Button>
           {canCreate && (
             <Link href="/dashboard/sales/new">
               <Button>
@@ -268,6 +232,24 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
               </div>
             </div>
           )}
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+            <TableDataExport
+              filenameBase="sales"
+              headers={[
+                "Customer",
+                "Customer Email",
+                "Company",
+                "Type",
+                "Subtype",
+                "Amount",
+                "Status",
+                "Agent",
+                "Date",
+              ]}
+              rows={salesExportRows}
+              disabled={sales.length === 0}
+            />
+          </div>
         </CardHeader>
         <CardContent className="relative">
           <TableLoadingOverlay isLoading={isPending} />

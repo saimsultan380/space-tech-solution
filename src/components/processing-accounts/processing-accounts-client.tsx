@@ -17,7 +17,9 @@ import {
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { ProcessingAccountFormDialog } from "./processing-account-form-dialog";
+import { ProcessingAccountsImportDialog } from "./processing-accounts-import-dialog";
 import { DeleteProcessingAccountButton } from "./delete-processing-account-button";
 import { NotifyAdminDialog } from "./notify-admin-dialog";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
@@ -25,6 +27,7 @@ import type { UserRole, ProcessingAccountStatus } from "@/lib/types";
 import type { ProcessingAccountStats } from "@/lib/actions/processing-accounts";
 import {
   Plus,
+  FileUp,
   Search,
   CheckCircle,
   AlertTriangle,
@@ -81,6 +84,7 @@ export function ProcessingAccountsClient({
   const [isPending, startTransition] = useTransition();
 
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingAccount, setEditingAccount] = useState<ProcessingAccountRow | null>(null);
   const [notifyAccountId, setNotifyAccountId] = useState<string | null>(null);
 
@@ -164,15 +168,20 @@ export function ProcessingAccountsClient({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Processing Accounts</h1>
+          <h1 className="text-3xl font-bold">Processing Database</h1>
           <p className="text-muted-foreground">
             Manage checking accounts used for daily sales processing
           </p>
         </div>
         {canManage && (
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4" /> Add Processing Account
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setShowImport(true)}>
+              <FileUp className="h-4 w-4" /> Import CSV / Excel
+            </Button>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4" /> Add Processing Account
+            </Button>
+          </div>
         )}
       </div>
 
@@ -218,7 +227,7 @@ export function ProcessingAccountsClient({
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="text-lg">Processing Accounts List</CardTitle>
+            <CardTitle className="text-lg">Accounts</CardTitle>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative flex-1 sm:min-w-[280px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -242,7 +251,29 @@ export function ProcessingAccountsClient({
               />
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">{count} accounts found</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">{count} accounts found</p>
+            <TableDataExport
+              filenameBase="processing-accounts"
+              headers={[
+                "Account Holder Name",
+                "Routing Number",
+                "Account Number",
+                "Billing Address",
+                "Status",
+                "Notes",
+              ]}
+              rows={accounts.map((a) => [
+                a.account_holder_name,
+                a.routing_number,
+                a.account_number,
+                a.billing_address,
+                statusConfig[a.status].label,
+                a.notes || "",
+              ])}
+              disabled={accounts.length === 0}
+            />
+          </div>
         </CardHeader>
         <CardContent className="relative">
           <TableLoadingOverlay isLoading={isPending} />
@@ -377,6 +408,13 @@ export function ProcessingAccountsClient({
           />
         </CardContent>
       </Card>
+
+      {showImport && (
+        <ProcessingAccountsImportDialog
+          open={showImport}
+          onClose={() => setShowImport(false)}
+        />
+      )}
 
       {showForm && (
         <ProcessingAccountFormDialog

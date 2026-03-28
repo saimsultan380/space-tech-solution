@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatDate } from "@/lib/utils";
 import type { Leave, UserRole } from "@/lib/types";
 import { LeaveFormDialog } from "./leave-form-dialog";
@@ -86,9 +87,29 @@ export function MyLeavesClient({ leavesResponse, userRole }: MyLeavesClientProps
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground">
-            {count} request{count !== 1 ? "s" : ""}
-          </CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-sm text-muted-foreground">
+              {count} request{count !== 1 ? "s" : ""}
+            </CardTitle>
+            <TableDataExport
+              filenameBase="my-leave-requests"
+              headers={["Dates", "Type", "Source", "Reason", "Status", "Applied"]}
+              rows={leaves.map((leave) => [
+                `${formatDate(leave.start_date)}${
+                  leave.end_date && leave.end_date !== leave.start_date
+                    ? ` - ${formatDate(leave.end_date)}`
+                    : ""
+                }`,
+                leave.type,
+                leave.source === "auto" ? "Auto" : "Manual",
+                leave.reason,
+                leave.status,
+                formatDate(leave.created_at),
+              ])}
+              disabled={leaves.length === 0}
+              className="shrink-0"
+            />
+          </div>
         </CardHeader>
         <CardContent className="relative">
           <TableLoadingOverlay isLoading={isPending} />

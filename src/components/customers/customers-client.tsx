@@ -15,6 +15,7 @@ import {
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
@@ -108,20 +109,36 @@ export function CustomersClient({
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={inputRef}
-                placeholder="Search call logs responses..."
-                value={searchInput}
-                onChange={(e) => onInputChange(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 w-full flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={inputRef}
+                  placeholder="Search call logs responses..."
+                  value={searchInput}
+                  onChange={(e) => onInputChange(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <CardTitle className="text-sm text-muted-foreground sm:shrink-0 sm:whitespace-nowrap">
+                {count} call log response{count !== 1 ? "s" : ""}
+              </CardTitle>
             </div>
-            <CardTitle className="text-sm text-muted-foreground whitespace-nowrap">
-              {count} call log response{count !== 1 ? "s" : ""}
-            </CardTitle>
+            <TableDataExport
+              filenameBase="call-logs-responses"
+              headers={["Name", "Email", "Phone", "DOB", "Recent Note", "Created"]}
+              rows={customers.map((c) => [
+                c.name,
+                c.email,
+                c.phone,
+                c.dob ? formatDate(c.dob) : "-",
+                c.recent_note || "-",
+                formatDate(c.created_at),
+              ])}
+              disabled={customers.length === 0}
+              className="shrink-0"
+            />
           </div>
         </CardHeader>
         <CardContent className="relative">

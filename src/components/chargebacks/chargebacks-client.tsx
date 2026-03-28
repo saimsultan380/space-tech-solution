@@ -17,12 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { ChargebackFormDialog } from "./chargeback-form-dialog";
 import { deleteChargeback, updateChargebackStatus } from "@/lib/actions/chargebacks";
 import { formatDate } from "@/lib/utils";
 import { CHARGEBACK_STATUSES } from "@/lib/constants";
 import type { UserRole, ChargebackStatus } from "@/lib/types";
-import { Plus, Trash2, Download } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
   open: "warning",
@@ -81,43 +82,6 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
     });
   };
 
-  const handleDownloadReport = () => {
-    if (chargebacks.length === 0) return;
-
-    const headers = ["Sale", "Agent", "Date", "Reason", "Status", "Created At"];
-    const rows = chargebacks.map((cb) => [
-      cb.sale?.company_name || "",
-      cb.sale?.agent?.full_name || "",
-      cb.date,
-      cb.reason,
-      cb.status,
-      cb.created_at,
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((value) => {
-            const v = value ?? "";
-            const needsQuotes = /[",\n]/.test(v);
-            const escaped = v.replace(/"/g, '""');
-            return needsQuotes ? `"${escaped}"` : escaped;
-          })
-          .join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "chargebacks-report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   const handleStatusChange = async (id: string, status: string) => {
     setUpdatingId(id);
     try {
@@ -147,10 +111,6 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
           <p className="text-muted-foreground">Manage and track chargebacks</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDownloadReport}>
-            <Download className="h-4 w-4" />
-            <span className="ml-2">Download Chargebacks Report</span>
-          </Button>
           {canCreate && (
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4" /> New Chargeback
@@ -161,9 +121,23 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm text-muted-foreground">
-            {count} chargeback{count !== 1 ? "s" : ""}
-          </CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-sm text-muted-foreground">
+              {count} chargeback{count !== 1 ? "s" : ""}
+            </CardTitle>
+            <TableDataExport
+              filenameBase="chargebacks"
+              headers={["Sale", "Agent", "Date", "Reason", "Status"]}
+              rows={chargebacks.map((cb) => [
+                cb.sale?.company_name || "N/A",
+                cb.sale?.agent?.full_name || "N/A",
+                formatDate(cb.date),
+                cb.reason,
+                cb.status,
+              ])}
+              disabled={chargebacks.length === 0}
+            />
+          </div>
         </CardHeader>
         <CardContent className="relative">
           <TableLoadingOverlay isLoading={isPending} />

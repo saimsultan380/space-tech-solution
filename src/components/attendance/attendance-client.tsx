@@ -17,10 +17,11 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { AttendanceSettings, UserRole, Leave } from "@/lib/types";
-import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Download, Bot } from "lucide-react";
+import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -307,35 +308,6 @@ export function AttendanceClient({
       ? null
       : monthlySummary.find((m) => m.userId === selectedEmployeeId) || null;
 
-  const handleDownloadSheet = () => {
-    const headers = [
-      "Employee",
-      "Role",
-      "Days Present",
-      "Working Days",
-      "Attendance %",
-      "Total Hours",
-      "Avg Hours/Day",
-    ];
-    const rows = filteredSummary.map((emp) => [
-      emp.name,
-      ROLE_LABELS[emp.role] || emp.role,
-      String(emp.daysPresent),
-      String(emp.workingDays),
-      `${emp.attendanceRate}%`,
-      `${emp.totalHours}`,
-      String(emp.avgHoursPerDay),
-    ]);
-    const csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `attendance-report-${monthParam}.csv`);
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -518,9 +490,44 @@ export function AttendanceClient({
                     className="w-[160px]"
                   />
                 </div>
-                <CardTitle className="ml-auto text-sm text-muted-foreground">
-                  {filtered.length} record{filtered.length !== 1 ? "s" : ""}
-                </CardTitle>
+                <div className="ml-auto flex flex-wrap items-center gap-3">
+                  <CardTitle className="text-sm text-muted-foreground">
+                    {filtered.length} record{filtered.length !== 1 ? "s" : ""}
+                  </CardTitle>
+                  <TableDataExport
+                    filenameBase={`attendance-daily-${monthParam}`}
+                    headers={[
+                      "Employee",
+                      "Role",
+                      "Date",
+                      "Check In",
+                      "Check Out",
+                      "Duration",
+                      "Status",
+                    ]}
+                    rows={filtered.map((record) => {
+                      const leaveOnly = record.isLeaveOnly === true;
+                      const status = getAttendanceStatus(record);
+                      return [
+                        record.user?.full_name || "N/A",
+                        ROLE_LABELS[record.user?.role || ""] || "N/A",
+                        formatDate(record.date),
+                        leaveOnly ? "-" : formatDateTime(record.check_in),
+                        leaveOnly
+                          ? "-"
+                          : record.check_out
+                            ? formatDateTime(record.check_out)
+                            : "-",
+                        leaveOnly
+                          ? "—"
+                          : calculateHours(record.check_in, record.check_out, record.date),
+                        status.label,
+                      ];
+                    })}
+                    disabled={filtered.length === 0}
+                    className="shrink-0"
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="relative">
@@ -601,10 +608,39 @@ export function AttendanceClient({
         <TabsContent value="monthly">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Monthly Attendance Summary
-              </CardTitle>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Monthly Attendance Summary
+                </CardTitle>
+                <TableDataExport
+                  filenameBase={`attendance-monthly-${monthParam}`}
+                  headers={[
+                    "Employee",
+                    "Role",
+                    "Days Present",
+                    "Days on Leave",
+                    "Days Rejected",
+                    "Working Days",
+                    "Attendance %",
+                    "Total Hours",
+                    "Avg Hours/Day",
+                  ]}
+                  rows={filteredSummary.map((emp) => [
+                    emp.name,
+                    ROLE_LABELS[emp.role] || emp.role,
+                    emp.daysPresent,
+                    countLeaveDaysInMonth(emp.userId, "approved"),
+                    countLeaveDaysInMonth(emp.userId, "rejected"),
+                    emp.workingDays,
+                    `${emp.attendanceRate}%`,
+                    `${emp.totalHours}h`,
+                    `${emp.avgHoursPerDay}h`,
+                  ])}
+                  disabled={filteredSummary.length === 0}
+                  className="shrink-0"
+                />
+              </div>
             </CardHeader>
             <CardContent className="relative">
               <TableLoadingOverlay isLoading={isPending} />

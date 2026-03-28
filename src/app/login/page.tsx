@@ -177,7 +177,7 @@ export default function LoginPage() {
           </div>
 
           <div className="relative rounded-md border border-border bg-card/50 p-8 shadow-2xl backdrop-blur-xl lg:border-none lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
               <div className="space-y-2">
                 <label
                   htmlFor="email"
@@ -202,14 +202,12 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <label
-                    htmlFor="password"
-                    className="text-sm font-semibold text-foreground/80"
-                  >
-                    Password
-                  </label>
-                </div>
+                <label
+                  htmlFor="password"
+                  className="text-sm font-semibold text-foreground/80 ml-1"
+                >
+                  Password
+                </label>
                 <div className="group relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                     <Lock className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />

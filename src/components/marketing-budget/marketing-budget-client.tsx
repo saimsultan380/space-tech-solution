@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Spinner, EmptyState } from "@/components/ui/loading";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExportAsync } from "@/components/ui/table-data-export";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -32,7 +33,6 @@ import {
   TrendingDown,
   Pencil,
   Trash2,
-  Download,
   BarChart3,
   Search,
 } from "lucide-react";
@@ -94,7 +94,6 @@ export function MarketingBudgetClient({
   const searchParams = useSearchParams();
   const { currency } = useCurrency();
   const [isPending, startTransition] = useTransition();
-  const [exporting, setExporting] = useState(false);
 
   const { data: entries, count, page, pageSize, totalPages } = entriesResponse;
 
@@ -158,74 +157,6 @@ export function MarketingBudgetClient({
     });
   };
 
-  const buildCsvFromRows = (rows: MarketingEntryWithCalculations[]) => {
-    const headers = [
-      "Date",
-      "Campaign",
-      "Budget",
-      "Calls Landed",
-      "Dropped Calls",
-      "Sales",
-      "Conversion %",
-      "Drop %",
-      "Cost/Lead",
-    ];
-
-    const dataRows = rows.map((e) => [
-      e.entry_date,
-      CAMPAIGN_LABELS[e.campaign] || e.campaign,
-      e.budget_assigned.toString(),
-      e.calls_landed.toString(),
-      e.dropped_calls.toString(),
-      e.sales_acquired.toString(),
-      `${e.conversion_rate}%`,
-      `${e.drop_rate}%`,
-      e.cost_per_lead.toFixed(2),
-    ]);
-
-    return [headers, ...dataRows]
-      .map((row) =>
-        row
-          .map((value) => {
-            const v = value ?? "";
-            const needsQuotes = /[",\n]/.test(v);
-            const escaped = v.replace(/"/g, '""');
-            return needsQuotes ? `"${escaped}"` : escaped;
-          })
-          .join(","),
-      )
-      .join("\n");
-  };
-
-  const handleExport = async () => {
-    if (count === 0) return;
-    setExporting(true);
-    try {
-      const q = searchParams.get("q")?.trim() || undefined;
-      const rows = await getMarketingEntries({
-        startDate: filters.startDate || undefined,
-        endDate: filters.endDate || undefined,
-        campaign: (filters.campaign || "all") as MarketingEntryCampaign | "all",
-        search: q,
-      });
-      if (rows.length === 0) return;
-      const csvContent = buildCsvFromRows(rows);
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "marketing-budget-report.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch {
-      // ignore
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -236,9 +167,6 @@ export function MarketingBudgetClient({
           </p>
         </div>
         <div className="flex flex-col gap-2 min-[400px]:flex-row sm:items-center">
-          <Button variant="outline" onClick={handleExport} disabled={count === 0 || exporting}>
-            <Download className="h-4 w-4 mr-2" /> {exporting ? "Exporting…" : "Export"}
-          </Button>
           <Button
             onClick={() => {
               setEditingEntry(null);
@@ -318,21 +246,60 @@ export function MarketingBudgetClient({
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="marketing_entries_search"
-                ref={inputRef}
-                placeholder="Search marketing entries by campaign…"
-                value={searchInput}
-                onChange={(e) => onInputChange(e.target.value)}
-                className="h-10 pl-10"
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 w-full flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="marketing_entries_search"
+                  ref={inputRef}
+                  placeholder="Search marketing entries by campaign…"
+                  value={searchInput}
+                  onChange={(e) => onInputChange(e.target.value)}
+                  className="h-10 pl-10"
+                />
+              </div>
+              <CardTitle className="text-sm font-medium text-muted-foreground sm:shrink-0 sm:whitespace-nowrap">
+                {count} marketing entr{count !== 1 ? "ies" : "y"}
+              </CardTitle>
             </div>
-            <CardTitle className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
-              {count} marketing entr{count !== 1 ? "ies" : "y"}
-            </CardTitle>
+            <TableDataExportAsync
+              filenameBase="marketing-budget-entries"
+              disabled={count === 0}
+              className="shrink-0"
+              fetchRows={async () => {
+                const q = searchParams.get("q")?.trim() || undefined;
+                const rowData = await getMarketingEntries({
+                  startDate: filters.startDate || undefined,
+                  endDate: filters.endDate || undefined,
+                  campaign: (filters.campaign || "all") as MarketingEntryCampaign | "all",
+                  search: q,
+                });
+                const headers = [
+                  "Date",
+                  "Campaign",
+                  "Budget",
+                  "Calls Landed",
+                  "Dropped Calls",
+                  "Sales",
+                  "Conversion %",
+                  "Drop %",
+                  "Cost/Lead",
+                ];
+                const rows = rowData.map((e) => [
+                  e.entry_date,
+                  CAMPAIGN_LABELS[e.campaign] || e.campaign,
+                  formatCurrency(e.budget_assigned, currency),
+                  e.calls_landed,
+                  e.dropped_calls,
+                  e.sales_acquired,
+                  `${e.conversion_rate}%`,
+                  `${e.drop_rate}%`,
+                  formatCurrency(e.cost_per_lead, currency),
+                ]);
+                return { headers, rows };
+              }}
+            />
           </div>
         </CardHeader>
         <CardContent className="relative">

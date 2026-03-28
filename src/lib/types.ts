@@ -13,6 +13,16 @@ export type MarketingCampaignStatus = "active" | "paused" | "completed";
 export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
 export type ProcessingAccountStatus = "active" | "not_working" | "closed" | "reversal_issue" | "under_review";
 
+/** One row from CSV/Excel import (before insert). */
+export type ProcessingAccountImportPayload = {
+  account_holder_name: string;
+  routing_number: string;
+  account_number: string;
+  billing_address: string;
+  status: ProcessingAccountStatus;
+  notes: string;
+};
+
 export type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 export type PaidThrough = "Bank" | "Cash" | "Cheque";
 

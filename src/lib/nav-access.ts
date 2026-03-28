@@ -48,7 +48,7 @@ export function canAccessCallLogsResponses(
   return false;
 }
 
-/** Whether the user may see Processing Accounts (after sidebar module filtering). */
+/** Whether the user may see Processing Database (after sidebar module filtering). */
 export function canAccessProcessingAccounts(
   role: UserRole,
   allowedModules: string[] | null | undefined

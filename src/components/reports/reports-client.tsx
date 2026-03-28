@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import { SalesPerAgentChart } from "./charts/sales-per-agent-chart";
@@ -138,6 +139,21 @@ export function ReportsClient({
     .filter((e) => e.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)[0];
 
+  const employeePerformanceExportRows = useMemo(
+    () =>
+      employeeMonthlyStats.map((emp) => [
+        emp.name,
+        ROLE_LABELS[emp.role] || emp.role,
+        emp.totalSales,
+        emp.approvedSales,
+        emp.rejectedSales,
+        formatCurrency(emp.revenue, currency),
+        emp.daysPresent,
+        `${emp.totalHours}h`,
+      ]),
+    [employeeMonthlyStats, currency],
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -198,6 +214,22 @@ export function ReportsClient({
                   {formatCurrency(topPerformer.revenue, currency)})
                 </Badge>
               )}
+              <TableDataExport
+                filenameBase={`employee-performance-${selectedMonth}`}
+                headers={[
+                  "Employee",
+                  "Role",
+                  "Total Sales",
+                  "Approved",
+                  "Rejected",
+                  "Revenue",
+                  "Days Present",
+                  "Hours Worked",
+                ]}
+                rows={employeePerformanceExportRows}
+                disabled={employeeMonthlyStats.length === 0}
+                className="shrink-0"
+              />
             </div>
           </div>
         </CardHeader>
