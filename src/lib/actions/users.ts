@@ -98,8 +98,28 @@ export async function createUser(formData: {
 
   if (profileError) throw new Error(profileError.message);
 
+  const { error: employeeIdError } = await admin.rpc("ensure_user_employee_id", {
+    p_user_id: authData.user.id,
+  });
+  if (employeeIdError) throw new Error(employeeIdError.message);
+
   revalidatePath("/dashboard/users");
   return authData.user;
+}
+
+/** Assigns the next sequence ID (ST-####) if this user has none yet. Returns the ID (existing or new). */
+export async function assignNextEmployeeIdForUser(userId: string): Promise<string> {
+  await requireRole(["super_admin"]);
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("ensure_user_employee_id", {
+    p_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+  const id = typeof data === "string" ? data.trim() : "";
+  if (!id) throw new Error("Could not assign employee ID");
+  revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/payslips");
+  return id;
 }
 
 export async function updateUser(
@@ -108,6 +128,7 @@ export async function updateUser(
     email: string;
     full_name: string;
     role: UserRole;
+    employee_id?: string;
     allowedModules?: string[];
     joining_date?: string | null;
     category?: EmployeeCategory;
@@ -131,13 +152,17 @@ export async function updateUser(
 
   const { data: targetUser, error: targetError } = await supabase
     .from("users")
-    .select("id, role, email")
+    .select("id, role, email, employee_id")
     .eq("id", userId)
     .single();
 
   if (targetError || !targetUser) {
     throw new Error(targetError?.message || "User not found");
   }
+
+  const currentEmpId = targetUser.employee_id?.trim() ?? "";
+  const submittedEmpId =
+    typeof formData.employee_id === "string" ? formData.employee_id.trim() : "";
 
   if (targetUser.email !== formData.email) {
     const { error: authUpdateError } = await admin.auth.admin.updateUserById(userId, {
@@ -172,6 +197,26 @@ export async function updateUser(
   if (formData.paid_through !== undefined) updateData.paid_through = formData.paid_through;
   if (formData.bank_account_no !== undefined) updateData.bank_account_no = formData.bank_account_no;
   if (formData.bank_branch !== undefined) updateData.bank_branch = formData.bank_branch;
+
+  if (submittedEmpId !== "") {
+    if (submittedEmpId !== currentEmpId) {
+      const { data: conflict } = await supabase
+        .from("users")
+        .select("id")
+        .eq("employee_id", submittedEmpId)
+        .neq("id", userId)
+        .maybeSingle();
+      if (conflict) {
+        throw new Error("This employee ID is already assigned to another user.");
+      }
+    }
+    updateData.employee_id = submittedEmpId;
+  } else if (!currentEmpId) {
+    const { error: rpcErr } = await admin.rpc("ensure_user_employee_id", {
+      p_user_id: userId,
+    });
+    if (rpcErr) throw new Error(rpcErr.message);
+  }
 
   const { error } = await supabase
     .from("users")

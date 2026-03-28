@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
-import { updateUser } from "@/lib/actions/users";
+import { assignNextEmployeeIdForUser, updateUser } from "@/lib/actions/users";
 import { getSidebarModuleOptionsForRole } from "@/lib/constants";
 import { cn, formatCnic } from "@/lib/utils";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
@@ -28,7 +28,7 @@ interface EditUserDialogProps {
     id: string;
     email: string;
     full_name: string;
-    employee_id: string;
+    employee_id?: string | null;
     role: string;
     allowed_modules?: string[] | null;
     joining_date?: string | null;
@@ -51,10 +51,12 @@ interface EditUserDialogProps {
 export function EditUserDialog({ user }: EditUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [assigningId, setAssigningId] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     email: user.email,
     full_name: user.full_name,
+    employee_id: user.employee_id?.trim() ?? "",
     role: user.role as UserRole,
     allowedModules: user.allowed_modules ?? [],
     joining_date: user.joining_date || "",
@@ -77,6 +79,7 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
     setForm({
       email: user.email,
       full_name: user.full_name,
+      employee_id: user.employee_id?.trim() ?? "",
       role: user.role as UserRole,
       allowedModules: user.allowed_modules ?? [],
       joining_date: user.joining_date || "",
@@ -107,6 +110,7 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
       await updateUser(user.id, {
         email: form.email,
         full_name: form.full_name,
+        employee_id: form.employee_id,
         role: form.role,
         allowedModules: form.allowedModules,
         joining_date: form.joining_date || null,
@@ -132,6 +136,18 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
     setLoading(false);
   };
 
+  const handleAutoAssignId = async () => {
+    setAssigningId(true);
+    setError("");
+    try {
+      const id = await assignNextEmployeeIdForUser(user.id);
+      setForm((f) => ({ ...f, employee_id: id }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not assign employee ID");
+    }
+    setAssigningId(false);
+  };
+
   return (
     <>
       <Button variant="ghost" size="icon" onClick={() => setOpen(true)} title="Edit user">
@@ -149,13 +165,34 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
               <h3 className="w-full text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                 Basic Information
               </h3>
-              <Input
-                id="employee_id"
-                label="Employee ID"
-                value={user.employee_id}
-                disabled
-                className="bg-muted/50 font-bold text-primary"
-              />
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      id="employee_id"
+                      label="Employee ID"
+                      placeholder="e.g. ST-0042"
+                      value={form.employee_id}
+                      onChange={(e) => setForm((f) => ({ ...f, employee_id: e.target.value }))}
+                      className="font-mono font-semibold"
+                    />
+                  </div>
+                  {!form.employee_id.trim() && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0"
+                      disabled={assigningId || loading}
+                      onClick={() => void handleAutoAssignId()}
+                    >
+                      {assigningId ? <Spinner /> : "Auto-assign next"}
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Set a unique ID (e.g. ST-0042) or leave blank and click Save to auto-assign. If no ID is shown yet, use &quot;Auto-assign next&quot; to assign immediately.
+                </p>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   id="full_name"

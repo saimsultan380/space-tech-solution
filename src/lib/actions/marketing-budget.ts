@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { MarketingTransactionType } from "@/lib/types";
+import type { MarketingTransactionType, MarketingEntryCampaign, MarketingEntry } from "@/lib/types";
 
 interface CampaignInput {
   name: string;
@@ -499,5 +499,288 @@ export async function recordMarketingBudgetTransaction(input: TransactionInput) 
   });
   if (error) throw new Error(error.message);
 
+  revalidateMarketingBudgetPaths();
+}
+
+// ============================================
+// Marketing Entries (New simplified system)
+// ============================================
+
+interface MarketingEntryInput {
+  entry_date: string;
+  campaign: MarketingEntryCampaign;
+  budget_assigned: number;
+  calls_landed: number;
+  dropped_calls: number;
+  sales_acquired: number;
+}
+
+export interface MarketingEntryStats {
+  totalBudget: number;
+  totalLeads: number;
+  totalSales: number;
+  totalDropped: number;
+  avgConversionRate: number;
+  avgDropRate: number;
+  avgCostPerLead: number;
+  avgCostPerSale: number;
+}
+
+export interface MarketingEntryWithCalculations {
+  id: string;
+  entry_date: string;
+  campaign: MarketingEntryCampaign;
+  budget_assigned: number;
+  calls_landed: number;
+  dropped_calls: number;
+  sales_acquired: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  conversion_rate: number;
+  drop_rate: number;
+  cost_per_lead: number;
+  cost_per_sale: number;
+}
+
+function mapMarketingEntryRow(entry: Record<string, unknown>): MarketingEntryWithCalculations {
+  const callsLanded = Number(entry.calls_landed || 0);
+  const droppedCalls = Number(entry.dropped_calls || 0);
+  const salesAcquired = Number(entry.sales_acquired || 0);
+  const budgetAssigned = Number(entry.budget_assigned || 0);
+
+  const conversionRate = callsLanded > 0 ? (salesAcquired / callsLanded) * 100 : 0;
+  const dropRate = callsLanded > 0 ? (droppedCalls / callsLanded) * 100 : 0;
+  const costPerLead = callsLanded > 0 ? budgetAssigned / callsLanded : 0;
+  const costPerSale = salesAcquired > 0 ? budgetAssigned / salesAcquired : 0;
+
+  const base = entry as unknown as MarketingEntryWithCalculations;
+  return {
+    ...base,
+    conversion_rate: Number(conversionRate.toFixed(2)),
+    drop_rate: Number(dropRate.toFixed(2)),
+    cost_per_lead: Number(costPerLead.toFixed(2)),
+    cost_per_sale: Number(costPerSale.toFixed(2)),
+  };
+}
+
+function applyMarketingEntryFilters<
+  T extends { gte: (c: string, v: string) => T; lte: (c: string, v: string) => T; eq: (c: string, v: string) => T; ilike: (c: string, v: string) => T },
+>(query: T, filters?: { startDate?: string; endDate?: string; campaign?: MarketingEntryCampaign | "all"; search?: string }) {
+  let q = query;
+  if (filters?.startDate) {
+    q = q.gte("entry_date", filters.startDate) as T;
+  }
+  if (filters?.endDate) {
+    q = q.lte("entry_date", filters.endDate) as T;
+  }
+  if (filters?.campaign && filters.campaign !== "all") {
+    q = q.eq("campaign", filters.campaign) as T;
+  }
+  const rawSearch = filters?.search?.trim();
+  if (rawSearch) {
+    const escaped = rawSearch.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+    q = q.ilike("campaign", `%${escaped}%`) as T;
+  }
+  return q;
+}
+
+export async function getMarketingEntries(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaign?: MarketingEntryCampaign | "all";
+  search?: string;
+}): Promise<MarketingEntryWithCalculations[]> {
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  let query = supabase.from("marketing_entries").select("*").order("entry_date", { ascending: false }).order("created_at", { ascending: false });
+
+  query = applyMarketingEntryFilters(query, filters);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data || []).map((entry) => mapMarketingEntryRow(entry as Record<string, unknown>));
+}
+
+export async function getMarketingEntriesPage(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaign?: MarketingEntryCampaign | "all";
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  data: MarketingEntryWithCalculations[];
+  count: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}> {
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  const requestedPage = Math.max(1, filters?.page ?? 1);
+  const pageSize = Math.min(100, Math.max(5, filters?.pageSize ?? 10));
+
+  let countQuery = supabase
+    .from("marketing_entries")
+    .select("*", { count: "exact", head: true });
+
+  countQuery = applyMarketingEntryFilters(countQuery, filters);
+
+  const { count, error: countError } = await countQuery;
+  if (countError) throw new Error(countError.message);
+
+  const total = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = total === 0 ? 1 : Math.min(requestedPage, totalPages);
+  const offset = (page - 1) * pageSize;
+
+  let dataQuery = supabase
+    .from("marketing_entries")
+    .select("*")
+    .order("entry_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  dataQuery = applyMarketingEntryFilters(dataQuery, filters);
+
+  const { data, error } = await dataQuery.range(offset, offset + pageSize - 1);
+
+  if (error) throw new Error(error.message);
+
+  return {
+    data: (data || []).map((entry) => mapMarketingEntryRow(entry as Record<string, unknown>)),
+    count: total,
+    page,
+    pageSize,
+    totalPages,
+  };
+}
+
+export async function getMarketingEntryStats(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaign?: MarketingEntryCampaign | "all";
+}): Promise<MarketingEntryStats> {
+  const entries = await getMarketingEntries(filters);
+
+  const totalBudget = entries.reduce((sum, e) => sum + Number(e.budget_assigned || 0), 0);
+  const totalLeads = entries.reduce((sum, e) => sum + Number(e.calls_landed || 0), 0);
+  const totalSales = entries.reduce((sum, e) => sum + Number(e.sales_acquired || 0), 0);
+  const totalDropped = entries.reduce((sum, e) => sum + Number(e.dropped_calls || 0), 0);
+
+  const avgConversionRate = totalLeads > 0 ? (totalSales / totalLeads) * 100 : 0;
+  const avgDropRate = totalLeads > 0 ? (totalDropped / totalLeads) * 100 : 0;
+  const avgCostPerLead = totalLeads > 0 ? totalBudget / totalLeads : 0;
+  const avgCostPerSale = totalSales > 0 ? totalBudget / totalSales : 0;
+
+  return {
+    totalBudget: Number(totalBudget.toFixed(2)),
+    totalLeads,
+    totalSales,
+    totalDropped,
+    avgConversionRate: Number(avgConversionRate.toFixed(2)),
+    avgDropRate: Number(avgDropRate.toFixed(2)),
+    avgCostPerLead: Number(avgCostPerLead.toFixed(2)),
+    avgCostPerSale: Number(avgCostPerSale.toFixed(2)),
+  };
+}
+
+export async function getMarketingEntryChartData(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaign?: MarketingEntryCampaign | "all";
+}) {
+  const entries = await getMarketingEntries(filters);
+
+  const sortedEntries = [...entries].sort(
+    (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
+  );
+
+  const budgetVsSales = sortedEntries.map((e) => ({
+    date: e.entry_date,
+    budget: Number(e.budget_assigned || 0),
+    sales: Number(e.sales_acquired || 0),
+  }));
+
+  const leadsVsConversions = sortedEntries.map((e) => ({
+    date: e.entry_date,
+    leads: Number(e.calls_landed || 0),
+    conversions: Number(e.sales_acquired || 0),
+  }));
+
+  const dropRatioTrend = sortedEntries.map((e) => ({
+    date: e.entry_date,
+    dropRate: e.drop_rate,
+  }));
+
+  return {
+    budgetVsSales,
+    leadsVsConversions,
+    dropRatioTrend,
+  };
+}
+
+export async function createMarketingEntry(input: MarketingEntryInput) {
+  const user = await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  if (!input.entry_date) throw new Error("Date is required");
+  if (!input.campaign) throw new Error("Campaign is required");
+
+  const { data, error } = await supabase
+    .from("marketing_entries")
+    .insert({
+      entry_date: input.entry_date,
+      campaign: input.campaign,
+      budget_assigned: Number(input.budget_assigned || 0),
+      calls_landed: Number(input.calls_landed || 0),
+      dropped_calls: Number(input.dropped_calls || 0),
+      sales_acquired: Number(input.sales_acquired || 0),
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidateMarketingBudgetPaths();
+  return data.id;
+}
+
+export async function updateMarketingEntry(id: string, input: MarketingEntryInput) {
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  if (!id) throw new Error("Entry ID is required");
+  if (!input.entry_date) throw new Error("Date is required");
+  if (!input.campaign) throw new Error("Campaign is required");
+
+  const { error } = await supabase
+    .from("marketing_entries")
+    .update({
+      entry_date: input.entry_date,
+      campaign: input.campaign,
+      budget_assigned: Number(input.budget_assigned || 0),
+      calls_landed: Number(input.calls_landed || 0),
+      dropped_calls: Number(input.dropped_calls || 0),
+      sales_acquired: Number(input.sales_acquired || 0),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidateMarketingBudgetPaths();
+}
+
+export async function deleteMarketingEntry(id: string) {
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  if (!id) throw new Error("Entry ID is required");
+
+  const { error } = await supabase.from("marketing_entries").delete().eq("id", id);
+  if (error) throw new Error(error.message);
   revalidateMarketingBudgetPaths();
 }

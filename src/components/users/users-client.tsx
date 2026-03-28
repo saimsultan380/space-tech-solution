@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { CreateUserDialog } from "./create-user-dialog";
 import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
@@ -23,6 +24,7 @@ import { ROLE_LABELS } from "@/lib/constants";
 import { Plus, Search, Trash2 } from "lucide-react";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
 const roleVariant: Record<string, "default" | "secondary" | "outline"> = {
   super_admin: "default",
@@ -44,6 +46,8 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
   const { data: users, count, page, totalPages, pageSize } = usersResponse;
 
   const [showCreate, setShowCreate] = useState(false);
@@ -62,10 +66,13 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const search = searchParams.get("q") || "";
+  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
+    useDebouncedUrlSearchInput(searchParams, updateFilters);
 
   const handleToggle = async (id: string, current: boolean) => {
     setTogglingId(id);
@@ -108,9 +115,10 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={inputRef}
                 placeholder="Search users..."
-                value={search}
-                onChange={(e) => updateFilters({ q: e.target.value })}
+                value={searchInput}
+                onChange={(e) => onInputChange(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -119,11 +127,12 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {users.length === 0 ? (
             <EmptyState
               title="No users found"
-              description={search ? "Try adjusting your search" : "Add your first team member to get started"}
+              description={urlSearch ? "Try adjusting your search" : "Add your first team member to get started"}
             />
           ) : (
             <div className="overflow-x-auto">

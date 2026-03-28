@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Match server list page size (10): hide footer until enough rows to paginate. */
+export const PAGINATION_SHOW_MIN_TOTAL_ITEMS = 10;
+
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -23,27 +26,35 @@ export function Pagination({
   totalItems,
   pageSize = 10,
 }: PaginationProps) {
-  if (totalPages <= 1) return null;
+  const safeTotalPages = Math.max(1, totalPages);
 
-  const startItem = (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalItems || 0);
+  if (totalItems !== undefined) {
+    if (totalItems === 0) return null;
+    if (totalItems < PAGINATION_SHOW_MIN_TOTAL_ITEMS) return null;
+  } else if (safeTotalPages <= 1) {
+    return null;
+  }
+
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems ?? 0);
+  const navDisabled = safeTotalPages <= 1;
 
   return (
-    <div className={cn("flex items-center justify-between px-2 py-4", className)}>
+    <div className={cn("flex flex-col gap-3 border-t border-border px-2 py-4 sm:flex-row sm:items-center sm:justify-between", className)}>
       {showInfo && totalItems !== undefined && (
-        <div className="text-sm text-muted-foreground hidden sm:block">
+        <div className="text-sm text-muted-foreground">
           Showing <span className="font-medium text-foreground">{startItem}</span> to{" "}
           <span className="font-medium text-foreground">{endItem}</span> of{" "}
           <span className="font-medium text-foreground">{totalItems}</span> results
         </div>
       )}
-      <div className="flex items-center space-x-2 ml-auto">
+      <div className={cn("flex items-center space-x-2", showInfo && totalItems !== undefined && "sm:ml-auto")}>
         <Button
           variant="outline"
           size="icon"
           className="h-8 w-8 rounded-md"
           onClick={() => onPageChange(1)}
-          disabled={currentPage <= 1}
+          disabled={navDisabled || currentPage <= 1}
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -52,13 +63,13 @@ export function Pagination({
           size="icon"
           className="h-8 w-8 rounded-md"
           onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage <= 1}
+          disabled={navDisabled || currentPage <= 1}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        
-        <div className="flex items-center justify-center text-sm font-medium px-2">
-          Page {currentPage} of {totalPages}
+
+        <div className="flex min-w-[7rem] items-center justify-center text-sm font-medium px-2">
+          Page {currentPage} of {safeTotalPages}
         </div>
 
         <Button
@@ -66,7 +77,7 @@ export function Pagination({
           size="icon"
           className="h-8 w-8 rounded-md"
           onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= totalPages}
+          disabled={navDisabled || currentPage >= safeTotalPages}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -74,8 +85,8 @@ export function Pagination({
           variant="outline"
           size="icon"
           className="h-8 w-8 rounded-md"
-          onClick={() => onPageChange(totalPages)}
-          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(safeTotalPages)}
+          disabled={navDisabled || currentPage >= safeTotalPages}
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

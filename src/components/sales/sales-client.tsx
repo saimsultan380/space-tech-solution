@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
@@ -25,6 +26,7 @@ import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Download } from "luci
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
   pending: "warning",
@@ -50,6 +52,8 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currency } = useCurrency();
+  const [isPending, startTransition] = useTransition();
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
@@ -67,10 +71,15 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const search = searchParams.get("q") || "";
+  const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(
+    searchParams,
+    updateFilters,
+  );
   const statusFilter = searchParams.get("status") || "all";
   const typeFilter = searchParams.get("type") || "all";
   const agentFilter = searchParams.get("agent_id") || "all";
@@ -195,9 +204,10 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search sales..."
-                value={search}
-                onChange={(e) => updateFilters({ q: e.target.value })}
+                ref={inputRef}
+                placeholder="Search by customer name, email, phone, or company..."
+                value={searchInput}
+                onChange={(e) => onInputChange(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -259,7 +269,8 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             </div>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           <div className="overflow-x-auto">
             {sales.length === 0 ? (
               <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />

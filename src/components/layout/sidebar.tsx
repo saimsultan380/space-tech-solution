@@ -204,37 +204,52 @@ export function Sidebar({
               {section.items.map((item, idx) => {
                 const Icon = iconMap[item.icon];
                 const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                const isCollapsedRail = collapsed && !isMobileOpen;
                 return (
-                  <div key={item.href}>
+                  <div key={item.href} className={cn(isCollapsedRail && "w-full")}>
                     <Link
                       href={item.href}
                       onClick={onCloseMobile}
                       className={cn(
-                        "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-200",
+                        "group flex items-center rounded-lg text-[13px] font-medium transition-all duration-200",
+                        isCollapsedRail
+                          ? "aspect-square w-full justify-center gap-0 p-0"
+                          : "gap-3 px-3 py-2",
                         isActive
                           ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        (collapsed && !isMobileOpen) && "justify-center px-2"
                       )}
                     >
-                      {Icon && (
-                        <div
-                          className={cn(
-                            "flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-200",
-                            isActive 
-                              ? "bg-primary-foreground/10 border-primary-foreground/20" 
-                              : "bg-background border-border shadow-sm group-hover:border-primary/50"
-                          )}
-                        >
+                      {Icon &&
+                        (isCollapsedRail ? (
                           <Icon
                             className={cn(
-                              "h-[15px] w-[15px] transition-transform duration-200 group-hover:scale-110",
-                              isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                              "h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110",
+                              isActive
+                                ? "text-primary-foreground"
+                                : "text-muted-foreground group-hover:text-foreground",
                             )}
                           />
-                        </div>
-                      )}
-                      {(!collapsed || isMobileOpen) && (
+                        ) : (
+                          <div
+                            className={cn(
+                              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200",
+                              isActive
+                                ? "bg-primary-foreground/10 border-primary-foreground/20"
+                                : "bg-background border-border shadow-sm group-hover:border-primary/50",
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                "h-[15px] w-[15px] transition-transform duration-200 group-hover:scale-110",
+                                isActive
+                                  ? "text-primary-foreground"
+                                  : "text-muted-foreground group-hover:text-foreground",
+                              )}
+                            />
+                          </div>
+                        ))}
+                      {!isCollapsedRail && (
                         <span className={cn("truncate", isActive && "font-bold")}>{item.label}</span>
                       )}
                     </Link>

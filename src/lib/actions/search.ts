@@ -20,6 +20,17 @@ export async function globalSearch(term: string) {
 
   const like = `%${q}%`;
 
+  const { data: saleCustomerMatches } = await supabase
+    .from("customers")
+    .select("id")
+    .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
+    .limit(500);
+  const saleCustomerIds = saleCustomerMatches?.map((r) => r.id) ?? [];
+  const salesSearchOr =
+    saleCustomerIds.length > 0
+      ? `company_name.ilike.${like},customer_id.in.(${saleCustomerIds.join(",")})`
+      : `company_name.ilike.${like}`;
+
   const [customersRes, salesRes, paymentsRes, usersRes, chargebacksRes] = await Promise.all([
     supabase
       .from("customers")
@@ -29,7 +40,7 @@ export async function globalSearch(term: string) {
     supabase
       .from("sales")
       .select("id, company_name, status, sale_type, subtype, charged_amount, created_at, customer:customers(name)")
-      .or(`company_name.ilike.${like}`)
+      .or(salesSearchOr)
       .limit(10),
     supabase
       .from("payments")

@@ -50,6 +50,9 @@ export function PayslipFormDialog({
   const [loading, setLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const initialEmployeeId = (initialPayslip?.employee_id_display || initialPayslip?.user?.employee_id || "");
+  
   const [form, setForm] = useState({
     user_id: initialPayslip?.user_id || "",
     period_start: initialPayslip?.period_start || "",
@@ -61,7 +64,7 @@ export function PayslipFormDialog({
     bonus: initialPayslip ? String(initialPayslip.bonus) : "0",
     status: initialPayslip?.status || "processed",
     // New fields
-    employee_id_display: initialPayslip?.employee_id_display || "",
+    employee_id_display: initialEmployeeId,
     joining_date: initialPayslip?.joining_date || "",
     category: initialPayslip?.category || "Permanent",
     department: initialPayslip?.department || "",
@@ -85,6 +88,10 @@ export function PayslipFormDialog({
   });
 
   useEffect(() => {
+    const userEmployeeId = initialPayslip?.user?.employee_id || "";
+    const storedEmployeeId = initialPayslip?.employee_id_display || "";
+    const resolvedEmployeeId = storedEmployeeId || userEmployeeId;
+    
     setForm({
       user_id: initialPayslip?.user_id || "",
       period_start: initialPayslip?.period_start || "",
@@ -96,7 +103,7 @@ export function PayslipFormDialog({
       bonus: initialPayslip ? String(initialPayslip.bonus) : "0",
       status: initialPayslip?.status || "processed",
       // New fields
-      employee_id_display: initialPayslip?.employee_id_display || "",
+      employee_id_display: resolvedEmployeeId,
       joining_date: initialPayslip?.joining_date || "",
       category: initialPayslip?.category || "Permanent",
       department: initialPayslip?.department || "",
@@ -307,13 +314,20 @@ export function PayslipFormDialog({
               onChange={(e) => setForm((prev) => ({ ...prev, user_id: e.target.value }))}
               required
             />
-            <Input
-              id="employee_id_display"
-              label="Employee ID (Display)"
-              placeholder="e.g. D004"
-              value={form.employee_id_display}
-              onChange={(e) => setForm((prev) => ({ ...prev, employee_id_display: e.target.value }))}
-            />
+            <div className="space-y-1.5">
+              <Input
+                id="employee_id_display"
+                label="Employee ID"
+                value={form.employee_id_display || "—"}
+                disabled
+                className="bg-muted/50 font-mono font-semibold"
+              />
+              <p className="text-xs text-muted-foreground">
+                {mode === "edit"
+                  ? "Value stored on this payslip when it was created or last saved."
+                  : "Taken from the employee’s profile (auto-generated ID). Edit it only under Users if it must change."}
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">

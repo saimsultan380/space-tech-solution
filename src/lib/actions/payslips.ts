@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { formatCnic } from "@/lib/utils";
@@ -46,6 +47,35 @@ interface UpdatePayslipInput extends CreatePayslipInput {
   id: string;
 }
 
+/**
+ * Resolve payslip employee_id_display: optional snapshot from the form (updates only);
+ * otherwise users.employee_id; if still empty, assign via ensure_user_employee_id (service_role).
+ */
+async function resolveEmployeeIdDisplayForPayslip(
+  userId: string,
+  formValue: string | null | undefined,
+): Promise<string | null> {
+  const trimmed = typeof formValue === "string" ? formValue.trim() : "";
+  if (trimmed) return trimmed;
+
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("users")
+    .select("employee_id")
+    .eq("id", userId)
+    .maybeSingle();
+  const existing = row?.employee_id?.trim();
+  if (existing) return existing;
+
+  const admin = createAdminClient();
+  const { data: assigned, error } = await admin.rpc("ensure_user_employee_id", {
+    p_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+  if (typeof assigned === "string" && assigned.trim()) return assigned.trim();
+  return null;
+}
+
 export async function getPayslips(filters?: {
   page?: number;
   pageSize?: number;
@@ -59,7 +89,7 @@ export async function getPayslips(filters?: {
 
   let query = supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
+    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
     .order("pay_date", { ascending: false });
 
   if (filters?.search) {
@@ -71,9 +101,18 @@ export async function getPayslips(filters?: {
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
+
+  const payslips = (data || []).map((payslip) => {
+    const userEmployeeId = payslip.user?.employee_id?.trim() || "";
+    const storedEmployeeId = payslip.employee_id_display?.trim() || "";
+    return {
+      ...payslip,
+      employee_id_display: storedEmployeeId || userEmployeeId || null,
+    };
+  });
   
   return {
-    data: data || [],
+    data: payslips,
     count: count || 0,
     page,
     pageSize,
@@ -93,15 +132,24 @@ export async function getMyPayslips(filters?: {
 
   const { data, error, count } = await supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
+    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
     .eq("user_id", user.id)
     .order("pay_date", { ascending: false })
     .range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
+
+  const payslips = (data || []).map((payslip) => {
+    const userEmployeeId = payslip.user?.employee_id?.trim() || "";
+    const storedEmployeeId = payslip.employee_id_display?.trim() || "";
+    return {
+      ...payslip,
+      employee_id_display: storedEmployeeId || userEmployeeId || null,
+    };
+  });
   
   return {
-    data: data || [],
+    data: payslips,
     count: count || 0,
     page,
     pageSize,
@@ -115,7 +163,7 @@ export async function getRecentPayslips(limit = 5) {
 
   let query = supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email), generator:users!payslips_generated_by_fkey(id, full_name)")
+    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)")
     .order("pay_date", { ascending: false })
     .limit(limit);
 
@@ -125,7 +173,15 @@ export async function getRecentPayslips(limit = 5) {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return data || [];
+
+  return (data || []).map((payslip) => {
+    const userEmployeeId = payslip.user?.employee_id?.trim() || "";
+    const storedEmployeeId = payslip.employee_id_display?.trim() || "";
+    return {
+      ...payslip,
+      employee_id_display: storedEmployeeId || userEmployeeId || null,
+    };
+  });
 }
 
 async function computePayslipAttendanceSummary(
@@ -253,6 +309,8 @@ export async function createPayslip(input: CreatePayslipInput) {
     period_end: input.period_end,
   });
 
+  const employeeIdDisplay = await resolveEmployeeIdDisplayForPayslip(input.user_id, null);
+
   const { data, error } = await supabase
     .from("payslips")
     .insert({
@@ -271,7 +329,7 @@ export async function createPayslip(input: CreatePayslipInput) {
       currency: input.currency || "PKR",
       status,
       sent_at: status === "paid" ? nowIso : null,
-      employee_id_display: input.employee_id_display,
+      employee_id_display: employeeIdDisplay,
       joining_date: input.joining_date,
       category: input.category,
       department: input.department,
@@ -349,6 +407,11 @@ export async function updatePayslip(input: UpdatePayslipInput) {
     period_end: input.period_end,
   });
 
+  const employeeIdDisplay = await resolveEmployeeIdDisplayForPayslip(
+    input.user_id,
+    input.employee_id_display,
+  );
+
   const { error } = await supabase
     .from("payslips")
     .update({
@@ -367,7 +430,7 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       currency: input.currency || "PKR",
       status,
       sent_at: sentAt,
-      employee_id_display: input.employee_id_display,
+      employee_id_display: employeeIdDisplay,
       joining_date: input.joining_date,
       category: input.category,
       department: input.department,

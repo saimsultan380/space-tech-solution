@@ -36,8 +36,23 @@ export async function getSales(filters?: {
   if (filters?.agent_id && filters.agent_id !== "all") {
     query = query.eq("agent_id", filters.agent_id);
   }
-  if (filters?.search) {
-    query = query.or(`company_name.ilike.%${filters.search}%`);
+  const searchTerm = filters?.search?.trim();
+  if (searchTerm) {
+    const like = `%${searchTerm}%`;
+    const { data: customerHits } = await supabase
+      .from("customers")
+      .select("id")
+      .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
+      .limit(500);
+
+    const customerIds = customerHits?.map((r) => r.id) ?? [];
+    const companyMatch = `company_name.ilike.${like}`;
+    query =
+      customerIds.length > 0
+        ? query.or(
+            `${companyMatch},customer_id.in.(${customerIds.join(",")})`,
+          )
+        : query.or(companyMatch);
   }
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);

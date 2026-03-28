@@ -1,317 +1,439 @@
 "use client";
 
-import { useMemo, useState, useTransition, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/loading";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner, EmptyState } from "@/components/ui/loading";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  createMarketingCampaign,
-  createMarketingDailyCallLog,
-  deleteMarketingCampaign,
-  recordMarketingBudgetTransaction,
-  updateMarketingCampaign,
-  upsertMarketingDailyCampaignBudget,
+  createMarketingEntry,
+  updateMarketingEntry,
+  deleteMarketingEntry,
+  getMarketingEntries,
+  type MarketingEntryWithCalculations,
+  type MarketingEntryStats,
 } from "@/lib/actions/marketing-budget";
-import type {
-  MarketingCampaign,
-  MarketingDailyCallLog,
-  MarketingDailyCampaignBudget,
-  MarketingBudgetTransaction,
-} from "@/lib/types";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
+import type { MarketingEntryCampaign } from "@/lib/types";
 import {
-  Megaphone,
   Plus,
   Wallet,
-  Target,
-  TrendingUp,
-  CalendarRange,
-  PauseCircle,
-  CircleCheckBig,
-  TriangleAlert,
-  Trash2,
+  Users,
+  ShoppingCart,
+  TrendingDown,
   Pencil,
+  Trash2,
+  Download,
+  BarChart3,
+  Search,
 } from "lucide-react";
 import { useCurrency } from "@/components/providers/currency-provider";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 
+const CAMPAIGN_OPTIONS = [
+  { value: "energy", label: "Energy" },
+  { value: "insurance", label: "Insurance" },
+  { value: "telecom", label: "Telecom" },
+];
+
+const CAMPAIGN_LABELS: Record<string, string> = {
+  energy: "Energy",
+  insurance: "Insurance",
+  telecom: "Telecom",
+};
+
 interface MarketingBudgetClientProps {
-  overview: {
-    totalBudgetAllocated: number;
-    totalSpent: number;
-    remainingBudget: number;
-    utilizationPercent: number;
-    activeCampaigns: number;
-    monthlySpendChart: Array<{ date: string; spend: number }>;
+  entriesResponse: {
+    data: MarketingEntryWithCalculations[];
+    count: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
   };
-  campaigns: Array<
-    MarketingCampaign & {
-      amount_spent: number;
-      remaining_budget: number;
-      computed_status: "active" | "paused" | "completed" | "over_budget";
-    }
-  >;
-  users: Array<{ id: string; full_name: string; role: string; email: string }>;
-  dailyCallLogs: MarketingDailyCallLog[];
-  dailyCampaignBudgets: Array<
-    MarketingDailyCampaignBudget & {
-      daily_spent: number;
-      variance: number;
-      status: "within" | "over";
-    }
-  >;
-  monthlyTotals: Array<{ campaign_id: string; campaign_name: string; total_spent: number }>;
-  transactions: MarketingBudgetTransaction[];
-  month: string;
+  stats: MarketingEntryStats;
+  chartData: {
+    budgetVsSales: Array<{ date: string; budget: number; sales: number }>;
+    leadsVsConversions: Array<{ date: string; leads: number; conversions: number }>;
+    dropRatioTrend: Array<{ date: string; dropRate: number }>;
+  };
+  filters: {
+    startDate: string;
+    endDate: string;
+    campaign: string;
+  };
 }
 
 export function MarketingBudgetClient({
-  overview,
-  campaigns,
-  users,
-  dailyCallLogs,
-  dailyCampaignBudgets,
-  monthlyTotals,
-  transactions,
-  month,
+  entriesResponse,
+  stats,
+  chartData,
+  filters,
 }: MarketingBudgetClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currency } = useCurrency();
   const [isPending, startTransition] = useTransition();
+  const [exporting, setExporting] = useState(false);
 
-  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
-  const [editingCampaign, setEditingCampaign] = useState<(typeof campaigns)[number] | null>(null);
-  const [dailyLogDialogOpen, setDailyLogDialogOpen] = useState(false);
-  const [dailyBudgetDialogOpen, setDailyBudgetDialogOpen] = useState(false);
-  const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
-  const [callLogFilterStart, setCallLogFilterStart] = useState("");
-  const [callLogFilterEnd, setCallLogFilterEnd] = useState("");
-  const [callLogFilterCampaign, setCallLogFilterCampaign] = useState("all");
-  const [callLogFilterAgent, setCallLogFilterAgent] = useState("all");
+  const { data: entries, count, page, pageSize, totalPages } = entriesResponse;
 
-  const monthOptions = useMemo(() => {
-    const options: { value: string; label: string }[] = [];
-    const current = new Date();
-    for (let i = 0; i < 12; i += 1) {
-      const d = new Date(current);
-      d.setMonth(current.getMonth() - i);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
-      options.push({ value, label });
-    }
-    return options;
-  }, []);
+  const [entryDialogOpen, setEntryDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<MarketingEntryWithCalculations | null>(null);
 
-  const campaignOptions = useMemo(
-    () =>
-      campaigns.map((item) => ({
-        value: item.id,
-        label: item.name,
-      })),
-    [campaigns]
-  );
+  const [filterStartDate, setFilterStartDate] = useState(filters.startDate);
+  const [filterEndDate, setFilterEndDate] = useState(filters.endDate);
+  const [filterCampaign, setFilterCampaign] = useState(filters.campaign);
 
-  const agentOptions = useMemo(
-    () =>
-      users.map((item) => ({
-        value: item.id,
-        label: item.full_name,
-      })),
-    [users]
-  );
+  useEffect(() => {
+    setFilterStartDate(filters.startDate);
+    setFilterEndDate(filters.endDate);
+    setFilterCampaign(filters.campaign);
+  }, [filters.startDate, filters.endDate, filters.campaign]);
 
-  const filteredDailyCallLogs = useMemo(() => {
-    return dailyCallLogs.filter((row) => {
-      if (callLogFilterStart && row.log_date < callLogFilterStart) return false;
-      if (callLogFilterEnd && row.log_date > callLogFilterEnd) return false;
-      if (callLogFilterCampaign !== "all" && row.campaign_id !== callLogFilterCampaign) return false;
-      if (callLogFilterAgent !== "all" && row.user_id !== callLogFilterAgent) return false;
-      return true;
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "" || value === "all") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
     });
-  }, [dailyCallLogs, callLogFilterStart, callLogFilterEnd, callLogFilterCampaign, callLogFilterAgent]);
-
-  const handleMonthChange = (value: string) => {
-    const params = new URLSearchParams(searchParams?.toString() || "");
-    params.set("month", value);
-    router.push(`/dashboard/marketing-budget?${params.toString()}`);
+    if (!updates.page) {
+      params.delete("page");
+    }
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const handleDeleteCampaign = (campaignId: string) => {
+  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
+    useDebouncedUrlSearchInput(searchParams, updateFilters, { paramKey: "q", debounceMs: 350 });
+
+  const applyDashboardFilters = () => {
+    updateFilters({
+      from: filterStartDate || undefined,
+      to: filterEndDate || undefined,
+      campaign: filterCampaign === "all" ? undefined : filterCampaign,
+    });
+  };
+
+  const clearAllFilters = () => {
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterCampaign("all");
+    startTransition(() => {
+      router.push(pathname);
+    });
+  };
+
+  const handleDeleteEntry = (id: string) => {
+    if (!window.confirm("Delete this entry? This action cannot be undone.")) return;
     startTransition(async () => {
       try {
-        await deleteMarketingCampaign(campaignId);
+        await deleteMarketingEntry(id);
         router.refresh();
       } catch {}
     });
+  };
+
+  const buildCsvFromRows = (rows: MarketingEntryWithCalculations[]) => {
+    const headers = [
+      "Date",
+      "Campaign",
+      "Budget",
+      "Calls Landed",
+      "Dropped Calls",
+      "Sales",
+      "Conversion %",
+      "Drop %",
+      "Cost/Lead",
+    ];
+
+    const dataRows = rows.map((e) => [
+      e.entry_date,
+      CAMPAIGN_LABELS[e.campaign] || e.campaign,
+      e.budget_assigned.toString(),
+      e.calls_landed.toString(),
+      e.dropped_calls.toString(),
+      e.sales_acquired.toString(),
+      `${e.conversion_rate}%`,
+      `${e.drop_rate}%`,
+      e.cost_per_lead.toFixed(2),
+    ]);
+
+    return [headers, ...dataRows]
+      .map((row) =>
+        row
+          .map((value) => {
+            const v = value ?? "";
+            const needsQuotes = /[",\n]/.test(v);
+            const escaped = v.replace(/"/g, '""');
+            return needsQuotes ? `"${escaped}"` : escaped;
+          })
+          .join(","),
+      )
+      .join("\n");
+  };
+
+  const handleExport = async () => {
+    if (count === 0) return;
+    setExporting(true);
+    try {
+      const q = searchParams.get("q")?.trim() || undefined;
+      const rows = await getMarketingEntries({
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+        campaign: (filters.campaign || "all") as MarketingEntryCampaign | "all",
+        search: q,
+      });
+      if (rows.length === 0) return;
+      const csvContent = buildCsvFromRows(rows);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "marketing-budget-report.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Marketing Budget</h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Campaign budget allocation and spend controls</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Marketing Budget Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+            Track campaign performance, leads, and conversions
+          </p>
         </div>
         <div className="flex flex-col gap-2 min-[400px]:flex-row sm:items-center">
-          <select
-            value={month}
-            onChange={(e) => handleMonthChange(e.target.value)}
-            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium shadow-sm transition-all focus:ring-2 focus:ring-primary/20 min-[400px]:w-[140px]"
-          >
-            {monthOptions.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          <Button variant="outline" onClick={handleExport} disabled={count === 0 || exporting}>
+            <Download className="h-4 w-4 mr-2" /> {exporting ? "Exporting…" : "Export"}
+          </Button>
           <Button
-            className="h-10 w-full rounded-xl sm:w-auto"
             onClick={() => {
-              setEditingCampaign(null);
-              setCampaignDialogOpen(true);
+              setEditingEntry(null);
+              setEntryDialogOpen(true);
             }}
           >
-            <Plus className="h-4 w-4 mr-2" /> New Campaign
+            <Plus className="h-4 w-4 mr-2" /> Add Marketing Entry
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="mt-2">
-        <TabsList className="mb-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-          <TabsTrigger value="daily-call-logs">Daily Call Logs Budget</TabsTrigger>
-          <TabsTrigger value="daily-campaign-budget">Daily Campaign Budget</TabsTrigger>
-          <TabsTrigger value="transactions">Budget Transactions</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-            <SummaryCard
-              title="Allocated"
-              value={formatCurrency(overview.totalBudgetAllocated, currency)}
-              icon={<Wallet className="h-4 w-4" />}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Input
+              id="filter_from"
+              label="From Date"
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
             />
-            <SummaryCard
-              title="Spent"
-              value={formatCurrency(overview.totalSpent, currency)}
-              icon={<TrendingUp className="h-4 w-4" />}
+            <Input
+              id="filter_to"
+              label="To Date"
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
             />
-            <SummaryCard
-              title="Remaining"
-              value={formatCurrency(overview.remainingBudget, currency)}
-              icon={<Target className="h-4 w-4" />}
+            <Select
+              id="filter_campaign"
+              label="Campaign"
+              value={filterCampaign}
+              onChange={(e) => setFilterCampaign(e.target.value)}
+              options={[{ value: "all", label: "All Campaigns" }, ...CAMPAIGN_OPTIONS]}
             />
-            <SummaryCard
-              title="Active"
-              value={overview.activeCampaigns}
-              icon={<Megaphone className="h-4 w-4" />}
-            />
-            <Card className="col-span-1 sm:col-span-1 xl:col-span-1">
-              <CardContent className="p-4 sm:p-5">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider sm:text-sm">Utilization</p>
-                <div className="mt-1.5 flex items-baseline gap-1.5">
-                  <p className="text-base font-semibold sm:text-xl">{overview.utilizationPercent.toFixed(1)}%</p>
-                </div>
-                <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-2 rounded-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${Math.min(100, Math.max(0, overview.utilizationPercent))}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex items-end gap-2">
+              <Button onClick={applyDashboardFilters} className="flex-1">
+                Apply Filters
+              </Button>
+              <Button variant="outline" onClick={clearAllFilters}>
+                Clear
+              </Button>
+            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Monthly Spend Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MonthlySpendChart data={overview.monthlySpendChart} currency={currency} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Budget"
+          value={formatCurrency(stats.totalBudget, currency)}
+          icon={<Wallet className="h-5 w-5" />}
+          color="bg-primary/10 text-primary"
+        />
+        <StatCard
+          title="Total Leads"
+          value={stats.totalLeads.toLocaleString()}
+          icon={<Users className="h-5 w-5" />}
+          color="bg-emerald-500/10 text-emerald-600"
+        />
+        <StatCard
+          title="Total Sales"
+          value={stats.totalSales.toLocaleString()}
+          icon={<ShoppingCart className="h-5 w-5" />}
+          color="bg-violet-500/10 text-violet-600"
+        />
+        <StatCard
+          title="Drop Rate"
+          value={`${stats.avgDropRate}%`}
+          icon={<TrendingDown className="h-5 w-5" />}
+          color="bg-rose-500/10 text-rose-600"
+        />
+      </div>
 
-        <TabsContent value="campaigns" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">All Campaigns</CardTitle>
-            </CardHeader>
-            <CardContent>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-4">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="marketing_entries_search"
+                ref={inputRef}
+                placeholder="Search marketing entries by campaign…"
+                value={searchInput}
+                onChange={(e) => onInputChange(e.target.value)}
+                className="h-10 pl-10"
+              />
+            </div>
+            <CardTitle className="text-sm font-medium text-muted-foreground whitespace-nowrap shrink-0">
+              {count} marketing entr{count !== 1 ? "ies" : "y"}
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
+          {entries.length === 0 ? (
+            <EmptyState
+              title="No entries found"
+              description={
+                urlSearch
+                  ? "Try adjusting your search or dashboard filters"
+                  : "Add a marketing entry or adjust date range and campaign above"
+              }
+              action={
+                !urlSearch ? (
+                  <Button
+                    onClick={() => {
+                      setEditingEntry(null);
+                      setEntryDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add Entry
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Campaign Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Assigned Budget</TableHead>
-                    <TableHead>Amount Spent</TableHead>
-                    <TableHead>Remaining</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Campaign</TableHead>
+                    <TableHead>Budget</TableHead>
+                    <TableHead>Calls Landed</TableHead>
+                    <TableHead>Dropped Calls</TableHead>
+                    <TableHead>Sales</TableHead>
+                    <TableHead>Conversion %</TableHead>
+                    <TableHead>Drop %</TableHead>
+                    <TableHead>Cost/Lead</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {campaigns.map((campaign) => (
-                    <TableRow key={campaign.id}>
-                      <TableCell className="font-medium">{campaign.name}</TableCell>
-                      <TableCell className="capitalize">{campaign.type}</TableCell>
-                      <TableCell>{formatCurrency(Number(campaign.total_budget || 0), currency)}</TableCell>
-                      <TableCell>{formatCurrency(Number(campaign.amount_spent || 0), currency)}</TableCell>
-                      <TableCell
-                        className={campaign.remaining_budget < 0 ? "text-destructive font-semibold" : "font-semibold"}
-                      >
-                        {formatCurrency(Number(campaign.remaining_budget || 0), currency)}
-                      </TableCell>
-                      <TableCell>{formatDate(campaign.start_date)}</TableCell>
-                      <TableCell>{formatDate(campaign.end_date)}</TableCell>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{formatDate(entry.entry_date)}</TableCell>
                       <TableCell>
-                        <CampaignStatusBadge status={campaign.computed_status} />
+                        <CampaignBadge campaign={entry.campaign} />
                       </TableCell>
-                      <TableCell>{campaign.assigned_user?.full_name || "-"}</TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(entry.budget_assigned, currency)}
+                      </TableCell>
+                      <TableCell>{entry.calls_landed.toLocaleString()}</TableCell>
+                      <TableCell>{entry.dropped_calls.toLocaleString()}</TableCell>
+                      <TableCell className="font-semibold text-emerald-600">
+                        {entry.sales_acquired.toLocaleString()}
+                      </TableCell>
                       <TableCell>
-                        <div className="flex justify-end gap-2">
+                        <span
+                          className={
+                            entry.conversion_rate >= 15
+                              ? "font-medium text-emerald-600"
+                              : entry.conversion_rate >= 10
+                                ? "text-amber-600"
+                                : "text-muted-foreground"
+                          }
+                        >
+                          {entry.conversion_rate}%
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            entry.drop_rate > 15 ? "font-medium text-rose-600" : "text-muted-foreground"
+                          }
+                        >
+                          {entry.drop_rate}%
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatCurrency(entry.cost_per_lead, currency)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
                             onClick={() => {
-                              setEditingCampaign(campaign);
-                              setCampaignDialogOpen(true);
+                              setEditingEntry(entry);
+                              setEntryDialogOpen(true);
                             }}
                           >
                             <Pencil className="h-3.5 w-3.5" />
-                            Edit
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="text-destructive"
-                            onClick={() => handleDeleteCampaign(campaign.id)}
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteEntry(entry.id)}
                             disabled={isPending}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
-                            Delete
                           </Button>
                         </div>
                       </TableCell>
@@ -319,219 +441,65 @@ export function MarketingBudgetClient({
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          )}
 
-        <TabsContent value="daily-call-logs" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle className="text-base">Call Campaign Daily Cost Logs</CardTitle>
-                <Button onClick={() => setDailyLogDialogOpen(true)} className="w-full sm:w-auto">
-                  <Plus className="h-4 w-4 mr-2" /> Add Daily Log
-                </Button>
-              </div>
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  id="callLogStart"
-                  label="Start Date"
-                  type="date"
-                  value={callLogFilterStart}
-                  onChange={(e) => setCallLogFilterStart(e.target.value)}
-                />
-                <Input
-                  id="callLogEnd"
-                  label="End Date"
-                  type="date"
-                  value={callLogFilterEnd}
-                  onChange={(e) => setCallLogFilterEnd(e.target.value)}
-                />
-                <Select
-                  id="callLogCampaign"
-                  label="Campaign"
-                  value={callLogFilterCampaign}
-                  onChange={(e) => setCallLogFilterCampaign(e.target.value)}
-                  options={[{ value: "all", label: "All Campaigns" }, ...campaignOptions]}
-                />
-                <Select
-                  id="callLogAgent"
-                  label="Agent"
-                  value={callLogFilterAgent}
-                  onChange={(e) => setCallLogFilterAgent(e.target.value)}
-                  options={[{ value: "all", label: "All Agents" }, ...agentOptions]}
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead>Agent</TableHead>
-                    <TableHead>Calls Made</TableHead>
-                    <TableHead>Cost / Call</TableHead>
-                    <TableHead>Total Daily Cost</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDailyCallLogs.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{formatDate(item.log_date)}</TableCell>
-                      <TableCell>{item.campaign?.name || "-"}</TableCell>
-                      <TableCell>{item.user?.full_name || "-"}</TableCell>
-                      <TableCell>{item.calls_made}</TableCell>
-                      <TableCell>{formatCurrency(Number(item.cost_per_call || 0), currency)}</TableCell>
-                      <TableCell className="font-semibold">
-                        {formatCurrency(Number(item.total_daily_cost || 0), currency)}
-                      </TableCell>
-                      <TableCell className="max-w-[260px] truncate text-muted-foreground">{item.notes || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(p) => updateFilters({ page: p })}
+            totalItems={count}
+            pageSize={pageSize}
+          />
+        </CardContent>
+      </Card>
 
-              <div className="rounded-xl border border-border/60 p-4">
-                <p className="mb-3 text-sm font-semibold text-muted-foreground">Running Monthly Total Per Campaign</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {monthlyTotals.map((row) => (
-                    <div key={row.campaign_id} className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-                      <p className="text-sm font-medium">{row.campaign_name}</p>
-                      <p className="text-base font-bold">{formatCurrency(Number(row.total_spent || 0), currency)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-4 w-4" />
+              Budget vs Sales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BudgetVsSalesChart data={chartData.budgetVsSales} currency={currency} />
+          </CardContent>
+        </Card>
 
-        <TabsContent value="daily-campaign-budget" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <CardTitle className="text-base">Daily Budget vs Spend</CardTitle>
-                <Button onClick={() => setDailyBudgetDialogOpen(true)}>
-                  <Plus className="h-4 w-4" /> Add Daily Budget
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead>Daily Budget Allocated</TableHead>
-                    <TableHead>Daily Spent</TableHead>
-                    <TableHead>Variance</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dailyCampaignBudgets.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{formatDate(row.budget_date)}</TableCell>
-                      <TableCell>{row.campaign?.name || "-"}</TableCell>
-                      <TableCell>{formatCurrency(Number(row.daily_budget_allocated || 0), currency)}</TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(Number(row.daily_spent || 0), currency)}</TableCell>
-                      <TableCell className={row.variance < 0 ? "text-destructive font-semibold" : "text-emerald-600 font-semibold"}>
-                        {formatCurrency(Number(row.variance || 0), currency)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.status === "within" ? "success" : "destructive"}>
-                          {row.status === "within" ? "Within Budget" : "Over Budget"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[260px] truncate text-muted-foreground">{row.notes || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-4 w-4" />
+              Leads vs Conversions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LeadsVsConversionsChart data={chartData.leadsVsConversions} />
+          </CardContent>
+        </Card>
+      </div>
 
-        <TabsContent value="transactions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <CardTitle className="text-base">Budget Transactions Log</CardTitle>
-                <Button onClick={() => setTransactionDialogOpen(true)}>
-                  <Plus className="h-4 w-4" /> Add Transaction
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Performed By</TableHead>
-                    <TableHead>Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell>{formatDate(tx.transaction_date)}</TableCell>
-                      <TableCell className="capitalize">{tx.type}</TableCell>
-                      <TableCell>{tx.campaign?.name || "-"}</TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(Number(tx.amount || 0), currency)}</TableCell>
-                      <TableCell>{tx.performer?.full_name || "-"}</TableCell>
-                      <TableCell className="max-w-[300px] truncate text-muted-foreground">{tx.note || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BarChart3 className="h-4 w-4" />
+            Drop Ratio Trend
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DropRatioTrendChart data={chartData.dropRatioTrend} />
+        </CardContent>
+      </Card>
 
-      {campaignDialogOpen && (
-        <CampaignDialog
-          open={campaignDialogOpen}
+      {entryDialogOpen && (
+        <EntryFormDialog
+          open={entryDialogOpen}
           onClose={() => {
-            setCampaignDialogOpen(false);
-            setEditingCampaign(null);
+            setEntryDialogOpen(false);
+            setEditingEntry(null);
           }}
-          users={users}
-          campaign={editingCampaign}
-          onSaved={() => router.refresh()}
-        />
-      )}
-
-      {dailyLogDialogOpen && (
-        <DailyLogDialog
-          open={dailyLogDialogOpen}
-          onClose={() => setDailyLogDialogOpen(false)}
-          campaigns={campaigns.filter((item) => item.status === "active")}
-          users={users}
-          onSaved={() => router.refresh()}
-        />
-      )}
-
-      {dailyBudgetDialogOpen && (
-        <DailyBudgetDialog
-          open={dailyBudgetDialogOpen}
-          onClose={() => setDailyBudgetDialogOpen(false)}
-          campaigns={campaigns}
-          onSaved={() => router.refresh()}
-        />
-      )}
-
-      {transactionDialogOpen && (
-        <TransactionDialog
-          open={transactionDialogOpen}
-          onClose={() => setTransactionDialogOpen(false)}
-          campaigns={campaigns}
+          entry={editingEntry}
           onSaved={() => router.refresh()}
         />
       )}
@@ -539,16 +507,28 @@ export function MarketingBudgetClient({
   );
 }
 
-function SummaryCard({ title, value, icon }: { title: string; value: string | number; icon: React.ReactNode }) {
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+}) {
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4 sm:p-5">
+    <Card>
+      <CardContent className="p-5">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider sm:text-sm">{title}</p>
-            <p className="mt-1.5 text-base font-semibold tracking-tight truncate sm:text-xl">{value}</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {title}
+            </p>
+            <p className="mt-2 text-2xl font-bold tracking-tight">{value}</p>
           </div>
-          <div className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm sm:h-12 sm:w-12">
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${color}`}>
             {icon}
           </div>
         </div>
@@ -557,72 +537,142 @@ function SummaryCard({ title, value, icon }: { title: string; value: string | nu
   );
 }
 
-function CampaignStatusBadge({
-  status,
-}: {
-  status: "active" | "paused" | "completed" | "over_budget";
-}) {
-  if (status === "active") {
-    return (
-      <Badge variant="success" className="gap-1">
-        <CircleCheckBig className="h-3 w-3" />
-        Active
-      </Badge>
-    );
-  }
-  if (status === "paused") {
-    return (
-      <Badge variant="warning" className="gap-1">
-        <PauseCircle className="h-3 w-3" />
-        Paused
-      </Badge>
-    );
-  }
-  if (status === "completed") {
-    return (
-      <Badge variant="secondary" className="gap-1">
-        <CalendarRange className="h-3 w-3" />
-        Completed
-      </Badge>
-    );
-  }
+function CampaignBadge({ campaign }: { campaign: string }) {
+  const variants: Record<string, "default" | "success" | "warning"> = {
+    energy: "default",
+    insurance: "success",
+    telecom: "warning",
+  };
   return (
-    <Badge variant="destructive" className="gap-1">
-      <TriangleAlert className="h-3 w-3" />
-      Over Budget
+    <Badge variant={variants[campaign] || "default"} className="capitalize">
+      {CAMPAIGN_LABELS[campaign] || campaign}
     </Badge>
   );
 }
 
-function MonthlySpendChart({ data, currency }: { data: Array<{ date: string; spend: number }>; currency: string }) {
+function BudgetVsSalesChart({
+  data,
+  currency,
+}: {
+  data: Array<{ date: string; budget: number; sales: number }>;
+  currency: string;
+}) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
   if (data.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">No spend data available</p>;
+    return <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>;
   }
 
-  const compact = new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    compactDisplay: "short",
-    maximumFractionDigits: 1,
-  });
-
   const isDark = mounted && theme === "dark";
-  const gridStroke = isDark ? "#1f2937" : "#F3F4F6";
-  const tickFill = isDark ? "#9ca3af" : "#9CA3AF";
+  const gridStroke = isDark ? "#1f2937" : "#e5e7eb";
+  const tickFill = isDark ? "#9ca3af" : "#6b7280";
 
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data}>
-        <CartesianGrid vertical={false} stroke={gridStroke} strokeDasharray="4 4" />
+        <CartesianGrid vertical={false} stroke={gridStroke} strokeDasharray="3 3" />
         <XAxis
           dataKey="date"
-          tick={{ fill: tickFill }}
+          tick={{ fill: tickFill, fontSize: 12 }}
+          tickLine={false}
+          axisLine={{ stroke: gridStroke }}
+          tickFormatter={(value) => {
+            const [, month, day] = value.split("-");
+            return `${month}/${day}`;
+          }}
+        />
+        <YAxis tick={{ fill: tickFill, fontSize: 12 }} tickLine={false} axisLine={false} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: isDark ? "#111827" : "#ffffff",
+            borderColor: isDark ? "#374151" : "#e5e7eb",
+            borderRadius: 8,
+          }}
+          formatter={(value, name) => [
+            name === "budget" ? formatCurrency(Number(value || 0), currency) : value,
+            name === "budget" ? "Budget" : "Sales",
+          ]}
+        />
+        <Legend />
+        <Bar dataKey="budget" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Budget" />
+        <Bar dataKey="sales" fill="#10b981" radius={[4, 4, 0, 0]} name="Sales" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function LeadsVsConversionsChart({
+  data,
+}: {
+  data: Array<{ date: string; leads: number; conversions: number }>;
+}) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (data.length === 0) {
+    return <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>;
+  }
+
+  const isDark = mounted && theme === "dark";
+  const gridStroke = isDark ? "#1f2937" : "#e5e7eb";
+  const tickFill = isDark ? "#9ca3af" : "#6b7280";
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data}>
+        <CartesianGrid vertical={false} stroke={gridStroke} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: tickFill, fontSize: 12 }}
+          tickLine={false}
+          axisLine={{ stroke: gridStroke }}
+          tickFormatter={(value) => {
+            const [, month, day] = value.split("-");
+            return `${month}/${day}`;
+          }}
+        />
+        <YAxis tick={{ fill: tickFill, fontSize: 12 }} tickLine={false} axisLine={false} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: isDark ? "#111827" : "#ffffff",
+            borderColor: isDark ? "#374151" : "#e5e7eb",
+            borderRadius: 8,
+          }}
+        />
+        <Legend />
+        <Bar dataKey="leads" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Leads" />
+        <Bar dataKey="conversions" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Conversions" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function DropRatioTrendChart({ data }: { data: Array<{ date: string; dropRate: number }> }) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (data.length === 0) {
+    return <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>;
+  }
+
+  const isDark = mounted && theme === "dark";
+  const gridStroke = isDark ? "#1f2937" : "#e5e7eb";
+  const tickFill = isDark ? "#9ca3af" : "#6b7280";
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data}>
+        <CartesianGrid vertical={false} stroke={gridStroke} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: tickFill, fontSize: 12 }}
           tickLine={false}
           axisLine={{ stroke: gridStroke }}
           tickFormatter={(value) => {
@@ -631,50 +681,62 @@ function MonthlySpendChart({ data, currency }: { data: Array<{ date: string; spe
           }}
         />
         <YAxis
-          tick={{ fill: tickFill }}
+          tick={{ fill: tickFill, fontSize: 12 }}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => compact.format(Number(value || 0))}
+          tickFormatter={(value) => `${value}%`}
         />
-        <Tooltip 
-          contentStyle={{ 
-            backgroundColor: isDark ? "#111827" : "#ffffff", 
+        <Tooltip
+          contentStyle={{
+            backgroundColor: isDark ? "#111827" : "#ffffff",
             borderColor: isDark ? "#374151" : "#e5e7eb",
-            color: isDark ? "#f3f4f6" : "#111827"
+            borderRadius: 8,
           }}
-          formatter={(value) => [formatCurrency(Number(value || 0), currency), "Spend"]} 
+          formatter={(value) => [`${value}%`, "Drop Rate"]}
         />
-        <Bar dataKey="spend" fill="#3B6EF8" radius={[6, 6, 0, 0]} />
-      </BarChart>
+        <Line
+          type="monotone"
+          dataKey="dropRate"
+          stroke="#ef4444"
+          strokeWidth={2}
+          dot={{ fill: "#ef4444", strokeWidth: 2 }}
+          name="Drop Rate"
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 }
 
-function CampaignDialog({
+function EntryFormDialog({
   open,
   onClose,
-  users,
-  campaign,
+  entry,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
-  users: Array<{ id: string; full_name: string; role: string }>;
-  campaign: (MarketingCampaign & { amount_spent: number; remaining_budget: number; computed_status: string }) | null;
+  entry: MarketingEntryWithCalculations | null;
   onSaved: () => void;
 }) {
   const [loading, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [form, setForm] = useState({
-    name: campaign?.name || "",
-    type: campaign?.type || "call",
-    total_budget: campaign ? String(campaign.total_budget) : "",
-    start_date: campaign?.start_date || "",
-    end_date: campaign?.end_date || "",
-    assigned_to: campaign?.assigned_to || "",
-    status: campaign?.status || "active",
-    notes: campaign?.notes || "",
+    entry_date: entry?.entry_date || new Date().toISOString().slice(0, 10),
+    campaign: entry?.campaign || ("energy" as MarketingEntryCampaign),
+    budget_assigned: entry ? String(entry.budget_assigned) : "",
+    calls_landed: entry ? String(entry.calls_landed) : "",
+    dropped_calls: entry ? String(entry.dropped_calls) : "",
+    sales_acquired: entry ? String(entry.sales_acquired) : "",
   });
+
+  const callsLanded = Number(form.calls_landed || 0);
+  const droppedCalls = Number(form.dropped_calls || 0);
+  const salesAcquired = Number(form.sales_acquired || 0);
+  const budgetAssigned = Number(form.budget_assigned || 0);
+
+  const conversionRate = callsLanded > 0 ? ((salesAcquired / callsLanded) * 100).toFixed(2) : "0.00";
+  const dropRate = callsLanded > 0 ? ((droppedCalls / callsLanded) * 100).toFixed(2) : "0.00";
+  const costPerLead = callsLanded > 0 ? (budgetAssigned / callsLanded).toFixed(2) : "0.00";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -682,449 +744,123 @@ function CampaignDialog({
     startTransition(async () => {
       try {
         const payload = {
-          name: form.name,
-          type: form.type as "call" | "digital" | "other",
-          total_budget: Number(form.total_budget || 0),
-          start_date: form.start_date,
-          end_date: form.end_date,
-          assigned_to: form.assigned_to || null,
-          status: form.status as "active" | "paused" | "completed",
-          notes: form.notes,
+          entry_date: form.entry_date,
+          campaign: form.campaign as MarketingEntryCampaign,
+          budget_assigned: Number(form.budget_assigned || 0),
+          calls_landed: Number(form.calls_landed || 0),
+          dropped_calls: Number(form.dropped_calls || 0),
+          sales_acquired: Number(form.sales_acquired || 0),
         };
-        if (campaign?.id) {
-          await updateMarketingCampaign(campaign.id, payload);
+        if (entry?.id) {
+          await updateMarketingEntry(entry.id, payload);
         } else {
-          await createMarketingCampaign(payload);
+          await createMarketingEntry(payload);
         }
         onSaved();
         onClose();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save campaign");
+        setError(err instanceof Error ? err.message : "Failed to save entry");
       }
     });
   };
 
   return (
-    <Dialog open={open} onClose={onClose} className="max-w-2xl">
+    <Dialog open={open} onClose={onClose} className="max-w-lg">
       <DialogHeader>
-        <DialogTitle>{campaign ? "Edit Campaign" : "New Campaign"}</DialogTitle>
+        <DialogTitle>{entry ? "Edit Marketing Entry" : "Add Marketing Entry"}</DialogTitle>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <Input
-          id="campaignName"
-          label="Name"
-          value={form.name}
-          onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-          required
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            id="campaignType"
-            label="Type"
-            value={form.type}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, type: e.target.value as "call" | "digital" | "other" }))
-            }
-            options={[
-              { value: "call", label: "Call" },
-              { value: "digital", label: "Digital" },
-              { value: "other", label: "Other" },
-            ]}
-          />
-          <Input
-            id="campaignBudget"
-            label="Total Budget (PKR)"
-            type="number"
-            min="0"
-            value={form.total_budget}
-            onChange={(e) => setForm((prev) => ({ ...prev, total_budget: e.target.value }))}
-            required
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            id="campaignStartDate"
-            label="Start Date"
-            type="date"
-            value={form.start_date}
-            onChange={(e) => setForm((prev) => ({ ...prev, start_date: e.target.value }))}
-            required
-          />
-          <Input
-            id="campaignEndDate"
-            label="End Date"
-            type="date"
-            value={form.end_date}
-            onChange={(e) => setForm((prev) => ({ ...prev, end_date: e.target.value }))}
-            required
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            id="campaignAssignedTo"
-            label="Assigned To"
-            value={form.assigned_to}
-            onChange={(e) => setForm((prev) => ({ ...prev, assigned_to: e.target.value }))}
-            options={[{ value: "", label: "Unassigned" }, ...users.map((user) => ({ value: user.id, label: user.full_name }))]}
-          />
-          <Select
-            id="campaignStatus"
-            label="Status"
-            value={form.status}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, status: e.target.value as "active" | "paused" | "completed" }))
-            }
-            options={[
-              { value: "active", label: "Active" },
-              { value: "paused", label: "Paused" },
-              { value: "completed", label: "Completed" },
-            ]}
-          />
-        </div>
-        <Textarea
-          id="campaignNotes"
-          label="Notes"
-          value={form.notes}
-          onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-          placeholder="Campaign notes and context"
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? <Spinner /> : campaign ? "Update Campaign" : "Create Campaign"}
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  );
-}
-
-function DailyLogDialog({
-  open,
-  onClose,
-  campaigns,
-  users,
-  onSaved,
-}: {
-  open: boolean;
-  onClose: () => void;
-  campaigns: Array<MarketingCampaign & { amount_spent: number; remaining_budget: number; computed_status: string }>;
-  users: Array<{ id: string; full_name: string }>;
-  onSaved: () => void;
-}) {
-  const [loading, startTransition] = useTransition();
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    log_date: new Date().toISOString().slice(0, 10),
-    campaign_id: campaigns[0]?.id || "",
-    user_id: users[0]?.id || "",
-    calls_made: "",
-    cost_per_call: "",
-    notes: "",
-  });
-
-  const totalDailyCost = Number(form.calls_made || 0) * Number(form.cost_per_call || 0);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    startTransition(async () => {
-      try {
-        await createMarketingDailyCallLog({
-          log_date: form.log_date,
-          campaign_id: form.campaign_id,
-          user_id: form.user_id,
-          calls_made: Number(form.calls_made || 0),
-          cost_per_call: Number(form.cost_per_call || 0),
-          notes: form.notes,
-        });
-        onSaved();
-        onClose();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save daily log");
-      }
-    });
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} className="max-w-xl">
-      <DialogHeader>
-        <DialogTitle>Add Daily Log</DialogTitle>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        <Input
-          id="logDate"
+          id="entry_date"
           label="Date"
           type="date"
-          value={form.log_date}
-          onChange={(e) => setForm((prev) => ({ ...prev, log_date: e.target.value }))}
+          value={form.entry_date}
+          onChange={(e) => setForm((prev) => ({ ...prev, entry_date: e.target.value }))}
           required
         />
-        <Select
-          id="logCampaign"
-          label="Campaign"
-          value={form.campaign_id}
-          onChange={(e) => setForm((prev) => ({ ...prev, campaign_id: e.target.value }))}
-          options={campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name }))}
-          required
-        />
-        <Select
-          id="logAgent"
-          label="Agent"
-          value={form.user_id}
-          onChange={(e) => setForm((prev) => ({ ...prev, user_id: e.target.value }))}
-          options={users.map((user) => ({ value: user.id, label: user.full_name }))}
-          required
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            id="callsMade"
-            label="Calls Made"
-            type="number"
-            min="0"
-            value={form.calls_made}
-            onChange={(e) => setForm((prev) => ({ ...prev, calls_made: e.target.value }))}
-            required
-          />
-          <Input
-            id="costPerCall"
-            label="Cost Per Call (PKR)"
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.cost_per_call}
-            onChange={(e) => setForm((prev) => ({ ...prev, cost_per_call: e.target.value }))}
-            required
-          />
-        </div>
-        <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
-          <p className="text-xs text-muted-foreground">Total Daily Cost</p>
-          <p className="text-lg font-bold">{formatCurrency(totalDailyCost, "PKR")}</p>
-        </div>
-        <Textarea
-          id="dailyLogNotes"
-          label="Notes"
-          value={form.notes}
-          onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? <Spinner /> : "Save Log"}
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  );
-}
 
-function DailyBudgetDialog({
-  open,
-  onClose,
-  campaigns,
-  onSaved,
-}: {
-  open: boolean;
-  onClose: () => void;
-  campaigns: Array<MarketingCampaign & { amount_spent: number; remaining_budget: number; computed_status: string }>;
-  onSaved: () => void;
-}) {
-  const [loading, startTransition] = useTransition();
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    budget_date: new Date().toISOString().slice(0, 10),
-    campaign_id: campaigns[0]?.id || "",
-    daily_budget_allocated: "",
-    daily_spent_manual: "",
-    notes: "",
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    startTransition(async () => {
-      try {
-        await upsertMarketingDailyCampaignBudget({
-          budget_date: form.budget_date,
-          campaign_id: form.campaign_id,
-          daily_budget_allocated: Number(form.daily_budget_allocated || 0),
-          daily_spent_manual: form.daily_spent_manual ? Number(form.daily_spent_manual) : null,
-          notes: form.notes,
-        });
-        onSaved();
-        onClose();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save daily budget");
-      }
-    });
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} className="max-w-xl">
-      <DialogHeader>
-        <DialogTitle>Add Daily Campaign Budget</DialogTitle>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <Input
-          id="budgetDate"
-          label="Date"
-          type="date"
-          value={form.budget_date}
-          onChange={(e) => setForm((prev) => ({ ...prev, budget_date: e.target.value }))}
-          required
-        />
-        <Select
-          id="budgetCampaign"
-          label="Campaign"
-          value={form.campaign_id}
-          onChange={(e) => setForm((prev) => ({ ...prev, campaign_id: e.target.value }))}
-          options={campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name }))}
-          required
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            id="dailyAllocated"
-            label="Daily Budget Allocated"
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.daily_budget_allocated}
-            onChange={(e) => setForm((prev) => ({ ...prev, daily_budget_allocated: e.target.value }))}
-            required
-          />
-          <Input
-            id="dailySpentManual"
-            label="Daily Spent (Manual, optional)"
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.daily_spent_manual}
-            onChange={(e) => setForm((prev) => ({ ...prev, daily_spent_manual: e.target.value }))}
-          />
-        </div>
-        <Textarea
-          id="dailyBudgetNotes"
-          label="Notes"
-          value={form.notes}
-          onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? <Spinner /> : "Save Daily Budget"}
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  );
-}
-
-function TransactionDialog({
-  open,
-  onClose,
-  campaigns,
-  onSaved,
-}: {
-  open: boolean;
-  onClose: () => void;
-  campaigns: Array<MarketingCampaign & { amount_spent: number; remaining_budget: number; computed_status: string }>;
-  onSaved: () => void;
-}) {
-  const [loading, startTransition] = useTransition();
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    transaction_date: new Date().toISOString().slice(0, 10),
-    type: "adjustment",
-    campaign_id: campaigns[0]?.id || "",
-    amount: "",
-    note: "",
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    startTransition(async () => {
-      try {
-        await recordMarketingBudgetTransaction({
-          transaction_date: form.transaction_date,
-          type: form.type as "allocation" | "deduction" | "adjustment",
-          campaign_id: form.campaign_id,
-          amount: Number(form.amount || 0),
-          note: form.note,
-        });
-        onSaved();
-        onClose();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to record transaction");
-      }
-    });
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} className="max-w-xl">
-      <DialogHeader>
-        <DialogTitle>Add Budget Transaction</DialogTitle>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        <Input
-          id="transactionDate"
-          label="Date"
-          type="date"
-          value={form.transaction_date}
-          onChange={(e) => setForm((prev) => ({ ...prev, transaction_date: e.target.value }))}
-          required
-        />
-        <Select
-          id="transactionType"
-          label="Type"
-          value={form.type}
-          onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}
-          options={[
-            { value: "allocation", label: "Allocation" },
-            { value: "deduction", label: "Deduction" },
-            { value: "adjustment", label: "Adjustment" },
-          ]}
-          required
-        />
-        <Select
-          id="transactionCampaign"
-          label="Campaign"
-          value={form.campaign_id}
-          onChange={(e) => setForm((prev) => ({ ...prev, campaign_id: e.target.value }))}
-          options={campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name }))}
-          required
-        />
-        <Input
-          id="transactionAmount"
-          label="Amount (PKR)"
+          id="budget_assigned"
+          label="Budget Assigned"
           type="number"
+          min="0"
           step="0.01"
-          value={form.amount}
-          onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
+          placeholder="Enter budget amount"
+          value={form.budget_assigned}
+          onChange={(e) => setForm((prev) => ({ ...prev, budget_assigned: e.target.value }))}
           required
         />
-        <Textarea
-          id="transactionNote"
-          label="Note"
-          value={form.note}
-          onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+
+        <Select
+          id="campaign"
+          label="Campaign"
+          value={form.campaign}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, campaign: e.target.value as MarketingEntryCampaign }))
+          }
+          options={CAMPAIGN_OPTIONS}
+          required
         />
+
+        <Input
+          id="calls_landed"
+          label="Calls Landed / Leads"
+          type="number"
+          min="0"
+          placeholder="Number of calls/leads"
+          value={form.calls_landed}
+          onChange={(e) => setForm((prev) => ({ ...prev, calls_landed: e.target.value }))}
+          required
+        />
+
+        <Input
+          id="dropped_calls"
+          label="Dropped Calls"
+          type="number"
+          min="0"
+          placeholder="Number of dropped calls"
+          value={form.dropped_calls}
+          onChange={(e) => setForm((prev) => ({ ...prev, dropped_calls: e.target.value }))}
+          required
+        />
+
+        <Input
+          id="sales_acquired"
+          label="Sales Acquired"
+          type="number"
+          min="0"
+          placeholder="Number of sales"
+          value={form.sales_acquired}
+          onChange={(e) => setForm((prev) => ({ ...prev, sales_acquired: e.target.value }))}
+          required
+        />
+
+        <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">Auto Calculations</p>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Conversion %</p>
+              <p className="font-semibold text-emerald-600">{conversionRate}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Drop %</p>
+              <p className="font-semibold text-rose-600">{dropRate}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Cost/Lead</p>
+              <p className="font-semibold">{costPerLead}</p>
+            </div>
+          </div>
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
+
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? <Spinner /> : "Save Transaction"}
+            {loading ? <Spinner /> : "Save"}
           </Button>
         </DialogFooter>
       </form>

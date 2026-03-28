@@ -1,16 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { clonePayslipToNextMonth, deletePayslip, markPayslipAsPaid } from "@/lib/actions/payslips";
+import {
+  clonePayslipToNextMonth,
+  deletePayslip,
+  markPayslipAsPaid,
+} from "@/lib/actions/payslips";
 import type { Payslip } from "@/lib/types";
-import { Download, Plus, Send, ChevronLeft, ChevronRight, Pencil, Copy, MoreHorizontal, Trash2, Eye } from "lucide-react";
+import {
+  Download,
+  Plus,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Copy,
+  MoreHorizontal,
+  Trash2,
+  Eye,
+} from "lucide-react";
 import { PayslipFormDialog } from "./payslip-form-dialog";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
@@ -19,6 +42,7 @@ import { Select } from "@/components/ui/select";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
 interface EmployeeRow {
   id: string;
@@ -53,14 +77,26 @@ interface PayslipsAdminClientProps {
   companySettings: CompanySettings;
 }
 
-export function PayslipsAdminClient({ payslipsResponse, employees, companySettings }: PayslipsAdminClientProps) {
+export function PayslipsAdminClient({
+  payslipsResponse,
+  employees,
+  companySettings,
+}: PayslipsAdminClientProps) {
   const MENU_GAP = 8;
   const MENU_MARGIN = 8;
   const MENU_WIDTH = 220;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
+  const [isPending, startTransition] = useTransition();
+
+  const {
+    data: payslips,
+    count,
+    page,
+    totalPages,
+    pageSize,
+  } = payslipsResponse;
 
   const [showForm, setShowForm] = useState(false);
   const [editingPayslip, setEditingPayslip] = useState<Payslip | null>(null);
@@ -68,8 +104,10 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [cloningId, setCloningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  
-  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+
+  const updateFilters = (
+    updates: Record<string, string | number | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
       if (value === undefined || value === "all" || value === "") {
@@ -81,13 +119,25 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const searchTerm = searchParams.get("q") || "";
+  const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(
+    searchParams,
+    updateFilters,
+  );
   const statusFilter = searchParams.get("status") || "all";
-  const [activeMonth, setActiveMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [menuState, setMenuState] = useState<{ id: string; x: number; y: number; width: number } | null>(null);
+  const [activeMonth, setActiveMonth] = useState(() =>
+    new Date().toISOString().slice(0, 7),
+  );
+  const [menuState, setMenuState] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+  } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const totals = useMemo(
@@ -96,7 +146,7 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
       paid: payslips.filter((p) => p.status === "paid").length, // This is only for the current page now
       processed: payslips.filter((p) => p.status === "processed").length, // This is only for the current page now
     }),
-    [payslips, count]
+    [payslips, count],
   );
 
   const filteredPayslips = useMemo(() => {
@@ -111,7 +161,10 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
   const monthLabel = useMemo(() => {
     const [year, month] = activeMonth.split("-").map(Number);
     const date = new Date(year, (month || 1) - 1, 1);
-    return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+    }).format(date);
   }, [activeMonth]);
 
   const shiftMonth = (delta: number) => {
@@ -121,8 +174,9 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
   };
 
   const menuPayslip = useMemo(
-    () => (menuState ? payslips.find((p) => p.id === menuState.id) || null : null),
-    [menuState, payslips]
+    () =>
+      menuState ? payslips.find((p) => p.id === menuState.id) || null : null,
+    [menuState, payslips],
   );
 
   useEffect(() => {
@@ -158,7 +212,10 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
     }
   };
 
-  const handleClone = async (payslipId: string, status: "processed" | "paid") => {
+  const handleClone = async (
+    payslipId: string,
+    status: "processed" | "paid",
+  ) => {
     setCloningId(`${payslipId}-${status}`);
     try {
       await clonePayslipToNextMonth(payslipId, status);
@@ -186,9 +243,14 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Payslips</h1>
-          <p className="text-muted-foreground">Generate, send, edit, and reuse monthly salary slips.</p>
+          <p className="text-muted-foreground">
+            Generate, send, edit, and reuse monthly salary slips.
+          </p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90">
+        <Button
+          onClick={() => setShowForm(true)}
+          className="bg-primary hover:bg-primary/90"
+        >
           <Plus className="h-4 w-4 mr-2" /> Generate Payslip
         </Button>
       </div>
@@ -196,20 +258,32 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Payslips</p>
-            <p className="mt-2 text-3xl font-bold text-foreground">{totals.total}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Total Payslips
+            </p>
+            <p className="mt-2 text-3xl font-bold text-foreground">
+              {totals.total}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Paid</p>
-            <p className="mt-2 text-3xl font-bold text-success">{totals.paid}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Paid
+            </p>
+            <p className="mt-2 text-3xl font-bold text-success">
+              {totals.paid}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Processed</p>
-            <p className="mt-2 text-3xl font-bold text-warning">{totals.processed}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Processed
+            </p>
+            <p className="mt-2 text-3xl font-bold text-warning">
+              {totals.processed}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -217,15 +291,27 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
       <Card className="border-border shadow-sm overflow-hidden">
         <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="text-lg font-bold text-foreground">Payroll Register</CardTitle>
+            <CardTitle className="text-lg font-bold text-foreground">
+              Payroll Register
+            </CardTitle>
             <div className="flex items-center gap-2">
-              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(-1)}>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
+                onClick={() => shiftMonth(-1)}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-[180px] rounded-lg border border-border bg-muted/30 px-3 py-2 text-center text-sm font-bold text-foreground">
                 {monthLabel}
               </div>
-              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(1)}>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
+                onClick={() => shiftMonth(1)}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -234,8 +320,9 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
           <div className="grid gap-3 md:grid-cols-[1fr_180px]">
             <Input
               id="search_payslip"
-              value={searchTerm}
-              onChange={(e) => updateFilters({ q: e.target.value })}
+              ref={inputRef}
+              value={searchInput}
+              onChange={(e) => onInputChange(e.target.value)}
               placeholder="Search by employee, role, id, or department..."
               className="h-10"
               label="Search"
@@ -253,7 +340,8 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
             />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {filteredPayslips.length === 0 ? (
             <EmptyState
               title="No payslips found"
@@ -276,18 +364,35 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
               <TableBody>
                 {filteredPayslips.map((payslip) => (
                   <TableRow key={payslip.id}>
-                    <TableCell className="font-medium">{payslip.user?.full_name || "N/A"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{payslip.employee_id_display || "-"}</TableCell>
-                    <TableCell className="text-xs">{payslip.department || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      {formatDate(payslip.period_start)} - {formatDate(payslip.period_end)}
+                    <TableCell className="font-medium">
+                      {payslip.user?.full_name || "N/A"}
                     </TableCell>
-                    <TableCell className="text-xs">{formatDate(payslip.pay_date)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {payslip.employee_id_display || "-"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {payslip.department || "-"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {formatDate(payslip.period_start)} -{" "}
+                      {formatDate(payslip.period_end)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {formatDate(payslip.pay_date)}
+                    </TableCell>
                     <TableCell className="font-semibold">
-                      {formatCurrency(Number(payslip.net_pay || 0), payslip.currency)}
+                      {formatCurrency(
+                        Number(payslip.net_pay || 0),
+                        payslip.currency,
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={payslip.status === "paid" ? "success" : "warning"} className="capitalize">
+                      <Badge
+                        variant={
+                          payslip.status === "paid" ? "success" : "warning"
+                        }
+                        className="capitalize"
+                      >
                         {payslip.status}
                       </Badge>
                     </TableCell>
@@ -307,23 +412,34 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
                           className="h-8 w-8"
                           data-actions-trigger="true"
                           onClick={(e) => {
-                            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                            const rect = (
+                              e.currentTarget as HTMLButtonElement
+                            ).getBoundingClientRect();
                             const viewportWidth = window.innerWidth;
                             const viewportHeight = window.innerHeight;
-                            const width = Math.min(MENU_WIDTH, Math.max(180, viewportWidth - MENU_MARGIN * 2));
-                            const itemCount = payslip.status === "processed" ? 6 : 5;
+                            const width = Math.min(
+                              MENU_WIDTH,
+                              Math.max(180, viewportWidth - MENU_MARGIN * 2),
+                            );
+                            const itemCount =
+                              payslip.status === "processed" ? 6 : 5;
                             const estimatedHeight = itemCount * 40 + 12;
-                            const fitsBelow = rect.bottom + MENU_GAP + estimatedHeight <= viewportHeight - MENU_MARGIN;
-                            const aboveY = rect.top - MENU_GAP - estimatedHeight;
+                            const fitsBelow =
+                              rect.bottom + MENU_GAP + estimatedHeight <=
+                              viewportHeight - MENU_MARGIN;
+                            const aboveY =
+                              rect.top - MENU_GAP - estimatedHeight;
 
                             const clampedX = Math.min(
                               Math.max(MENU_MARGIN, rect.right - width),
-                              viewportWidth - width - MENU_MARGIN
+                              viewportWidth - width - MENU_MARGIN,
                             );
-                            const preferredY = fitsBelow ? rect.bottom + MENU_GAP : aboveY;
+                            const preferredY = fitsBelow
+                              ? rect.bottom + MENU_GAP
+                              : aboveY;
                             const clampedY = Math.min(
                               Math.max(MENU_MARGIN, preferredY),
-                              viewportHeight - estimatedHeight - MENU_MARGIN
+                              viewportHeight - estimatedHeight - MENU_MARGIN,
                             );
 
                             setMenuState((prev) =>
@@ -334,7 +450,7 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
                                     x: clampedX,
                                     y: clampedY,
                                     width,
-                                  }
+                                  },
                             );
                           }}
                         >
@@ -363,7 +479,11 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
         <div
           ref={menuRef}
           className="fixed z-[70] max-h-[calc(100vh-16px)] overflow-y-auto rounded-lg border border-border bg-card p-1.5 shadow-xl"
-          style={{ left: `${menuState.x}px`, top: `${menuState.y}px`, width: `${menuState.width}px` }}
+          style={{
+            left: `${menuState.x}px`,
+            top: `${menuState.y}px`,
+            width: `${menuState.width}px`,
+          }}
         >
           <button
             type="button"
@@ -422,7 +542,9 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
             disabled={cloningId === `${menuPayslip.id}-processed`}
           >
             <Copy className="h-3.5 w-3.5" />
-            {cloningId === `${menuPayslip.id}-processed` ? "Cloning..." : "Next Month Processed"}
+            {cloningId === `${menuPayslip.id}-processed`
+              ? "Cloning..."
+              : "Next Month Processed"}
           </button>
           <button
             type="button"
@@ -434,7 +556,9 @@ export function PayslipsAdminClient({ payslipsResponse, employees, companySettin
             disabled={cloningId === `${menuPayslip.id}-paid`}
           >
             <Send className="h-3.5 w-3.5" />
-            {cloningId === `${menuPayslip.id}-paid` ? "Cloning..." : "Next Month Paid"}
+            {cloningId === `${menuPayslip.id}-paid`
+              ? "Cloning..."
+              : "Next Month Paid"}
           </button>
           <button
             type="button"
@@ -495,8 +619,7 @@ function isPayslipInMonth(payslip: Payslip, activeMonth: string) {
 
   const overlapsPeriod = periodStart <= monthEnd && periodEnd >= monthStart;
   const inPayMonth =
-    payDate.getFullYear() === year &&
-    payDate.getMonth() + 1 === (month || 1);
+    payDate.getFullYear() === year && payDate.getMonth() + 1 === (month || 1);
 
   return overlapsPeriod || inPayMonth;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { ProcessingAccountFormDialog } from "./processing-account-form-dialog";
 import { DeleteProcessingAccountButton } from "./delete-processing-account-button";
 import { NotifyAdminDialog } from "./notify-admin-dialog";
@@ -33,6 +34,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
 interface ProcessingAccountRow {
   id: string;
@@ -76,6 +78,8 @@ export function ProcessingAccountsClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
   const [showForm, setShowForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<ProcessingAccountRow | null>(null);
   const [notifyAccountId, setNotifyAccountId] = useState<string | null>(null);
@@ -102,10 +106,13 @@ export function ProcessingAccountsClient({
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const search = searchParams.get("q") || "";
+  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
+    useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
 
   const canManage = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
@@ -216,9 +223,10 @@ export function ProcessingAccountsClient({
               <div className="relative flex-1 sm:min-w-[280px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  ref={inputRef}
                   placeholder="Search by account holder name..."
-                  value={search}
-                  onChange={(e) => updateFilters({ q: e.target.value })}
+                  value={searchInput}
+                  onChange={(e) => onInputChange(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -236,17 +244,18 @@ export function ProcessingAccountsClient({
           </div>
           <p className="text-sm text-muted-foreground">{count} accounts found</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {accounts.length === 0 ? (
             <EmptyState
               title="No processing accounts found"
               description={
-                search || statusFilter !== "all"
+                urlSearch || statusFilter !== "all"
                   ? "Try adjusting your search or filters"
                   : "Add your first processing account to get started"
               }
               action={
-                canManage && !search && statusFilter === "all" ? (
+                canManage && !urlSearch && statusFilter === "all" ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Processing Account
                   </Button>

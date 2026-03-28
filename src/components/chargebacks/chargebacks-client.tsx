@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { ChargebackFormDialog } from "./chargeback-form-dialog";
 import { deleteChargeback, updateChargebackStatus } from "@/lib/actions/chargebacks";
 import { formatDate } from "@/lib/utils";
@@ -56,6 +57,8 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
   const { data: chargebacks, count, page, totalPages, pageSize } = chargebacksResponse;
 
   const [showForm, setShowForm] = useState(false);
@@ -73,7 +76,9 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
         params.set(key, String(value));
       }
     });
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const handleDownloadReport = () => {
@@ -160,7 +165,8 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
             {count} chargeback{count !== 1 ? "s" : ""}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {chargebacks.length === 0 ? (
             <EmptyState title="No chargebacks" description="Chargebacks will appear here" />
           ) : (

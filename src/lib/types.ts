@@ -8,6 +8,7 @@ export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PaymentMethod = "card" | "bank";
 export type PayslipStatus = "processed" | "paid";
 export type MarketingCampaignType = "call" | "digital" | "other";
+export type MarketingEntryCampaign = "energy" | "insurance" | "telecom";
 export type MarketingCampaignStatus = "active" | "paused" | "completed";
 export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
 export type ProcessingAccountStatus = "active" | "not_working" | "closed" | "reversal_issue" | "under_review";
@@ -22,7 +23,7 @@ export interface AppUser {
   email: string;
   full_name: string;
   role: UserRole;
-  employee_id: string;
+  employee_id: string | null;
   is_active: boolean;
   created_at: string;
   avatar_url?: string | null;
@@ -244,7 +245,7 @@ export interface Payslip {
   paid_through?: string | null;
   bank_account_no?: string | null;
   bank_branch?: string | null;
-  user?: Pick<AppUser, "id" | "full_name" | "role" | "email"> | null;
+  user?: Pick<AppUser, "id" | "full_name" | "role" | "email" | "employee_id"> | null;
   generator?: Pick<AppUser, "id" | "full_name"> | null;
 }
 
@@ -311,6 +312,20 @@ export interface DashboardFilters {
   dateTo: string;
   employeeId: string;
   saleType: SaleType | "all";
+}
+
+export interface MarketingEntry {
+  id: string;
+  entry_date: string;
+  campaign: MarketingEntryCampaign;
+  budget_assigned: number;
+  calls_landed: number;
+  dropped_calls: number;
+  sales_acquired: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  creator?: Pick<AppUser, "id" | "full_name"> | null;
 }
 
 export interface ProcessingAccount {

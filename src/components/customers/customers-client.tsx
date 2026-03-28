@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
@@ -23,6 +24,7 @@ import { Plus, Search, Eye } from "lucide-react";
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
 interface CustomersClientProps {
   customersResponse: {
@@ -42,6 +44,8 @@ export function CustomersClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
@@ -72,10 +76,13 @@ export function CustomersClient({
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const search = searchParams.get("q") || "";
+  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
+    useDebouncedUrlSearchInput(searchParams, updateFilters);
 
   /** Super admin, sales agents, and processors (when given Call Logs access) use full list management UI. */
   const canManageCallLogs =
@@ -105,9 +112,10 @@ export function CustomersClient({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={inputRef}
                 placeholder="Search call logs responses..."
-                value={search}
-                onChange={(e) => updateFilters({ q: e.target.value })}
+                value={searchInput}
+                onChange={(e) => onInputChange(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -116,17 +124,18 @@ export function CustomersClient({
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {customers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"
               description={
-                search
+                urlSearch
                   ? "Try adjusting your search"
                   : "Add your first call log response to get started"
               }
               action={
-                canManageCallLogs && !search ? (
+                canManageCallLogs && !urlSearch ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Call Log Response
                   </Button>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/loading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import { Download, ChevronLeft, ChevronRight, Eye } from "lucide-react";
@@ -15,6 +16,7 @@ import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 
 interface PayslipsMyClientProps {
@@ -32,6 +34,8 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
   const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
 
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
@@ -46,10 +50,15 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const searchTerm = searchParams.get("q") || "";
+  const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(
+    searchParams,
+    updateFilters,
+  );
   const [activeMonth, setActiveMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
@@ -98,14 +107,16 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
           </div>
           <Input
             id="search_my_payslip"
+            ref={inputRef}
             label="Search Payslips"
-            value={searchTerm}
-            onChange={(e) => updateFilters({ q: e.target.value })}
+            value={searchInput}
+            onChange={(e) => onInputChange(e.target.value)}
             placeholder="Search by ID, department, position..."
             className="h-10"
           />
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {filteredPayslips.length === 0 ? (
             <EmptyState
               title="No payslips found"

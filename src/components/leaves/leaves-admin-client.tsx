@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { ROLE_LABELS, LEAVE_STATUSES } from "@/lib/constants";
 import type { Leave } from "@/lib/types";
 import { updateLeaveStatus } from "@/lib/actions/leaves";
@@ -52,6 +53,8 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
   const { data: leaves, count, page, totalPages, pageSize } = leavesResponse;
 
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
@@ -68,7 +71,9 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
     if (!updates.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const statusFilter = (searchParams.get("status") as any) || "all";
@@ -202,7 +207,8 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          <TableLoadingOverlay isLoading={isPending} />
           {filtered.length === 0 ? (
             <EmptyState
               title="No leave requests"
