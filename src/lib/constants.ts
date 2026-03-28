@@ -1,3 +1,5 @@
+import type { UserRole } from "@/lib/types";
+
 export const ROLES = {
   SUPER_ADMIN: "super_admin" as const,
   SALES_AGENT: "sales_agent" as const,
@@ -109,6 +111,7 @@ export const NAV_ITEMS = {
   ],
   processor: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
+    { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/sales", label: "Sales Queue", icon: "TrendingUp" },
     { href: "/dashboard/payslips", label: "My Payslips", icon: "ReceiptText" },
     { href: "/dashboard/chargebacks", label: "Chargebacks", icon: "AlertTriangle" },
@@ -118,3 +121,8 @@ export const NAV_ITEMS = {
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
 };
+
+/** Sidebar toggles for a role: same hrefs/labels as `NAV_ITEMS[role]` (sidebar, Edit User, Settings). */
+export function getSidebarModuleOptionsForRole(role: UserRole): { value: string; label: string }[] {
+  return (NAV_ITEMS[role] || []).map((item) => ({ value: item.href, label: item.label }));
+}

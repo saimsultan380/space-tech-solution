@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,10 @@ import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-ca
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { updateSaleStatus } from "@/lib/actions/sales";
+import {
+  canAccessCallLogsResponses,
+  hasDismissedProcessorCallLogsDashboardCta,
+} from "@/lib/nav-access";
 import type { AppUser, SaleStatus, Payslip } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 import {
@@ -22,6 +26,7 @@ import {
   Inbox,
   ArrowRight,
   Loader2,
+  Contact,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -75,6 +80,17 @@ export function ProcessorDashboard({
 }: ProcessorDashboardProps) {
   const [processing, setProcessing] = useState<string | null>(null);
   const { currency } = useCurrency();
+  const [showCallLogsCta, setShowCallLogsCta] = useState(false);
+
+  const hasCallLogsAccess = canAccessCallLogsResponses(user.role, user.allowed_modules);
+
+  useEffect(() => {
+    if (!hasCallLogsAccess) {
+      setShowCallLogsCta(false);
+      return;
+    }
+    setShowCallLogsCta(!hasDismissedProcessorCallLogsDashboardCta());
+  }, [hasCallLogsAccess]);
 
   const handleQuickAction = async (saleId: string, status: SaleStatus) => {
     setProcessing(saleId);
@@ -97,6 +113,27 @@ export function ProcessorDashboard({
           {stats.pendingQueue} sale{stats.pendingQueue !== 1 ? "s" : ""} waiting in queue.
         </p>
       </div>
+
+      {showCallLogsCta && (
+        <Card className="border-primary/25 bg-primary/[0.06]">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3 sm:items-center">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Contact className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Call Logs Responses</p>
+                <p className="text-sm text-muted-foreground">
+                  Open customer call logs your admin has enabled for your account.
+                </p>
+              </div>
+            </div>
+            <Link href="/dashboard/call-logs-responses" className="shrink-0">
+              <Button className="w-full sm:w-auto">Open Call Logs</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Today's stats */}
       <div>

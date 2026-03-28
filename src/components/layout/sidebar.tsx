@@ -83,7 +83,7 @@ const SECTION_CONFIG: Record<UserRole, Array<{ title: string; hrefs: string[] }>
   processor: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/sales"],
+      hrefs: ["/dashboard", "/dashboard/call-logs-responses", "/dashboard/sales"],
     },
     {
       title: "HR Services",
@@ -110,17 +110,22 @@ export function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const pathname = usePathname();
-  const baseItems = NAV_ITEMS[role] || [];
+  const fullRoleItems = NAV_ITEMS[role] || [];
   const legacyModuleAliases: Record<string, string[]> = {
     "/dashboard/call-logs-responses": ["/dashboard/customers"],
   };
+  /** Processors only see Call Logs if an admin adds it to allowed_modules; role default omits it. */
+  const defaultNavItems =
+    role === "processor"
+      ? fullRoleItems.filter((item) => item.href !== "/dashboard/call-logs-responses")
+      : fullRoleItems;
   const navItems =
     role !== "super_admin" && allowedModules && allowedModules.length > 0
-      ? baseItems.filter((item) =>
+      ? fullRoleItems.filter((item) =>
           allowedModules.includes(item.href) ||
           (legacyModuleAliases[item.href] || []).some((legacyHref) => allowedModules.includes(legacyHref))
         )
-      : baseItems;
+      : defaultNavItems;
   const navItemMap = new Map(navItems.map((item) => [item.href, item]));
   const roleSections = SECTION_CONFIG[role] ?? [];
   const visibleSections = roleSections

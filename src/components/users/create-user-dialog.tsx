@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -8,7 +8,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui
 import { Spinner } from "@/components/ui/loading";
 import { createUser } from "@/lib/actions/users";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
-import { NAV_ITEMS } from "@/lib/constants";
+import { getSidebarModuleOptionsForRole } from "@/lib/constants";
 import { formatCnic } from "@/lib/utils";
 
 const ROLE_OPTIONS = [
@@ -53,12 +53,9 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
     bank_branch: "",
   });
 
-  const allModuleOptions = Array.from(
-    new Map(
-      Object.values(NAV_ITEMS)
-        .flat()
-        .map((item) => [item.href, { value: item.href, label: item.label }])
-    ).values()
+  const roleModuleOptions = useMemo(
+    () => getSidebarModuleOptionsForRole(form.role),
+    [form.role]
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,7 +176,17 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
               label="Role"
               options={ROLE_OPTIONS}
               value={form.role}
-              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+              onChange={(e) => {
+                const nextRole = e.target.value as UserRole;
+                const allowed = new Set(
+                  getSidebarModuleOptionsForRole(nextRole).map((m) => m.value)
+                );
+                setForm((f) => ({
+                  ...f,
+                  role: nextRole,
+                  allowedModules: f.allowedModules.filter((h) => allowed.has(h)),
+                }));
+              }}
               required
             />
             <Select
@@ -289,7 +296,7 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
             Choose which sidebar modules this user can see. Leave empty for full access based on role.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {allModuleOptions.map((mod) => {
+            {roleModuleOptions.map((mod) => {
               const checked = form.allowedModules.includes(mod.value);
               return (
                 <label

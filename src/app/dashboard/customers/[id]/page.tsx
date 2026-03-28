@@ -1,5 +1,7 @@
 import { requireAuth } from "@/lib/auth";
+import { canAccessCallLogsResponses } from "@/lib/nav-access";
 import { getCustomer } from "@/lib/actions/customers";
+import { redirect } from "next/navigation";
 import { getNotes } from "@/lib/actions/notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +16,10 @@ export default async function CustomerDetailPage(props: {
   params: Promise<{ id: string }>;
 }) {
   const params = await props.params;
-  await requireAuth();
+  const user = await requireAuth();
+  if (!canAccessCallLogsResponses(user.role, user.allowed_modules)) {
+    redirect("/dashboard");
+  }
   const [customer, notes] = await Promise.all([
     getCustomer(params.id),
     getNotes({ customer_id: params.id }),

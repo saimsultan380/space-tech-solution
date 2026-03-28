@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/loading";
-import { CURRENCIES, NAV_ITEMS, ROLE_LABELS } from "@/lib/constants";
+import { CURRENCIES, getSidebarModuleOptionsForRole, ROLE_LABELS } from "@/lib/constants";
 import type { AppUser } from "@/lib/types";
 import { formatCnic } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -162,10 +162,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
 
   const selectedRoleModules = useMemo(() => {
     if (!selectedManagedUser) return [];
-    return NAV_ITEMS[selectedManagedUser.role].map((item) => ({
-      value: item.href,
-      label: item.label,
-    }));
+    return getSidebarModuleOptionsForRole(selectedManagedUser.role);
   }, [selectedManagedUser]);
 
   useEffect(() => {

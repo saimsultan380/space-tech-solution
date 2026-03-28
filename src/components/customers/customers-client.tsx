@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
+import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
 import type { UserRole } from "@/lib/types";
 import { Plus, Search, Eye } from "lucide-react";
 import Link from "next/link";
@@ -35,7 +36,10 @@ interface CustomersClientProps {
   userRole: UserRole;
 }
 
-export function CustomersClient({ customersResponse, userRole }: CustomersClientProps) {
+export function CustomersClient({
+  customersResponse,
+  userRole,
+}: CustomersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -43,9 +47,23 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
 
   const [showForm, setShowForm] = useState(false);
 
-  const { data: customers, count, page, totalPages, pageSize } = customersResponse;
+  useEffect(() => {
+    if (userRole === "processor") {
+      dismissProcessorCallLogsDashboardCta();
+    }
+  }, [userRole]);
 
-  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+  const {
+    data: customers,
+    count,
+    page,
+    totalPages,
+    pageSize,
+  } = customersResponse;
+
+  const updateFilters = (
+    updates: Record<string, string | number | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
       if (value === undefined || value === "all" || value === "") {
@@ -64,16 +82,22 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
 
   const search = searchParams.get("q") || "";
 
-  const canEdit = userRole === "super_admin" || userRole === "sales_agent";
+  /** Super admin, sales agents, and processors (when given Call Logs access) use full list management UI. */
+  const canManageCallLogs =
+    userRole === "super_admin" ||
+    userRole === "sales_agent" ||
+    userRole === "processor";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Call Logs Responses</h1>
-          <p className="text-muted-foreground">Manage your call logs responses database</p>
+          <p className="text-muted-foreground">
+            Manage your call logs responses database
+          </p>
         </div>
-        {canEdit && (
+        {canManageCallLogs && (
           <Button onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4" /> Add Call Log Response
           </Button>
@@ -102,9 +126,13 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
           {customers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"
-              description={search ? "Try adjusting your search" : "Add your first call log response to get started"}
+              description={
+                search
+                  ? "Try adjusting your search"
+                  : "Add your first call log response to get started"
+              }
               action={
-                canEdit && !search ? (
+                canManageCallLogs && !search ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Call Log Response
                   </Button>
@@ -122,7 +150,9 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
                     <TableHead>DOB</TableHead>
                     <TableHead>Recent Note</TableHead>
                     <TableHead>Created</TableHead>
-                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
+                    {canManageCallLogs && (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -138,7 +168,9 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
                       </TableCell>
                       <TableCell>{customer.email}</TableCell>
                       <TableCell>{customer.phone}</TableCell>
-                      <TableCell>{customer.dob ? formatDate(customer.dob) : "-"}</TableCell>
+                      <TableCell>
+                        {customer.dob ? formatDate(customer.dob) : "-"}
+                      </TableCell>
                       <TableCell>
                         {customer.recent_note ? (
                           <span
@@ -148,11 +180,13 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
                             {customer.recent_note}
                           </span>
                         ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>{formatDate(customer.created_at)}</TableCell>
-                      {canEdit && (
+                      {canManageCallLogs && (
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Link
@@ -163,7 +197,10 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
                               <Eye className="h-4 w-4" />
                             </Link>
                             <CustomerFormDialog customer={customer} />
-                            <DeleteCustomerButton id={customer.id} name={customer.name} />
+                            <DeleteCustomerButton
+                              id={customer.id}
+                              name={customer.name}
+                            />
                           </div>
                         </TableCell>
                       )}
@@ -173,7 +210,7 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
               </Table>
             </div>
           )}
-          
+
           <Pagination
             currentPage={page}
             totalPages={totalPages}
@@ -184,7 +221,9 @@ export function CustomersClient({ customersResponse, userRole }: CustomersClient
         </CardContent>
       </Card>
 
-      {showForm && <CustomerFormDialog open onClose={() => setShowForm(false)} />}
+      {showForm && (
+        <CustomerFormDialog open onClose={() => setShowForm(false)} />
+      )}
     </div>
   );
 }

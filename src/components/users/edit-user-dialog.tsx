@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
 import { updateUser } from "@/lib/actions/users";
-import { NAV_ITEMS } from "@/lib/constants";
+import { getSidebarModuleOptionsForRole } from "@/lib/constants";
 import { cn, formatCnic } from "@/lib/utils";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
 import { Pencil } from "lucide-react";
@@ -96,14 +96,7 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
     });
   }, [user]);
 
-  const roleModules = useMemo(
-    () =>
-      (NAV_ITEMS[form.role] || []).map((item) => ({
-        value: item.href,
-        label: item.label,
-      })),
-    [form.role]
-  );
+  const roleModules = getSidebarModuleOptionsForRole(form.role);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,11 +142,13 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
           <DialogTitle className="text-xl font-bold">Edit User</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="flex flex-col">
-          <div className="space-y-6 py-6 max-h-[60vh] overflow-y-auto pr-2 no-scrollbar hover:scrollbar-thin">
+        <form onSubmit={handleSubmit} className="flex w-full flex-col text-left">
+          <div className="w-full space-y-6 py-6 text-left">
             {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Basic Information</h3>
+            <div className="space-y-4 text-left">
+              <h3 className="w-full text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Basic Information
+              </h3>
               <Input
                 id="employee_id"
                 label="Employee ID"
@@ -212,8 +207,10 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
             </div>
 
             {/* Employment Details */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Employment Details</h3>
+            <div className="space-y-4 border-t border-border pt-4 text-left">
+              <h3 className="w-full text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Employment Details
+              </h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Select
                   id="role"
@@ -256,8 +253,10 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
             </div>
 
             {/* Salary Information */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Salary Information</h3>
+            <div className="space-y-4 border-t border-border pt-4 text-left">
+              <h3 className="w-full text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Salary Information
+              </h3>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   id="pay_days"
@@ -291,8 +290,10 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
             </div>
 
             {/* Payment Information */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Payment Information</h3>
+            <div className="space-y-4 border-t border-border pt-4 text-left">
+              <h3 className="w-full text-left text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Payment Information
+              </h3>
               <Select
                 id="paid_through"
                 label="Paid Through"
