@@ -21,10 +21,17 @@ import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
-import { bulkUpdateSaleStatus } from "@/lib/actions/sales";
+import { bulkUpdateSaleStatus, deleteSale } from "@/lib/actions/sales";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, CheckCircle, XCircle, Loader2, Eye } from "lucide-react";
+import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
@@ -57,6 +64,11 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { data: sales, count, page, totalPages, pageSize } = salesResponse;
 
@@ -87,6 +99,12 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
   const canBulkProcess = userRole === "processor" || userRole === "super_admin";
+
+  const canEditSale = (sale: (typeof sales)[number]) =>
+    userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
+
+  const canDeleteSale = (sale: (typeof sales)[number]) =>
+    userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
   
   const pendingSelected = [...selected].filter((id) =>
     sales.find((s) => s.id === id && s.status === "pending")
@@ -140,6 +158,19 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
       // error
     }
     setBulkLoading(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!saleToDelete) return;
+    setDeleteLoading(true);
+    try {
+      await deleteSale(saleToDelete.id);
+      setSaleToDelete(null);
+      router.refresh();
+    } catch {
+      // surfaced via toast elsewhere if needed
+    }
+    setDeleteLoading(false);
   };
 
   return (
@@ -282,7 +313,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                     <TableHead>Status</TableHead>
                     <TableHead>Agent</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="w-[80px] text-right">Actions</TableHead>
+                    <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -335,7 +366,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                         {formatDate(sale.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-0.5">
                           <Link href={`/dashboard/sales/${sale.id}`}>
                             <Button
                               variant="ghost"
@@ -346,6 +377,34 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
+                          {canEditSale(sale) && (
+                            <Link href={`/dashboard/sales/${sale.id}/edit`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md text-muted-foreground hover:text-primary hover:bg-transparent"
+                                aria-label="Edit sale"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          )}
+                          {canDeleteSale(sale) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-transparent"
+                              aria-label="Delete sale"
+                              onClick={() =>
+                                setSaleToDelete({
+                                  id: sale.id,
+                                  label: sale.customer?.name || sale.company_name || "this sale",
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -363,6 +422,25 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
           />
         </CardContent>
       </Card>
+
+      <Dialog open={!!saleToDelete} onClose={() => !deleteLoading && setSaleToDelete(null)}>
+        <DialogHeader>
+          <DialogTitle>Delete sale</DialogTitle>
+        </DialogHeader>
+        <DialogDescription className="mt-2 text-left">
+          Are you sure you want to delete the sale for{" "}
+          <strong>{saleToDelete?.label}</strong>? Related payments and attachments will be removed.
+          This cannot be undone.
+        </DialogDescription>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSaleToDelete(null)} disabled={deleteLoading}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={() => void handleConfirmDelete()} disabled={deleteLoading}>
+            {deleteLoading ? <Spinner /> : "Delete"}
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   );
 }

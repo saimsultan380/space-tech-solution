@@ -176,7 +176,7 @@ export function ProcessingAccountsClient({
         {canManage && (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setShowImport(true)}>
-              <FileUp className="h-4 w-4" /> Import CSV / Excel
+              <FileUp className="h-4 w-4" /> Upload CSV / Excel
             </Button>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4" /> Add Processing Account

@@ -200,7 +200,7 @@ export function Sidebar({
           <div
             key={section.title}
             className={cn(
-              "space-y-1 rounded-md border border-border bg-card/30 px-2 py-2.5 shadow-sm",
+              "space-y-1 rounded-md border border-primary/20 bg-card/40 px-2 py-2.5 shadow-sm ring-1 ring-primary/5",
               collapsed && !isMobileOpen && "px-1.5"
             )}
           >
@@ -234,31 +234,12 @@ export function Sidebar({
                     >
                       {Icon &&
                         (isCollapsedRail ? (
-                          <Icon
-                            className={cn(
-                              "h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110",
-                              isActive
-                                ? "text-primary-foreground"
-                                : "text-muted-foreground group-hover:text-foreground",
-                            )}
-                          />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background shadow-sm transition-all duration-200 group-hover:shadow-md">
+                            <Icon className="h-[18px] w-[18px] text-primary transition-transform duration-200 group-hover:scale-110" />
+                          </div>
                         ) : (
-                          <div
-                            className={cn(
-                              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200",
-                              isActive
-                                ? "bg-primary-foreground/10 border-primary-foreground/20"
-                                : "bg-background border-border shadow-sm group-hover:border-primary/50",
-                            )}
-                          >
-                            <Icon
-                              className={cn(
-                                "h-[15px] w-[15px] transition-transform duration-200 group-hover:scale-110",
-                                isActive
-                                  ? "text-primary-foreground"
-                                  : "text-muted-foreground group-hover:text-foreground",
-                              )}
-                            />
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background shadow-sm transition-all duration-200 group-hover:shadow-md">
+                            <Icon className="h-[15px] w-[15px] text-primary transition-transform duration-200 group-hover:scale-110" />
                           </div>
                         ))}
                       {!isCollapsedRail && (
@@ -279,9 +260,9 @@ export function Sidebar({
       {/* Bottom user info section */}
       {(!collapsed || isMobileOpen) && (
         <div className="p-4 border-t border-border/50">
-          <div className="rounded-xl border border-border bg-muted/30 px-3.5 py-3">
+          <div className="rounded-xl border border-primary/20 bg-muted/30 px-3.5 py-3 ring-1 ring-primary/5">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-foreground shadow-sm overflow-hidden border border-border">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-xs font-bold text-primary shadow-sm overflow-hidden">
                 {userAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

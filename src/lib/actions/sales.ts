@@ -332,3 +332,30 @@ export async function bulkUpdateSaleStatus(
   revalidatePath("/dashboard/sales");
   revalidatePath("/dashboard");
 }
+
+export async function deleteSale(id: string) {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  if (user.role === "processor") {
+    throw new Error("You do not have permission to delete sales.");
+  }
+
+  if (user.role === "sales_agent") {
+    const { data: row, error: fetchErr } = await supabase
+      .from("sales")
+      .select("agent_id")
+      .eq("id", id)
+      .single();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (row?.agent_id !== user.id) {
+      throw new Error("You can only delete your own sales.");
+    }
+  }
+
+  const { error } = await supabase.from("sales").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/sales");
+  revalidatePath("/dashboard");
+}

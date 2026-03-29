@@ -4,6 +4,9 @@ import { getAgentNames } from "@/lib/actions/agent-names";
 import { SaleForm } from "@/components/sales/sale-form";
 import { getSaleAttachments } from "@/lib/actions/sale-attachments";
 import { decrypt } from "@/lib/encryption";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default async function EditSalePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -52,11 +55,18 @@ export default async function EditSalePage(props: { params: Promise<{ id: string
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Edit Sale</h1>
-        <p className="text-muted-foreground">
-          Update details for this sale.
-        </p>
+      <div className="flex items-start gap-4">
+        <Link href="/dashboard/sales" className="shrink-0 pt-1">
+          <Button variant="ghost" size="icon" aria-label="Back to sales">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold">Edit Sale</h1>
+          <p className="text-muted-foreground">
+            Update details for this sale.
+          </p>
+        </div>
       </div>
       <SaleForm
         agents={agents.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }))}

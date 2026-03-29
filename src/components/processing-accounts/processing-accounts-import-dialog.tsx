@@ -125,7 +125,7 @@ export function ProcessingAccountsImportDialog({
         router.refresh();
       } catch (err) {
         setImportError(
-          err instanceof Error ? err.message : "Import failed."
+          err instanceof Error ? err.message : "Upload failed."
         );
       }
     });
@@ -140,7 +140,7 @@ export function ProcessingAccountsImportDialog({
       className="max-h-[92vh] max-w-3xl overflow-y-auto"
     >
       <DialogHeader>
-        <DialogTitle>Import processing accounts</DialogTitle>
+        <DialogTitle>Upload processing accounts</DialogTitle>
         <DialogDescription>
           Upload a CSV (e.g. Save As CSV from Excel) or Excel workbook (.xlsx). The
           first sheet is used. Columns are matched by header name — use the template
@@ -193,7 +193,7 @@ export function ProcessingAccountsImportDialog({
         )}
         {successCount !== null && (
           <p className="text-sm font-medium text-success">
-            Successfully imported {successCount} account
+            Successfully uploaded {successCount} account
             {successCount === 1 ? "" : "s"}.
           </p>
         )}
@@ -202,7 +202,7 @@ export function ProcessingAccountsImportDialog({
           <>
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{rows.length}</span>{" "}
-              account{rows.length === 1 ? "" : "s"} ready to import.
+              account{rows.length === 1 ? "" : "s"} ready to upload.
               {skipped.length > 0 && (
                 <>
                   {" "}
@@ -277,7 +277,7 @@ export function ProcessingAccountsImportDialog({
             onClick={runImport}
             disabled={isPending || rows.length === 0}
           >
-            {isPending ? "Importing…" : `Import ${rows.length} account${rows.length === 1 ? "" : "s"}`}
+            {isPending ? "Uploading…" : `Upload ${rows.length} account${rows.length === 1 ? "" : "s"}`}
           </Button>
         )}
       </DialogFooter>
