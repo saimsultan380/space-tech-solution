@@ -115,7 +115,7 @@ export async function createProcessingAccount(formData: {
   routing_number: string;
   account_number: string;
   billing_address: string;
-  status: ProcessingAccountStatus;
+  status: ProcessingAccountStatus | "";
   notes?: string;
 }) {
   const user = await requireAuth();
@@ -128,7 +128,7 @@ export async function createProcessingAccount(formData: {
       routing_number_encrypted: encrypt(formData.routing_number.trim()),
       account_number_encrypted: encrypt(formData.account_number.trim()),
       billing_address: formData.billing_address.trim() || "",
-      status: formData.status,
+      status: formData.status || null,
       notes: formData.notes || null,
       created_by: user.id,
     })
@@ -167,9 +167,10 @@ export async function bulkImportProcessingAccounts(
   }
 
   const records = rows.map((r) => {
-    const status: ProcessingAccountStatus = IMPORT_STATUS_SET.has(r.status)
-      ? r.status
-      : "active";
+    const status =
+      r.status && IMPORT_STATUS_SET.has(r.status as ProcessingAccountStatus)
+        ? r.status
+        : null;
     return {
       account_holder_name: (r.account_holder_name || "").trim(),
       routing_number_encrypted: encrypt((r.routing_number || "").trim()),
@@ -209,7 +210,7 @@ export async function updateProcessingAccount(
     routing_number: string;
     account_number: string;
     billing_address: string;
-    status: ProcessingAccountStatus;
+    status: ProcessingAccountStatus | "";
     notes?: string;
   }
 ) {
@@ -221,7 +222,7 @@ export async function updateProcessingAccount(
     routing_number_encrypted: encrypt(formData.routing_number.trim()),
     account_number_encrypted: encrypt(formData.account_number.trim()),
     billing_address: formData.billing_address.trim(),
-    status: formData.status,
+    status: formData.status || null,
     notes: formData.notes?.trim() ? formData.notes.trim() : null,
     updated_at: new Date().toISOString(),
   };

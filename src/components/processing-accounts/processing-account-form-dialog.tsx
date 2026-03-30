@@ -29,7 +29,7 @@ interface ProcessingAccountFormDialogProps {
     id: string;
     account_holder_name: string;
     billing_address: string;
-    status: ProcessingAccountStatus;
+    status: ProcessingAccountStatus | null;
     notes: string | null;
   } | null;
 }
@@ -39,7 +39,7 @@ const emptyForm = {
   routing_number: "",
   account_number: "",
   billing_address: "",
-  status: "active" as ProcessingAccountStatus,
+  status: "" as ProcessingAccountStatus | "",
   notes: "",
 };
 
@@ -76,7 +76,7 @@ export function ProcessingAccountFormDialog({
             routing_number: "",
             account_number: "",
             billing_address: account.billing_address || "",
-            status: account.status,
+            status: account.status || "",
             notes: account.notes || "",
           });
         })
@@ -207,10 +207,10 @@ export function ProcessingAccountFormDialog({
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                status: e.target.value as ProcessingAccountStatus,
+                status: e.target.value as ProcessingAccountStatus | "",
               }))
             }
-            options={PROCESSING_ACCOUNT_STATUSES}
+            options={[{ value: "", label: "Not set" }, ...PROCESSING_ACCOUNT_STATUSES]}
             placeholder="Select status"
           />
 

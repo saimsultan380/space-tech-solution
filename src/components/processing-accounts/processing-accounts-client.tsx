@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
+import { formatDate } from "@/lib/utils";
 
 interface ProcessingAccountRow {
   id: string;
@@ -45,7 +46,7 @@ interface ProcessingAccountRow {
   routing_number: string;
   account_number: string;
   billing_address: string;
-  status: ProcessingAccountStatus;
+  status: ProcessingAccountStatus | null;
   notes: string | null;
   created_at: string;
 }
@@ -262,14 +263,16 @@ export function ProcessingAccountsClient({
                 "Billing Address",
                 "Status",
                 "Notes",
+                "Date",
               ]}
               rows={accounts.map((a) => [
                 a.account_holder_name,
                 a.routing_number,
                 a.account_number,
                 a.billing_address,
-                statusConfig[a.status].label,
+                a.status ? statusConfig[a.status].label : "",
                 a.notes || "",
+                formatDate(a.created_at),
               ])}
               disabled={accounts.length === 0}
             />
@@ -304,6 +307,7 @@ export function ProcessingAccountsClient({
                     <TableHead>Billing Address</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead>Date</TableHead>
                     {canManage && (
                       <TableHead className="text-right">Actions</TableHead>
                     )}
@@ -311,12 +315,12 @@ export function ProcessingAccountsClient({
                 </TableHeader>
                 <TableBody>
                   {accounts.map((account) => {
-                    const status = statusConfig[account.status];
-                    const StatusIcon = status.icon;
+                    const status = account.status ? statusConfig[account.status] : null;
+                    const StatusIcon = status?.icon;
                     return (
                       <TableRow key={account.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
+                        <TableCell className="align-middle">
+                          <div className="flex min-h-9 items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                               {(account.account_holder_name?.trim() || "?")
                                 .split(/\s+/)
@@ -326,18 +330,18 @@ export function ProcessingAccountsClient({
                                 .slice(0, 2)
                                 .toUpperCase() || "?"}
                             </div>
-                            <span className="font-medium">
-                              {account.account_holder_name}
+                            <span className="font-medium leading-none">
+                              {account.account_holder_name?.trim() || "—"}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm break-all max-w-[200px]">
+                        <TableCell className="align-middle font-mono text-sm break-all max-w-[200px]">
                           {account.routing_number?.trim() || "—"}
                         </TableCell>
-                        <TableCell className="font-mono text-sm break-all max-w-[200px]">
+                        <TableCell className="align-middle font-mono text-sm break-all max-w-[200px]">
                           {account.account_number?.trim() || "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-middle">
                           <span
                             className="block max-w-[200px] truncate text-sm"
                             title={account.billing_address}
@@ -345,13 +349,17 @@ export function ProcessingAccountsClient({
                             {account.billing_address}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant} className="gap-1">
-                            <StatusIcon className="h-3 w-3" />
-                            {status.label}
-                          </Badge>
+                        <TableCell className="align-middle">
+                          {status && StatusIcon ? (
+                            <Badge variant={status.variant} className="gap-1">
+                              <StatusIcon className="h-3 w-3" />
+                              {status.label}
+                            </Badge>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-middle">
                           {account.notes ? (
                             <span
                               className="block max-w-[180px] truncate text-sm text-muted-foreground"
@@ -365,8 +373,11 @@ export function ProcessingAccountsClient({
                             </span>
                           )}
                         </TableCell>
+                        <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDate(account.created_at)}
+                        </TableCell>
                         {canManage && (
-                          <TableCell className="text-right">
+                          <TableCell className="align-middle text-right">
                             <div className="flex items-center justify-end gap-2">
                               <Button
                                 size="sm"

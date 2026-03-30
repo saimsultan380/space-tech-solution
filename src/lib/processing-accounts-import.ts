@@ -43,9 +43,9 @@ function pickField(norm: Record<string, string>, slugs: string[]): string {
   return "";
 }
 
-function parseStatus(raw: string): ProcessingAccountStatus {
+function parseStatus(raw: string): ProcessingAccountStatus | "" {
   const t = raw.trim();
-  if (!t) return "active";
+  if (!t) return "";
   const n = t.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
   const valid: ProcessingAccountStatus[] = [
     "active",
@@ -62,7 +62,7 @@ function parseStatus(raw: string): ProcessingAccountStatus {
       return value as ProcessingAccountStatus;
     }
   }
-  return "active";
+  return "";
 }
 
 function rowIsEmpty(norm: Record<string, string>): boolean {

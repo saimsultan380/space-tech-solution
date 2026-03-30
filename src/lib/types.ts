@@ -19,7 +19,7 @@ export type ProcessingAccountImportPayload = {
   routing_number: string;
   account_number: string;
   billing_address: string;
-  status: ProcessingAccountStatus;
+  status: ProcessingAccountStatus | "";
   notes: string;
 };
 
@@ -344,7 +344,7 @@ export interface ProcessingAccount {
   routing_number_encrypted: string;
   account_number_encrypted: string;
   billing_address: string;
-  status: ProcessingAccountStatus;
+  status: ProcessingAccountStatus | null;
   notes: string | null;
   created_by: string;
   created_at: string;
