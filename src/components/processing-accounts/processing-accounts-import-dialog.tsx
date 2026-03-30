@@ -144,7 +144,7 @@ export function ProcessingAccountsImportDialog({
         <DialogDescription>
           Upload a CSV (e.g. Save As CSV from Excel) or Excel workbook (.xlsx). The
           first sheet is used. Columns are matched by header name — use the template
-          for the exact labels. Rows without an account holder name are skipped.
+          for the exact labels. Missing fields are allowed and can be updated later.
         </DialogDescription>
       </DialogHeader>
 

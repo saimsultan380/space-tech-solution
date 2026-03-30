@@ -166,12 +166,7 @@ export async function bulkImportProcessingAccounts(
     };
   }
 
-  const filtered = rows.filter((r) => (r.account_holder_name || "").trim());
-  if (filtered.length === 0) {
-    return { inserted: 0, error: "No rows with an account holder name to import." };
-  }
-
-  const records = filtered.map((r) => {
+  const records = rows.map((r) => {
     const status: ProcessingAccountStatus = IMPORT_STATUS_SET.has(r.status)
       ? r.status
       : "active";

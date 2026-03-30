@@ -69,9 +69,6 @@ function rowIsEmpty(norm: Record<string, string>): boolean {
   return Object.values(norm).every((v) => !v || !String(v).trim());
 }
 
-/**
- * Map one sheet/CSV record to an import payload. Requires account holder name.
- */
 export function recordToImportPayload(
   record: Record<string, unknown>
 ): ProcessingAccountImportPayload | null {
@@ -85,8 +82,6 @@ export function recordToImportPayload(
     "full_name",
     "name",
   ]);
-
-  if (!account_holder_name.trim()) return null;
 
   const routing_number = pickField(norm, [
     "routing_number",
@@ -113,6 +108,15 @@ export function recordToImportPayload(
   const statusRaw = pickField(norm, ["status", "account_status", "state"]);
   const notes = pickField(norm, ["notes", "comments", "remarks", "description"]);
 
+  const hasRecognizedData =
+    !!account_holder_name.trim() ||
+    !!routing_number.trim() ||
+    !!account_number.trim() ||
+    !!billing_address.trim() ||
+    !!notes.trim() ||
+    !!statusRaw.trim();
+  if (!hasRecognizedData) return null;
+
   return {
     account_holder_name: account_holder_name.trim(),
     routing_number: routing_number.trim(),
@@ -138,7 +142,7 @@ export function mapRecordsToImportRows(
     if (!payload) {
       skipped.push({
         line,
-        reason: "Missing account holder name (or unrecognized columns).",
+        reason: "No recognizable columns were found in this row.",
       });
       return;
     }
