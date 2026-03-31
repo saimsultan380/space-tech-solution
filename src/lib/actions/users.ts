@@ -64,47 +64,67 @@ export async function createUser(formData: {
 }) {
   await requireRole(["super_admin"]);
   const admin = createAdminClient();
+  let createdAuthUserId: string | null = null;
 
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: formData.email,
-    password: formData.password,
-    email_confirm: true,
-  });
+  try {
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email: formData.email,
+      password: formData.password,
+      email_confirm: true,
+    });
 
-  if (authError) throw new Error(authError.message);
+    if (authError) throw new Error(authError.message);
+    createdAuthUserId = authData.user.id;
 
-  const { error: profileError } = await admin.from("users").insert({
-    id: authData.user.id,
-    email: formData.email,
-    full_name: formData.full_name,
-    role: formData.role,
-    preferred_currency: "PKR",
-    allowed_modules: formData.allowedModules && formData.allowedModules.length > 0 ? formData.allowedModules : null,
-    joining_date: formData.joining_date || null,
-    category: formData.category || "Permanent",
-    department: formData.department || null,
-    job_position: formData.job_position || null,
-    father_name: formData.father_name || null,
-    cnic: formData.cnic ? formatCnic(formData.cnic) : null,
-    address: formData.address || null,
-    pay_days: formData.pay_days ?? 30,
-    pay_rate: formData.pay_rate ?? 0,
-    gross_pay: formData.gross_pay ?? 0,
-    basic_salary: formData.basic_salary ?? 0,
-    paid_through: formData.paid_through || "Bank",
-    bank_account_no: formData.bank_account_no || null,
-    bank_branch: formData.bank_branch || null,
-  });
+    const { error: profileError } = await admin.from("users").insert({
+      id: authData.user.id,
+      email: formData.email,
+      full_name: formData.full_name,
+      role: formData.role,
+      preferred_currency: "PKR",
+      allowed_modules: formData.allowedModules && formData.allowedModules.length > 0 ? formData.allowedModules : null,
+      joining_date: formData.joining_date || null,
+      category: formData.category || "Permanent",
+      department: formData.department || null,
+      job_position: formData.job_position || null,
+      father_name: formData.father_name || null,
+      cnic: formData.cnic ? formatCnic(formData.cnic) : null,
+      address: formData.address || null,
+      pay_days: formData.pay_days ?? 30,
+      pay_rate: formData.pay_rate ?? 0,
+      gross_pay: formData.gross_pay ?? 0,
+      basic_salary: formData.basic_salary ?? 0,
+      paid_through: formData.paid_through || "Bank",
+      bank_account_no: formData.bank_account_no || null,
+      bank_branch: formData.bank_branch || null,
+    });
 
-  if (profileError) throw new Error(profileError.message);
+    if (profileError) throw new Error(profileError.message);
 
-  const { error: employeeIdError } = await admin.rpc("ensure_user_employee_id", {
-    p_user_id: authData.user.id,
-  });
-  if (employeeIdError) throw new Error(employeeIdError.message);
+    // Best effort: if RPC is missing in prod, user creation should still succeed.
+    const { error: employeeIdError } = await admin.rpc("ensure_user_employee_id", {
+      p_user_id: authData.user.id,
+    });
+    if (employeeIdError) {
+      const msg = employeeIdError.message?.toLowerCase() || "";
+      const isMissingRpc =
+        msg.includes("ensure_user_employee_id") ||
+        msg.includes("function") ||
+        msg.includes("does not exist");
+      if (!isMissingRpc) {
+        throw new Error(employeeIdError.message);
+      }
+    }
 
-  revalidatePath("/dashboard/users");
-  return authData.user;
+    revalidatePath("/dashboard/users");
+    return authData.user;
+  } catch (error) {
+    // Roll back auth user when profile insert/update fails to avoid orphan auth records.
+    if (createdAuthUserId) {
+      await admin.auth.admin.deleteUser(createdAuthUserId);
+    }
+    throw error;
+  }
 }
 
 /** Assigns the next sequence ID (ST-####) if this user has none yet. Returns the ID (existing or new). */
