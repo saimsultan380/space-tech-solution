@@ -81,7 +81,7 @@ export async function getPayslips(filters?: {
   pageSize?: number;
   search?: string;
 }) {
-  await requireRole(["super_admin", "processor"]);
+  await requireRole(["super_admin"]);
   const supabase = await createClient();
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
@@ -167,7 +167,7 @@ export async function getRecentPayslips(limit = 5) {
     .order("pay_date", { ascending: false })
     .limit(limit);
 
-  if (user.role !== "super_admin" && user.role !== "processor") {
+  if (user.role !== "super_admin") {
     query = query.eq("user_id", user.id);
   }
 
@@ -256,13 +256,13 @@ export async function getPayslipAttendanceSummary(input: {
   period_start: string;
   period_end: string;
 }) {
-  await requireRole(["super_admin", "processor"]);
+  await requireRole(["super_admin"]);
   const supabase = await createClient();
   return computePayslipAttendanceSummary(supabase, input);
 }
 
 export async function createPayslip(input: CreatePayslipInput) {
-  const admin = await requireRole(["super_admin", "processor"]);
+  const admin = await requireRole(["super_admin"]);
   const supabase = await createClient();
 
   if (!input.user_id || !input.period_start || !input.period_end || !input.pay_date) {
@@ -369,7 +369,7 @@ export async function createPayslip(input: CreatePayslipInput) {
 }
 
 export async function updatePayslip(input: UpdatePayslipInput) {
-  const admin = await requireRole(["super_admin", "processor"]);
+  const admin = await requireRole(["super_admin"]);
   const supabase = await createClient();
 
   if (!input.id) {
@@ -468,7 +468,7 @@ export async function updatePayslip(input: UpdatePayslipInput) {
 }
 
 export async function markPayslipAsPaid(payslipId: string) {
-  await requireRole(["super_admin", "processor"]);
+  await requireRole(["super_admin"]);
   const supabase = await createClient();
 
   const { data: payslip, error: fetchError } = await supabase
@@ -499,7 +499,7 @@ export async function markPayslipAsPaid(payslipId: string) {
 }
 
 export async function clonePayslipToNextMonth(payslipId: string, status: "processed" | "paid" = "processed") {
-  await requireRole(["super_admin", "processor"]);
+  await requireRole(["super_admin"]);
   const supabase = await createClient();
 
   const { data: source, error: sourceError } = await supabase
@@ -542,7 +542,7 @@ export async function clonePayslipToNextMonth(payslipId: string, status: "proces
 }
 
 export async function deletePayslip(payslipId: string) {
-  await requireRole(["super_admin", "processor"]);
+  await requireRole(["super_admin"]);
   const supabase = await createClient();
 
   if (!payslipId) {

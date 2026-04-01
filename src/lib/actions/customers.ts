@@ -10,10 +10,22 @@ function revalidateCallLogsResponsesPaths() {
   revalidatePath("/dashboard/customers");
 }
 
+function createdAtDayBoundsUtc(yyyyMmDd: string): { start: string; end: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd.trim())) return null;
+  const [y, m, d] = yyyyMmDd.trim().split("-").map(Number);
+  if (!y || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const start = `${yyyyMmDd.trim()}T00:00:00.000Z`;
+  const endUtc = new Date(Date.UTC(y, m - 1, d + 1));
+  const end = endUtc.toISOString();
+  return { start, end };
+}
+
 export async function getCustomers(filters?: {
   page?: number;
   pageSize?: number;
   search?: string;
+  /** Filter by record created date (UTC calendar day), format YYYY-MM-DD */
+  createdDate?: string;
 }) {
   const supabase = await createClient();
   const page = filters?.page || 1;
@@ -27,6 +39,11 @@ export async function getCustomers(filters?: {
 
   if (filters?.search) {
     query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+  }
+
+  const dayBounds = filters?.createdDate?.trim() ? createdAtDayBoundsUtc(filters.createdDate.trim()) : null;
+  if (dayBounds) {
+    query = query.gte("created_at", dayBounds.start).lt("created_at", dayBounds.end);
   }
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);

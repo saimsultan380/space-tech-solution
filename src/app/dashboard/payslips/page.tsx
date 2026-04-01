@@ -14,12 +14,12 @@ export default async function PayslipsPage(props: {
   const search = searchParams.q || "";
   const companySettings = await getCompanySettings();
 
-  if (user.role === "super_admin" || user.role === "processor") {
+  if (user.role === "super_admin") {
     const [payslipsResponse, usersResponse] = await Promise.all([
       getPayslips({ page, pageSize: 10, search }),
       getUsers(),
     ]);
-    const employees = usersResponse.data.filter((u: any) => u.role === "sales_agent" || u.role === "processor");
+    const employees = usersResponse.data.filter((u: { role: string }) => u.role === "sales_agent" || u.role === "processor");
     return <PayslipsAdminClient payslipsResponse={payslipsResponse} employees={employees} companySettings={companySettings} />;
   }
 

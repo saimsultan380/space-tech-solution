@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,7 +21,7 @@ import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, Eye } from "lucide-react";
+import { Plus, Search, Eye, CalendarDays } from "lucide-react";
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -85,60 +85,104 @@ export function CustomersClient({
   const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
     useDebouncedUrlSearchInput(searchParams, updateFilters);
 
+  const dateFilter = searchParams.get("date") || "";
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const openDatePicker = () => {
+    const el = dateInputRef.current;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === "function") {
+        el.showPicker();
+      } else {
+        el.focus();
+      }
+    } catch {
+      el.focus();
+    }
+  };
+
   /** Super admin, sales agents, and processors (when given Call Logs access) use full list management UI. */
   const canManageCallLogs =
     userRole === "super_admin" ||
     userRole === "sales_agent" ||
     userRole === "processor";
 
+  const exportRows = customers.map((c) => [
+    c.name,
+    c.email,
+    c.phone,
+    c.dob ? formatDate(c.dob) : "-",
+    c.recent_note || "-",
+    formatDate(c.created_at),
+  ]);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold">Call Logs Responses</h1>
           <p className="text-muted-foreground">
             Manage your call logs responses database
           </p>
         </div>
-        {canManageCallLogs && (
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4" /> Add Call Log Response
-          </Button>
-        )}
+        <div className="flex w-full max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-2 lg:w-auto lg:shrink-0">
+          <TableDataExport
+            filenameBase="call-logs-responses"
+            headers={["Name", "Email", "Phone", "DOB", "Recent Note", "Created"]}
+            rows={exportRows}
+            disabled={customers.length === 0}
+            className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:flex-1 sm:[&_button]:flex-initial sm:[&_button]:min-h-9"
+          />
+          {canManageCallLogs && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="h-11 w-full shrink-0 whitespace-nowrap sm:h-9 sm:w-auto"
+            >
+              <Plus className="h-4 w-4" /> Add Call Log Response
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <div className="flex min-w-0 w-full flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <CardHeader className="space-y-0 pb-4 pt-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
               <div className="relative min-w-0 flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={inputRef}
                   placeholder="Search call logs responses..."
                   value={searchInput}
                   onChange={(e) => onInputChange(e.target.value)}
-                  className="pl-10"
+                  className="h-11 pl-10 sm:h-11"
+                  aria-label="Search call logs responses"
                 />
               </div>
-              <CardTitle className="text-sm text-muted-foreground sm:shrink-0 sm:whitespace-nowrap">
-                {count} call log response{count !== 1 ? "s" : ""}
-              </CardTitle>
+              <div className="relative w-full max-w-[152px] shrink-0 sm:w-[152px] sm:max-w-[152px]">
+                <Input
+                  ref={dateInputRef}
+                  id="call_logs_created_date"
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => updateFilters({ date: e.target.value, page: 1 })}
+                  className="h-11 w-full max-w-full pr-10 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden sm:h-11"
+                  aria-label="Filter by date"
+                />
+                <button
+                  type="button"
+                  onClick={openDatePicker}
+                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label="Open date picker"
+                >
+                  <CalendarDays className="h-4 w-4 shrink-0" />
+                </button>
+              </div>
             </div>
-            <TableDataExport
-              filenameBase="call-logs-responses"
-              headers={["Name", "Email", "Phone", "DOB", "Recent Note", "Created"]}
-              rows={customers.map((c) => [
-                c.name,
-                c.email,
-                c.phone,
-                c.dob ? formatDate(c.dob) : "-",
-                c.recent_note || "-",
-                formatDate(c.created_at),
-              ])}
-              disabled={customers.length === 0}
-              className="shrink-0"
-            />
+            <p className="shrink-0 text-sm text-muted-foreground md:max-w-[min(100%,14rem)] md:text-right">
+              {count} call log response{count !== 1 ? "s" : ""}
+            </p>
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -147,12 +191,12 @@ export function CustomersClient({
             <EmptyState
               title="No call logs responses found"
               description={
-                urlSearch
-                  ? "Try adjusting your search"
+                urlSearch || dateFilter
+                  ? "Try adjusting your search or created date filter"
                   : "Add your first call log response to get started"
               }
               action={
-                canManageCallLogs && !urlSearch ? (
+                canManageCallLogs && !urlSearch && !dateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Call Log Response
                   </Button>

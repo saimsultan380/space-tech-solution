@@ -56,6 +56,8 @@ export interface AppUser {
   paid_through?: PaidThrough | null;
   bank_account_no?: string | null;
   bank_branch?: string | null;
+  /** Salary bank institution (from banks reference or custom). */
+  bank_name?: string | null;
 }
 
 export interface Customer {

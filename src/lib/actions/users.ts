@@ -61,6 +61,7 @@ export async function createUser(formData: {
   paid_through?: PaidThrough;
   bank_account_no?: string | null;
   bank_branch?: string | null;
+  bank_name?: string | null;
 }) {
   await requireRole(["super_admin"]);
   const admin = createAdminClient();
@@ -97,6 +98,10 @@ export async function createUser(formData: {
       paid_through: formData.paid_through || "Bank",
       bank_account_no: formData.bank_account_no || null,
       bank_branch: formData.bank_branch || null,
+      bank_name:
+        formData.paid_through === "Bank" && formData.bank_name?.trim()
+          ? formData.bank_name.trim()
+          : null,
     });
 
     if (profileError) throw new Error(profileError.message);
@@ -164,6 +169,7 @@ export async function updateUser(
     paid_through?: PaidThrough;
     bank_account_no?: string | null;
     bank_branch?: string | null;
+    bank_name?: string | null;
   }
 ) {
   await requireRole(["super_admin"]);
@@ -217,6 +223,12 @@ export async function updateUser(
   if (formData.paid_through !== undefined) updateData.paid_through = formData.paid_through;
   if (formData.bank_account_no !== undefined) updateData.bank_account_no = formData.bank_account_no;
   if (formData.bank_branch !== undefined) updateData.bank_branch = formData.bank_branch;
+  if (formData.paid_through !== undefined) {
+    updateData.bank_name =
+      formData.paid_through === "Bank" ? (formData.bank_name ?? "").trim() || null : null;
+  } else if (formData.bank_name !== undefined) {
+    updateData.bank_name = (formData.bank_name ?? "").trim() || null;
+  }
 
   if (submittedEmpId !== "") {
     if (submittedEmpId !== currentEmpId) {

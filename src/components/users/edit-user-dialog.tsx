@@ -11,6 +11,7 @@ import { getSidebarModuleOptionsForRole } from "@/lib/constants";
 import { cn, formatCnic } from "@/lib/utils";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
 import { Pencil } from "lucide-react";
+import { BankNameField } from "./bank-name-field";
 
 const ROLE_OPTIONS = [
   { value: "sales_agent", label: "Sales Agent" },
@@ -43,6 +44,7 @@ interface EditUserDialogProps {
     gross_pay?: number | null;
     basic_salary?: number | null;
     paid_through?: string | null;
+    bank_name?: string | null;
     bank_account_no?: string | null;
     bank_branch?: string | null;
   };
@@ -71,6 +73,7 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
     gross_pay: user.gross_pay?.toString() || "0",
     basic_salary: user.basic_salary?.toString() || "0",
     paid_through: (user.paid_through || "Bank") as PaidThrough,
+    bank_name: user.bank_name || "",
     bank_account_no: user.bank_account_no || "",
     bank_branch: user.bank_branch || "",
   });
@@ -94,6 +97,7 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
       gross_pay: user.gross_pay?.toString() || "0",
       basic_salary: user.basic_salary?.toString() || "0",
       paid_through: (user.paid_through || "Bank") as PaidThrough,
+      bank_name: user.bank_name || "",
       bank_account_no: user.bank_account_no || "",
       bank_branch: user.bank_branch || "",
     });
@@ -125,6 +129,7 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
         gross_pay: form.gross_pay ? Number(form.gross_pay) : 0,
         basic_salary: form.basic_salary ? Number(form.basic_salary) : 0,
         paid_through: form.paid_through,
+        bank_name: form.paid_through === "Bank" ? form.bank_name || null : null,
         bank_account_no: form.paid_through === "Cash" ? null : form.bank_account_no || null,
         bank_branch: form.paid_through === "Cash" ? null : form.bank_branch || null,
       });
@@ -344,11 +349,19 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
                   setForm((f) => ({
                     ...f,
                     paid_through: e.target.value as PaidThrough,
+                    bank_name: e.target.value === "Bank" ? f.bank_name : "",
                     bank_account_no: e.target.value === "Cash" ? "" : f.bank_account_no,
                     bank_branch: e.target.value === "Cash" ? "" : f.bank_branch,
                   }))
                 }
               />
+              {form.paid_through === "Bank" && (
+                <BankNameField
+                  value={form.bank_name}
+                  onChange={(bank_name) => setForm((f) => ({ ...f, bank_name }))}
+                  disabled={loading}
+                />
+              )}
               {form.paid_through !== "Cash" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input

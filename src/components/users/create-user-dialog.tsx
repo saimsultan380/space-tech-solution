@@ -10,6 +10,7 @@ import { createUser } from "@/lib/actions/users";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
 import { getSidebarModuleOptionsForRole } from "@/lib/constants";
 import { formatCnic } from "@/lib/utils";
+import { BankNameField } from "./bank-name-field";
 
 const ROLE_OPTIONS = [
   { value: "sales_agent", label: "Sales Agent" },
@@ -49,6 +50,7 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
     gross_pay: "0",
     basic_salary: "0",
     paid_through: "Bank" as PaidThrough,
+    bank_name: "",
     bank_account_no: "",
     bank_branch: "",
   });
@@ -82,6 +84,7 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
         gross_pay: form.gross_pay ? Number(form.gross_pay) : 0,
         basic_salary: form.basic_salary ? Number(form.basic_salary) : 0,
         paid_through: form.paid_through,
+        bank_name: form.paid_through === "Bank" ? form.bank_name || null : null,
         bank_account_no: form.paid_through === "Cash" ? null : form.bank_account_no || null,
         bank_branch: form.paid_through === "Cash" ? null : form.bank_branch || null,
       });
@@ -266,11 +269,19 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
               setForm((f) => ({
                 ...f,
                 paid_through: e.target.value as PaidThrough,
+                bank_name: e.target.value === "Bank" ? f.bank_name : "",
                 bank_account_no: e.target.value === "Cash" ? "" : f.bank_account_no,
                 bank_branch: e.target.value === "Cash" ? "" : f.bank_branch,
               }))
             }
           />
+          {form.paid_through === "Bank" && (
+            <BankNameField
+              value={form.bank_name}
+              onChange={(bank_name) => setForm((f) => ({ ...f, bank_name }))}
+              disabled={loading}
+            />
+          )}
           {form.paid_through !== "Cash" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
