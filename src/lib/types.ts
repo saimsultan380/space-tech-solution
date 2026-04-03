@@ -81,8 +81,11 @@ export interface Sale {
   subtype: SaleSubtype;
   customer_id: string;
   agent_id: string;
+  agent_name?: string | null;
   processor_id: string | null;
   company_name: string;
+  /** Utility company service / account number on the bill (utility sales). */
+  utility_company_service_number?: string | null;
   amount: number;
   discount: number;
   charged_amount: number;
@@ -174,11 +177,13 @@ export interface AttendanceSettings {
 export interface Chargeback {
   id: string;
   sale_id: string;
+  assigned_to: string | null;
   date: string;
   reason: string;
   status: ChargebackStatus;
   created_at: string;
   sale?: Sale;
+  assignee?: Pick<AppUser, "id" | "full_name"> | null;
 }
 
 export interface Leave {

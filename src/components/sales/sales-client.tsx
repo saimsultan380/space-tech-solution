@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -13,17 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
-import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
-import { SALE_STATUSES, SALE_TYPES } from "@/lib/constants";
-import { bulkUpdateSaleStatus, deleteSale } from "@/lib/actions/sales";
+import { SALE_TYPES } from "@/lib/constants";
+import { deleteSale } from "@/lib/actions/sales";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, CheckCircle, XCircle, Loader2, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
   Dialog,
@@ -35,12 +33,6 @@ import {
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
-
-const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
-  pending: "warning",
-  approved: "success",
-  rejected: "destructive",
-};
 
 interface SalesClientProps {
   salesResponse: {
@@ -62,8 +54,6 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   const { currency } = useCurrency();
   const [isPending, startTransition] = useTransition();
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<{
     id: string;
     label: string;
@@ -93,72 +83,16 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
     searchParams,
     updateFilters,
   );
-  const statusFilter = searchParams.get("status") || "all";
   const typeFilter = searchParams.get("type") || "all";
   const agentFilter = searchParams.get("agent_id") || "all";
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
-  const canBulkProcess = userRole === "processor" || userRole === "super_admin";
 
   const canEditSale = (sale: (typeof sales)[number]) =>
     userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
 
   const canDeleteSale = (sale: (typeof sales)[number]) =>
     userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
-  
-  const pendingSelected = [...selected].filter((id) =>
-    sales.find((s) => s.id === id && s.status === "pending")
-  );
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    const pendingIds = sales.filter((s) => s.status === "pending").map((s) => s.id);
-    if (pendingIds.every((id) => selected.has(id))) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(pendingIds));
-    }
-  };
-
-  const salesExportRows = useMemo(
-    () =>
-      sales.map((sale) => [
-        sale.customer?.name || "N/A",
-        sale.customer?.email || "",
-        sale.company_name,
-        sale.sale_type,
-        sale.subtype,
-        formatCurrency(sale.charged_amount, currency),
-        sale.status,
-        sale.agent?.full_name || "N/A",
-        formatDate(sale.created_at),
-      ]),
-    [sales, currency],
-  );
-
-  const handleBulkAction = async (status: "approved" | "rejected") => {
-    if (pendingSelected.length === 0) return;
-    setBulkLoading(true);
-    try {
-      await bulkUpdateSaleStatus(
-        pendingSelected,
-        status,
-        `Bulk ${status} from sales page`
-      );
-      setSelected(new Set());
-    } catch {
-      // error
-    }
-    setBulkLoading(false);
-  };
 
   const handleConfirmDelete = async () => {
     if (!saleToDelete) return;
@@ -179,7 +113,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
         <div>
           <h1 className="text-3xl font-bold">Sales</h1>
           <p className="text-muted-foreground">
-            {userRole === "processor" ? "Process and manage sales" : "Track your sales pipeline"}
+            {userRole === "processor" ? "View and search all sales" : "Track your sales pipeline"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -207,79 +141,20 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
               />
             </div>
             <Select
-              options={[{ value: "all", label: "All Statuses" }, ...SALE_STATUSES]}
-              value={statusFilter}
-              onChange={(e) => updateFilters({ status: e.target.value })}
-            />
-            <Select
               options={[{ value: "all", label: "All Types" }, ...SALE_TYPES]}
               value={typeFilter}
               onChange={(e) => updateFilters({ type: e.target.value })}
             />
             {userRole !== "sales_agent" && (
               <Select
-                options={[{ value: "all", label: "All Agents" }, ...agents.map(a => ({ value: a.id, label: a.full_name }))]}
+                options={[
+                  { value: "all", label: "All Agents" },
+                  ...agents.map((a) => ({ value: a.id, label: a.full_name })),
+                ]}
                 value={agentFilter}
                 onChange={(e) => updateFilters({ agent_id: e.target.value })}
               />
             )}
-          </div>
-
-          {/* Bulk actions bar */}
-          {canBulkProcess && pendingSelected.length > 0 && (
-            <div className="mt-3 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
-              <span className="text-sm font-medium">
-                {pendingSelected.length} pending sale{pendingSelected.length !== 1 ? "s" : ""} selected
-              </span>
-              <div className="ml-auto flex gap-2">
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="bg-green-500 text-white hover:bg-green-600 shadow-none"
-                  disabled={bulkLoading}
-                  onClick={() => handleBulkAction("approved")}
-                >
-                  {bulkLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  )}
-                  Approve All
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="bg-red-500 text-white hover:bg-red-600 shadow-none"
-                  disabled={bulkLoading}
-                  onClick={() => handleBulkAction("rejected")}
-                >
-                  {bulkLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5" />
-                  )}
-                  Reject All
-                </Button>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
-            <TableDataExport
-              filenameBase="sales"
-              headers={[
-                "Customer",
-                "Customer Email",
-                "Company",
-                "Type",
-                "Subtype",
-                "Amount",
-                "Status",
-                "Agent",
-                "Date",
-              ]}
-              rows={salesExportRows}
-              disabled={sales.length === 0}
-            />
           </div>
         </CardHeader>
         <CardContent className="relative">
@@ -291,48 +166,18 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    {canBulkProcess && (
-                      <TableHead className="w-10">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-border"
-                          checked={
-                            sales.filter((s) => s.status === "pending").length > 0 &&
-                            sales
-                              .filter((s) => s.status === "pending")
-                              .every((s) => selected.has(s.id))
-                          }
-                          onChange={toggleSelectAll}
-                        />
-                      </TableHead>
-                    )}
                     <TableHead>Customer</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Agent</TableHead>
+                    <TableHead>Agent Name</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sales.map((sale) => (
-                    <TableRow
-                      key={sale.id}
-                      className={selected.has(sale.id) ? "bg-primary/5 hover:bg-muted/30" : "hover:bg-muted/30"}
-                    >
-                      {canBulkProcess && (
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20 disabled:opacity-30"
-                            checked={selected.has(sale.id)}
-                            onChange={() => toggleSelect(sale.id)}
-                            disabled={sale.status !== "pending"}
-                          />
-                        </TableCell>
-                      )}
+                    <TableRow key={sale.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <Link
@@ -355,16 +200,9 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                         {formatCurrency(sale.charged_amount, currency)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant[sale.status] || "default"} className="capitalize">
-                          {sale.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
                         <span className="text-sm">{sale.agent?.full_name || "N/A"}</span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(sale.created_at)}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(sale.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-0.5">
                           <Link href={`/dashboard/sales/${sale.id}`}>

@@ -150,7 +150,7 @@ export function SalesPerAgentChart({ data }: SalesPerAgentChartProps) {
         <Bar
           yAxisId="left"
           dataKey="approved"
-          name="Approved"
+          name="Recorded"
           fill="url(#approvedGradient)"
           radius={[4, 4, 0, 0]}
           barSize={32}
@@ -158,7 +158,7 @@ export function SalesPerAgentChart({ data }: SalesPerAgentChartProps) {
         <Bar
           yAxisId="left"
           dataKey="notApproved"
-          name="Not Approved"
+          name="Rejected"
           fill="url(#notApprovedGradient)"
           radius={[4, 4, 0, 0]}
           barSize={32}
@@ -207,19 +207,19 @@ function SalesPerAgentTooltip(props: SalesPerAgentTooltipProps) {
           <span className="font-semibold text-[#0F172A]">{row.total}</span>
         </div>
         <div className="flex justify-between gap-6">
-          <span>Approved</span>
+          <span>Recorded</span>
           <span className="font-semibold text-[#2563EB]">{row.approved}</span>
         </div>
         <div className="flex justify-between gap-6">
-          <span>Not approved</span>
+          <span>Rejected</span>
           <span className="font-semibold text-[#64748B]">{row.notApproved}</span>
         </div>
         <div className="flex justify-between gap-6">
-          <span>Conversion</span>
+          <span>Recorded share</span>
           <span className="font-semibold text-[#14B8A6]">{row.conversion}%</span>
         </div>
         <div className="flex justify-between gap-6">
-          <span>Revenue (approved)</span>
+          <span>Revenue (recorded)</span>
           <span className="font-semibold text-[#0F172A]">{formatCurrency(row.revenue, currency)}</span>
         </div>
       </div>

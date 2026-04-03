@@ -123,7 +123,9 @@ export function CustomerFormDialog({
           <Input
             id="ssn"
             label={isEdit ? "SSN (leave blank to keep)" : "SSN"}
-            type="password"
+            type="text"
+            autoComplete="off"
+            spellCheck={false}
             placeholder="XXX-XX-XXXX"
             value={form.ssn}
             onChange={(e) => setForm((f) => ({ ...f, ssn: e.target.value }))}

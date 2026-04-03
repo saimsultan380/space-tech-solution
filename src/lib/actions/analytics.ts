@@ -15,13 +15,11 @@ export async function getDashboardStats() {
   ]);
 
   const sales = salesRes.data || [];
-  const totalRevenue = sales
-    .filter((s) => s.status === "approved")
-    .reduce((sum, s) => sum + Number(s.charged_amount), 0);
-
-  const pendingSales = sales.filter((s) => s.status === "pending").length;
-  const approvedSales = sales.filter((s) => s.status === "approved").length;
   const rejectedSales = sales.filter((s) => s.status === "rejected").length;
+  const recordedSales = sales.length - rejectedSales;
+  const totalRevenue = sales
+    .filter((s) => s.status !== "rejected")
+    .reduce((sum, s) => sum + Number(s.charged_amount), 0);
   const totalChargebacks = chargebacksRes.count || 0;
   const openChargebacks = (chargebacksRes.data || []).filter((c) => c.status === "open").length;
 
@@ -38,14 +36,15 @@ export async function getDashboardStats() {
     totalSales: sales.length,
     totalRevenue,
     totalCustomers: customersRes.count || 0,
-    pendingSales,
-    approvedSales,
+    pendingSales: 0,
+    approvedSales: recordedSales,
     rejectedSales,
     totalChargebacks,
     openChargebacks,
     pendingLeaves,
     todayOnLeave,
-    conversionRate: sales.length > 0 ? ((approvedSales / sales.length) * 100).toFixed(1) : "0",
+    conversionRate:
+      sales.length > 0 ? ((recordedSales / sales.length) * 100).toFixed(1) : "0",
   };
 }
 
@@ -67,7 +66,7 @@ export async function getSalesPerAgent() {
       revenue: 0,
     };
     existing.total += 1;
-    if (sale.status === "approved") {
+    if (sale.status !== "rejected") {
       existing.approved += 1;
       existing.revenue += Number(sale.charged_amount);
     }
@@ -97,7 +96,7 @@ export async function getSalesPerProcessor() {
       rejected: 0,
     };
     existing.total += 1;
-    if (sale.status === "approved") existing.approved += 1;
+    if (sale.status !== "rejected") existing.approved += 1;
     if (sale.status === "rejected") existing.rejected += 1;
     procMap.set(pid, existing);
   });
@@ -110,7 +109,7 @@ export async function getRevenueOverTime(period: "day" | "week" | "month" = "day
   const { data } = await supabase
     .from("sales")
     .select("charged_amount, created_at, status")
-    .eq("status", "approved")
+    .neq("status", "rejected")
     .order("created_at", { ascending: true });
 
   const revenueMap = new Map<string, number>();
@@ -166,7 +165,7 @@ export async function getAttendanceVsPerformance() {
     supabase
       .from("sales")
       .select("agent_id, status, agent:users!sales_agent_id_fkey(full_name)")
-      .eq("status", "approved"),
+      .neq("status", "rejected"),
   ]);
 
   const attendanceMap = new Map<string, number>();
@@ -225,22 +224,28 @@ export async function getAgentDashboardStats() {
   const todaySales = todaySalesRes.data || [];
   const monthlySales = allSales.filter((s) => s.created_at >= monthStart);
 
+  const nonRejected = <T extends { status: string; charged_amount: unknown }>(rows: T[]) =>
+    rows.filter((s) => s.status !== "rejected");
+
   return {
     totalSales: allSales.length,
     todaySales: todaySales.length,
-    todayRevenue: todaySales
-      .filter((s) => s.status === "approved")
-      .reduce((sum, s) => sum + Number(s.charged_amount), 0),
+    todayRevenue: nonRejected(todaySales).reduce(
+      (sum, s) => sum + Number(s.charged_amount),
+      0,
+    ),
     monthSales: monthlySales.length,
-    monthRevenue: monthlySales
-      .filter((s) => s.status === "approved")
-      .reduce((sum, s) => sum + Number(s.charged_amount), 0),
-    pendingSales: allSales.filter((s) => s.status === "pending").length,
-    approvedSales: allSales.filter((s) => s.status === "approved").length,
+    monthRevenue: nonRejected(monthlySales).reduce(
+      (sum, s) => sum + Number(s.charged_amount),
+      0,
+    ),
+    pendingSales: 0,
+    approvedSales: allSales.filter((s) => s.status !== "rejected").length,
     rejectedSales: allSales.filter((s) => s.status === "rejected").length,
-    totalRevenue: allSales
-      .filter((s) => s.status === "approved")
-      .reduce((sum, s) => sum + Number(s.charged_amount), 0),
+    totalRevenue: nonRejected(allSales).reduce(
+      (sum, s) => sum + Number(s.charged_amount),
+      0,
+    ),
     totalCustomers: customersRes.count || 0,
   };
 }
@@ -251,7 +256,7 @@ export async function getAgentRecentSales() {
 
   const { data } = await supabase
     .from("sales")
-    .select("id, company_name, charged_amount, status, created_at, customer:customers(name)")
+    .select("id, company_name, charged_amount, created_at, customer:customers(name)")
     .eq("agent_id", user.id)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -263,61 +268,30 @@ export async function getAgentRecentSales() {
 }
 
 export async function getProcessorDashboardStats() {
-  const user = await requireAuth();
+  await requireAuth();
   const supabase = await createClient();
 
-  const today = new Date().toISOString().split("T")[0];
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 7);
 
-  const [pendingRes, processedRes, todayProcessedRes] = await Promise.all([
+  const [totalRes, weekRes] = await Promise.all([
+    supabase.from("sales").select("id", { count: "exact", head: true }),
     supabase
       .from("sales")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("sales")
-      .select("id, status, charged_amount, updated_at")
-      .eq("processor_id", user.id),
-    supabase
-      .from("sales")
-      .select("id, status")
-      .eq("processor_id", user.id)
-      .gte("updated_at", today + "T00:00:00"),
+      .select("charged_amount, status")
+      .gte("created_at", weekStart.toISOString()),
   ]);
 
-  const processed = processedRes.data || [];
-  const todayProcessed = todayProcessedRes.data || [];
+  const weekRows = weekRes.data || [];
+  const weekRecordedRevenue = weekRows
+    .filter((s) => s.status !== "rejected")
+    .reduce((sum, s) => sum + Number(s.charged_amount), 0);
 
   return {
-    pendingQueue: pendingRes.count || 0,
-    totalProcessed: processed.length,
-    todayProcessed: todayProcessed.length,
-    approvedByMe: processed.filter((s) => s.status === "approved").length,
-    rejectedByMe: processed.filter((s) => s.status === "rejected").length,
-    todayApproved: todayProcessed.filter((s) => s.status === "approved").length,
-    todayRejected: todayProcessed.filter((s) => s.status === "rejected").length,
-    processedRevenue: processed
-      .filter((s) => s.status === "approved")
-      .reduce((sum, s) => sum + Number(s.charged_amount), 0),
+    totalSales: totalRes.count || 0,
+    salesThisWeek: weekRows.length,
+    weekRecordedRevenue,
   };
-}
-
-export async function getPendingSalesQueue() {
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("sales")
-    .select(
-      "id, sale_type, subtype, company_name, charged_amount, sales_notes, created_at, customer:customers(name, email), agent:users!sales_agent_id_fkey(full_name)"
-    )
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
-
-  return (data || []).map((s) => ({
-    ...s,
-    customer_name: (s.customer as unknown as { name: string; email: string } | null)?.name || "N/A",
-    customer_email: (s.customer as unknown as { name: string; email: string } | null)?.email || "",
-    agent_name: (s.agent as unknown as { full_name: string } | null)?.full_name || "N/A",
-  }));
 }
 
 export async function getEmployeeMonthlyStats(month?: string) {
@@ -363,10 +337,10 @@ export async function getEmployeeMonthlyStats(month?: string) {
         name: u.full_name,
         role: u.role,
         totalSales: userSales.length,
-        approvedSales: userSales.filter((s) => s.status === "approved").length,
+        approvedSales: userSales.filter((s) => s.status !== "rejected").length,
         rejectedSales: userSales.filter((s) => s.status === "rejected").length,
         revenue: userSales
-          .filter((s) => s.status === "approved")
+          .filter((s) => s.status !== "rejected")
           .reduce((sum, s) => sum + Number(s.charged_amount), 0),
         daysPresent: userAttendance.length,
         totalHours: Math.round(totalHours * 10) / 10,

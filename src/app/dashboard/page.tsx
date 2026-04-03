@@ -6,7 +6,6 @@ import {
   getAgentDashboardStats,
   getAgentRecentSales,
   getProcessorDashboardStats,
-  getPendingSalesQueue,
 } from "@/lib/actions/analytics";
 import { getTodayAttendance } from "@/lib/actions/attendance";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
@@ -98,7 +97,6 @@ async function AgentDashboardPage() {
     id: string;
     company_name: string;
     charged_amount: number;
-    status: string;
     created_at: string;
     customer_name: string;
   }> = [];
@@ -136,38 +134,20 @@ async function ProcessorDashboardPage() {
   const user = await requireAuth();
 
   const defaultProcStats = {
-    pendingQueue: 0,
-    totalProcessed: 0,
-    todayProcessed: 0,
-    approvedByMe: 0,
-    rejectedByMe: 0,
-    todayApproved: 0,
-    todayRejected: 0,
-    processedRevenue: 0,
+    totalSales: 0,
+    salesThisWeek: 0,
+    weekRecordedRevenue: 0,
   };
 
   let procStats = defaultProcStats;
-  let pendingSales: Array<{
-    id: string;
-    sale_type: string;
-    subtype: string;
-    company_name: string;
-    charged_amount: number;
-    sales_notes: string;
-    created_at: string;
-    customer_name: string;
-    customer_email: string;
-    agent_name: string;
-  }> = [];
   let todayAttendance = null;
   let recentPayslips: Payslip[] = [];
   let attendanceSettings = await getAttendanceSettings();
   let companySettings = await getCompanySettings();
 
   try {
-    [procStats, pendingSales, todayAttendance, recentPayslips, attendanceSettings] = await Promise.all([
+    [procStats, todayAttendance, recentPayslips, attendanceSettings] = await Promise.all([
       getProcessorDashboardStats(),
-      getPendingSalesQueue(),
       getTodayAttendance(),
       getRecentPayslips(5),
       getAttendanceSettings(),
@@ -180,7 +160,6 @@ async function ProcessorDashboardPage() {
     <ProcessorDashboard
       user={user}
       stats={procStats}
-      pendingSales={pendingSales}
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
       attendanceSettings={attendanceSettings}

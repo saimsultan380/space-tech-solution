@@ -16,7 +16,6 @@ import {
   ShoppingCart,
   Users,
   TrendingUp,
-  Clock,
   AlertTriangle,
   BarChart3,
   Eye,
@@ -104,7 +103,7 @@ export function DashboardClient({
         <MetricCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue, currency)}
-          description="From approved sales"
+          description="From recorded sales (excl. rejected)"
           trend={revenueTrend}
           Icon={DollarSign}
           iconBgClass="bg-primary/10"
@@ -113,8 +112,8 @@ export function DashboardClient({
         <MetricCard
           title="Total Sales"
           value={stats.totalSales}
-          description={`${stats.pendingSales} pending`}
-          trend={Math.round(((stats.approvedSales - stats.pendingSales) / Math.max(stats.totalSales, 1)) * 100)}
+          description={`${stats.rejectedSales} rejected`}
+          trend={Math.round(((stats.totalSales - stats.rejectedSales) / Math.max(stats.totalSales, 1)) * 100)}
           Icon={ShoppingCart}
           iconBgClass="bg-success/10"
           iconTextClass="text-success"
@@ -129,27 +128,17 @@ export function DashboardClient({
           description="In your database"
         />
         <MetricCard
-          title="Conversion Rate"
+          title="Recorded share"
           value={`${stats.conversionRate}%`}
           trend={conversionValue >= 50 ? 3 : -3}
           Icon={TrendingUp}
           iconBgClass="bg-success/10"
           iconTextClass="text-success"
-          description={`${stats.approvedSales} approved of ${stats.totalSales}`}
+          description={`${stats.approvedSales} recorded of ${stats.totalSales}`}
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <MetricCard
-          title="Pending Sales"
-          value={stats.pendingSales}
-          trend={Math.max(1, Math.round((stats.pendingSales / Math.max(stats.totalSales, 1)) * 100))}
-          Icon={Clock}
-          iconBgClass="bg-warning/10"
-          iconTextClass="text-warning"
-          valueClassName="text-warning"
-          description="Awaiting processing"
-        />
+      <div className="grid gap-5 lg:grid-cols-2">
         <MetricCard
           title="Open Chargebacks"
           value={stats.openChargebacks}
@@ -194,7 +183,7 @@ export function DashboardClient({
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
-                  <p className="text-xs font-medium text-muted-foreground">Daily revenue from approved sales</p>
+                  <p className="text-xs font-medium text-muted-foreground">Daily revenue (excl. rejected)</p>
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
                   <DollarSign className="h-4 w-4 text-primary" />
@@ -206,18 +195,14 @@ export function DashboardClient({
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Sales Conversion</h3>
-                  <p className="text-xs font-medium text-muted-foreground">Approved vs pending vs rejected</p>
+                  <h3 className="text-sm font-semibold text-foreground">Sales outcomes</h3>
+                  <p className="text-xs font-medium text-muted-foreground">Recorded vs rejected</p>
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </div>
               </div>
-              <ConversionChart
-                approved={stats.approvedSales}
-                pending={stats.pendingSales}
-                rejected={stats.rejectedSales}
-              />
+              <ConversionChart recorded={stats.approvedSales} rejected={stats.rejectedSales} />
             </div>
 
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm lg:col-span-2">

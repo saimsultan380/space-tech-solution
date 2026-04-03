@@ -2,7 +2,6 @@
 
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AttendanceWidget } from "./attendance-widget";
 import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -14,18 +13,9 @@ import {
   ShoppingCart,
   Users,
   TrendingUp,
-  Clock,
-  CheckCircle,
-  XCircle,
   CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
-
-const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
-  pending: "warning",
-  approved: "success",
-  rejected: "destructive",
-};
 
 interface AgentDashboardProps {
   user: AppUser;
@@ -45,7 +35,6 @@ interface AgentDashboardProps {
     id: string;
     company_name: string;
     charged_amount: number;
-    status: string;
     created_at: string;
     customer_name: string;
   }>;
@@ -101,14 +90,14 @@ export function AgentDashboard({
             title="Today's Revenue"
             value={formatCurrency(stats.todayRevenue, currency)}
             icon={<DollarSign className="h-5 w-5" />}
-            description="From approved sales"
+            description="From your sales (excl. rejected)"
             colorClass="bg-emerald-500"
           />
           <StatCard
-            title="Pending"
-            value={stats.pendingSales}
-            icon={<Clock className="h-5 w-5" />}
-            description="Awaiting processing"
+            title="Total Sales"
+            value={stats.totalSales}
+            icon={<ShoppingCart className="h-5 w-5" />}
+            description="All time"
             colorClass="bg-amber-500"
           />
           <AttendanceWidget todayAttendance={todayAttendance} attendanceSettings={attendanceSettings} />
@@ -120,7 +109,7 @@ export function AgentDashboard({
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <TrendingUp className="h-4 w-4" /> This Month
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="Month Sales"
             value={stats.monthSales}
@@ -132,12 +121,6 @@ export function AgentDashboard({
             value={formatCurrency(stats.monthRevenue, currency)}
             icon={<DollarSign className="h-5 w-5" />}
             colorClass="bg-sky-500"
-          />
-          <StatCard
-            title="Approved"
-            value={stats.approvedSales}
-            icon={<CheckCircle className="h-5 w-5" />}
-            colorClass="bg-green-500"
           />
           <StatCard
             title="My Call Logs Responses"
@@ -179,9 +162,6 @@ export function AgentDashboard({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{sale.customer_name}</span>
-                      <Badge variant={statusVariant[sale.status] || "default"} className="capitalize">
-                        {sale.status}
-                      </Badge>
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       {sale.company_name} &middot; {formatDate(sale.created_at)}
@@ -197,27 +177,19 @@ export function AgentDashboard({
 
       <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
 
-      {/* Quick summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-500" />
-            <p className="text-2xl font-bold">{stats.approvedSales}</p>
-            <p className="text-sm text-muted-foreground">Total Approved</p>
-          </CardContent>
-        </Card>
-        <Card className="text-center">
-          <CardContent className="pt-6">
-            <XCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
-            <p className="text-2xl font-bold">{stats.rejectedSales}</p>
-            <p className="text-sm text-muted-foreground">Total Rejected</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card className="text-center">
           <CardContent className="pt-6">
             <DollarSign className="mx-auto mb-2 h-8 w-8 text-blue-500" />
             <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue, currency)}</p>
-            <p className="text-sm text-muted-foreground">Total Revenue</p>
+            <p className="text-sm text-muted-foreground">Total revenue (excl. rejected)</p>
+          </CardContent>
+        </Card>
+        <Card className="text-center">
+          <CardContent className="pt-6">
+            <ShoppingCart className="mx-auto mb-2 h-8 w-8 text-violet-500" />
+            <p className="text-2xl font-bold">{stats.totalSales}</p>
+            <p className="text-sm text-muted-foreground">Total sales</p>
           </CardContent>
         </Card>
       </div>

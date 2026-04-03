@@ -89,6 +89,7 @@ export interface CreateSaleInput {
   agent_id?: string;
   agent_name?: string;
   company_name: string;
+  utility_company_service_number: string;
   amount: number;
   discount: number;
   billed_month: string;
@@ -159,12 +160,14 @@ export async function createSale(formData: CreateSaleInput) {
   const { data: saleData, error: saleError } = await supabase
     .from("sales")
     .insert({
+      status: "approved",
       sale_type: formData.sale_type,
       subtype: formData.subtype,
       customer_id: customerId,
       agent_id: agentId,
       agent_name: formData.agent_name || null,
       company_name: formData.company_name,
+      utility_company_service_number: formData.utility_company_service_number?.trim() || "",
       amount: formData.amount,
       discount: formData.discount,
       charged_amount: chargedAmount,
@@ -242,16 +245,45 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
 
   const chargedAmount = formData.amount - formData.discount;
 
-  const agentId =
-    user.role === "super_admin" && formData.agent_id ? formData.agent_id : user.id;
+  const { data: existingSale, error: existingError } = await supabase
+    .from("sales")
+    .select("agent_id")
+    .eq("id", formData.id)
+    .single();
+
+  if (existingError || !existingSale) {
+    throw new Error(existingError?.message || "Sale not found");
+  }
+
+  if (user.role === "sales_agent" && existingSale.agent_id !== user.id) {
+    throw new Error("You can only edit your own sales.");
+  }
+
+  let agentId = existingSale.agent_id as string;
+  if (user.role === "super_admin" && formData.agent_id) {
+    agentId = formData.agent_id;
+  } else if (user.role === "sales_agent") {
+    agentId = user.id;
+  }
+
+  let agentName: string | null = formData.agent_name?.trim() || null;
+  if (user.role === "super_admin" && agentId) {
+    const { data: agentUser } = await supabase
+      .from("users")
+      .select("full_name")
+      .eq("id", agentId)
+      .single();
+    if (agentUser?.full_name) agentName = agentUser.full_name as string;
+  }
 
   const updatePayload: Record<string, unknown> = {
     sale_type: formData.sale_type,
     subtype: formData.subtype,
     customer_id: formData.customer_id,
     agent_id: agentId,
-    agent_name: formData.agent_name || null,
+    agent_name: agentName,
     company_name: formData.company_name,
+    utility_company_service_number: formData.utility_company_service_number?.trim() || "",
     amount: formData.amount,
     discount: formData.discount,
     charged_amount: chargedAmount,

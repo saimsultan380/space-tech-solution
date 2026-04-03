@@ -175,7 +175,7 @@ export function ReportsClient({
           colorClass="bg-emerald-500"
         />
         <StatCard
-          title="Conversion Rate"
+          title="Recorded share"
           value={`${stats.conversionRate}%`}
           icon={<TrendingUp className="h-4 w-4" />}
           colorClass="bg-violet-500"
@@ -220,7 +220,7 @@ export function ReportsClient({
                   "Employee",
                   "Role",
                   "Total Sales",
-                  "Approved",
+                  "Recorded",
                   "Rejected",
                   "Revenue",
                   "Days Present",
@@ -246,7 +246,7 @@ export function ReportsClient({
                   <TableHead>Employee</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Total Sales</TableHead>
-                  <TableHead>Approved</TableHead>
+                  <TableHead>Recorded</TableHead>
                   <TableHead>Rejected</TableHead>
                   <TableHead>Revenue</TableHead>
                   <TableHead>Days Present</TableHead>
@@ -318,14 +318,10 @@ export function ReportsClient({
 
         <Card>
           <CardHeader>
-            <CardTitle>Conversion Rate Breakdown</CardTitle>
+            <CardTitle>Sales outcomes</CardTitle>
           </CardHeader>
           <CardContent>
-            <ConversionChart
-              approved={stats.approvedSales}
-              pending={stats.pendingSales}
-              rejected={stats.rejectedSales}
-            />
+            <ConversionChart recorded={stats.approvedSales} rejected={stats.rejectedSales} />
           </CardContent>
         </Card>
 

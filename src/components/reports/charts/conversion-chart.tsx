@@ -5,14 +5,14 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 interface ConversionChartProps {
-  approved: number;
-  pending: number;
+  /** Sales counted toward revenue (not rejected). */
+  recorded: number;
   rejected: number;
 }
 
-const COLORS = ["#16A34A", "#F59E0B", "#EF4444"];
+const COLORS = ["#16A34A", "#EF4444"];
 
-export function ConversionChart({ approved, pending, rejected }: ConversionChartProps) {
+export function ConversionChart({ recorded, rejected }: ConversionChartProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -21,8 +21,7 @@ export function ConversionChart({ approved, pending, rejected }: ConversionChart
   }, []);
 
   const data = [
-    { name: "Approved", value: approved },
-    { name: "Pending", value: pending },
+    { name: "Recorded", value: recorded },
     { name: "Rejected", value: rejected },
   ].filter((d) => d.value > 0);
   const total = data.reduce((sum, item) => sum + item.value, 0);

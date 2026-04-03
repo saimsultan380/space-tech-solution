@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
-import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   clonePayslipToNextMonth,
@@ -315,28 +314,6 @@ export function PayslipsAdminClient({
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <TableDataExport
-                filenameBase={`payslips-${activeMonth}`}
-                headers={[
-                  "Employee",
-                  "Emp ID",
-                  "Department",
-                  "Period",
-                  "Pay Date",
-                  "Net Pay",
-                  "Status",
-                ]}
-                rows={filteredPayslips.map((p) => [
-                  p.user?.full_name || "N/A",
-                  p.employee_id_display || "-",
-                  p.department || "-",
-                  `${formatDate(p.period_start)} - ${formatDate(p.period_end)}`,
-                  formatDate(p.pay_date),
-                  formatCurrency(Number(p.net_pay || 0), p.currency),
-                  p.status,
-                ])}
-                disabled={filteredPayslips.length === 0}
-              />
             </div>
           </div>
 

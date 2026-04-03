@@ -41,6 +41,21 @@ export async function getUsers(filters?: {
   };
 }
 
+/** Active sales agents for assigning a sale (super admin). */
+export async function getSalesAgentUserOptions() {
+  await requireRole(["super_admin"]);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, full_name")
+    .eq("role", "sales_agent")
+    .eq("is_active", true)
+    .order("full_name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Array<{ id: string; full_name: string }>;
+}
+
 export async function createUser(formData: {
   email: string;
   password: string;

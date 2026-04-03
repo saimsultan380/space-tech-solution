@@ -39,7 +39,7 @@ export function SalesPerProcessorChart({ data }: SalesPerProcessorChartProps) {
           }}
         />
         <Legend />
-        <Bar dataKey="approved" name="Approved" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="approved" name="Recorded" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
         <Bar dataKey="rejected" name="Rejected" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

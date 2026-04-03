@@ -39,12 +39,15 @@ interface ChargebacksClientProps {
       reason: string;
       status: string;
       created_at: string;
+      assigned_to: string | null;
       sale: {
         id: string;
         company_name: string;
         agent_id: string;
+        customer_name?: string | null;
         agent: { full_name: string } | null;
       } | null;
+      assignee: { id: string; full_name: string } | null;
     }>;
     count: number;
     page: number;
@@ -127,10 +130,11 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
             </CardTitle>
             <TableDataExport
               filenameBase="chargebacks"
-              headers={["Sale", "Agent", "Date", "Reason", "Status"]}
+              headers={["Sale", "Agent", "Assigned to", "Date", "Reason", "Status"]}
               rows={chargebacks.map((cb) => [
                 cb.sale?.company_name || "N/A",
                 cb.sale?.agent?.full_name || "N/A",
+                cb.assignee?.full_name || "—",
                 formatDate(cb.date),
                 cb.reason,
                 cb.status,
@@ -149,6 +153,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
                 <TableRow>
                   <TableHead>Sale</TableHead>
                   <TableHead>Agent</TableHead>
+                  <TableHead>Assigned to</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
@@ -162,6 +167,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
                       {cb.sale?.company_name || "N/A"}
                     </TableCell>
                     <TableCell>{cb.sale?.agent?.full_name || "N/A"}</TableCell>
+                    <TableCell>{cb.assignee?.full_name || "—"}</TableCell>
                     <TableCell>{formatDate(cb.date)}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{cb.reason}</TableCell>
                     <TableCell>

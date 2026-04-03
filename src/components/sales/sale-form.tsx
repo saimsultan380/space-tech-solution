@@ -9,7 +9,6 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/loading";
 import { createSale, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
-import { createAgentName } from "@/lib/actions/agent-names";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { createClient } from "@/lib/supabase/client";
 import { createSaleAttachment } from "@/lib/actions/sale-attachments";
@@ -28,15 +27,14 @@ import {
   Shield,
   Zap,
   Users,
-  Plus,
   Upload,
   X,
 } from "lucide-react";
 import type { UserRole } from "@/lib/types";
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SaleFormProps {
-  agents: Array<{ id: string; name: string }>;
+  /** Required for super_admin when creating or reassigning the owning sales agent. */
+  salesAgentUsers?: Array<{ id: string; full_name: string }>;
   userRole: UserRole;
   mode?: "create" | "edit";
   saleId?: string;
@@ -48,6 +46,7 @@ const emptyForm = {
   sale_type: "utility",
   subtype: "new",
   customer_id: "",
+  agent_id: "",
   agent_name: "",
   sale_date: new Date().toISOString().split("T")[0],
   customer_phone: "",
@@ -57,6 +56,7 @@ const emptyForm = {
   account_holder_name: "",
   account_no: "",
   company_name: "",
+  utility_company_service_number: "",
   dob: "",
   ssn: "",
   amount: "",
@@ -80,14 +80,17 @@ const emptyForm = {
   vehicle_details: "",
 };
 
-export function SaleForm({ agents, userRole, mode = "create", saleId, initialValues, initialAttachments = [] }: SaleFormProps) {
+export function SaleForm({
+  salesAgentUsers = [],
+  userRole,
+  mode = "create",
+  saleId,
+  initialValues,
+  initialAttachments = [],
+}: SaleFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showCreateAgent, setShowCreateAgent] = useState(false);
-  const [addingAgent, setAddingAgent] = useState(false);
-  const [agentNameInput, setAgentNameInput] = useState("");
-  const [agentsList, setAgentsList] = useState(agents);
   const [form, setForm] = useState({ ...emptyForm, ...initialValues });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
@@ -101,6 +104,10 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (userRole === "super_admin" && mode === "create" && !form.agent_id?.trim()) {
+      setError("Please select the assigned sales agent.");
+      return;
+    }
     setLoading(true);
     setError("");
     const payload: CreateSaleInput = {
@@ -145,21 +152,6 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
       setError(err instanceof Error ? err.message : "Failed to create sale");
     }
     setLoading(false);
-  };
-
-  const handleAddAgentName = async () => {
-    setAddingAgent(true);
-    setError("");
-    try {
-      const created = await createAgentName(agentNameInput);
-      setAgentsList((prev) => [...prev, { id: created.id, name: created.name }]);
-      set("agent_name", created.name);
-      setAgentNameInput("");
-      setShowCreateAgent(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add agent");
-    }
-    setAddingAgent(false);
   };
 
   return (
@@ -212,38 +204,41 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
         </CardContent>
       </Card>
 
-      {/* Agent Information */}
+      {/* Agent assignment (super admin) */}
       {userRole === "super_admin" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4 text-sky-500" />
-              Agent Information
+              Assigned sales agent
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <Select
-                  id="agent_name"
-                  label="Agent Name"
-                  options={agentsList.map((a) => ({ value: a.name, label: a.name }))}
-                  placeholder="Select an agent"
-                  value={form.agent_name}
-                  onChange={(e) => set("agent_name", e.target.value)}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setShowCreateAgent(true)}
-                title="Add agent"
-                className="h-12 w-12 sm:h-11 sm:w-11"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+            <Select
+              id="agent_id"
+              label="Sales agent"
+              options={[
+                { value: "", label: mode === "edit" ? "Keep current (pick to change)" : "Select sales agent" },
+                ...salesAgentUsers.map((a) => ({ value: a.id, label: a.full_name })),
+              ]}
+              value={form.agent_id}
+              onChange={(e) => {
+                const id = e.target.value;
+                const u = salesAgentUsers.find((x) => x.id === id);
+                setForm((f) => ({
+                  ...f,
+                  agent_id: id,
+                  agent_name: u?.full_name || f.agent_name,
+                }));
+              }}
+              required={mode === "create"}
+            />
+            {mode === "edit" && (
+              <p className="text-xs text-muted-foreground">
+                Choose another agent only if you need to reassign this sale. Leave unchanged to keep the current
+                owner.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -316,7 +311,9 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
             <Input
               id="ssn"
               label="SSN"
-              type="password"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
               placeholder="XXX-XX-XXXX"
               value={form.ssn}
               onChange={(e) => set("ssn", e.target.value)}
@@ -324,30 +321,6 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={showCreateAgent} onClose={() => setShowCreateAgent(false)}>
-        <DialogHeader>
-          <DialogTitle>Add Agent Name</DialogTitle>
-        </DialogHeader>
-        <div className="mt-4 space-y-4">
-          <Input
-            id="new_agent_name"
-            label="Agent Name"
-            placeholder="Enter agent name"
-            value={agentNameInput}
-            onChange={(e) => setAgentNameInput(e.target.value)}
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowCreateAgent(false)}>
-              Cancel
-            </Button>
-            <Button type="button" disabled={addingAgent} onClick={handleAddAgentName}>
-              {addingAgent ? <Spinner /> : "Add"}
-            </Button>
-          </DialogFooter>
-        </div>
-      </Dialog>
 
       {/* Company / Service Details */}
       <Card>
@@ -367,7 +340,15 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
               onChange={(e) => set("company_name", e.target.value)}
               required
             />
-            {isInsurance && (
+            {isUtility ? (
+              <Input
+                id="utility_company_service_number"
+                label="Utility company service number"
+                placeholder="Service or account number on utility bill"
+                value={form.utility_company_service_number}
+                onChange={(e) => set("utility_company_service_number", e.target.value)}
+              />
+            ) : (
               <Input
                 id="policy_holder_name"
                 label="Policy Holder Name"
@@ -457,8 +438,8 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
         <CardContent className="space-y-4">
           {mode === "edit" && (
             <p className="text-xs text-muted-foreground">
-              Existing payment method is stored securely, so card and bank numbers are not shown. Enter new
-              details here only if you need to change the payment.
+              Payment fields are filled from the latest saved payment record. Update them only if you need to
+              change card or bank details.
             </p>
           )}
           <div className="flex gap-3">
@@ -508,8 +489,9 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
                 <Input
                   id="card_cvv"
                   label="CVV"
-                  type="password"
+                  type={mode === "edit" ? "text" : "password"}
                   placeholder="XXX"
+                  autoComplete="off"
                   value={form.card_cvv}
                   onChange={(e) => set("card_cvv", e.target.value)}
                 />
@@ -537,14 +519,16 @@ export function SaleForm({ agents, userRole, mode = "create", saleId, initialVal
                 <Input
                   id="routing_number"
                   label="Routing Number"
-                  type="password"
+                  type={mode === "edit" ? "text" : "password"}
+                  autoComplete="off"
                   value={form.routing_number}
                   onChange={(e) => set("routing_number", e.target.value)}
                 />
                 <Input
                   id="bank_account_number"
                   label="Account Number"
-                  type="password"
+                  type={mode === "edit" ? "text" : "password"}
+                  autoComplete="off"
                   value={form.bank_account_number}
                   onChange={(e) => set("bank_account_number", e.target.value)}
                 />
