@@ -8,7 +8,7 @@ export async function getNotes(params: { sale_id?: string; customer_id?: string 
   const supabase = await createClient();
   let query = supabase
     .from("notes")
-    .select("*, user:users(id, full_name)")
+    .select("*, user:users(id, full_name, role)")
     .order("created_at", { ascending: false });
 
   if (params.sale_id) {

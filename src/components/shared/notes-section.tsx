@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/loading";
 import { createNote, toggleNoteImportance, deleteNote } from "@/lib/actions/notes";
+import { ROLE_HINT_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
+import type { UserRole } from "@/lib/types";
 import {
   MessageSquare,
   Plus,
@@ -23,7 +25,7 @@ interface Note {
   content: string;
   is_important: boolean;
   created_at: string;
-  user: { id: string; full_name: string } | null;
+  user: { id: string; full_name: string; role: UserRole } | null;
 }
 
 interface NotesSectionProps {
@@ -176,7 +178,19 @@ export function NotesSection({ notes, saleId, customerId }: NotesSectionProps) {
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold">
-                    {note.user?.full_name || "System"}
+                    {note.user ? (
+                      <>
+                        {note.user.full_name?.trim() || "Unknown user"}
+                        {note.user.role && ROLE_HINT_LABELS[note.user.role] ? (
+                          <span className="font-medium text-muted-foreground">
+                            {" "}
+                            ({ROLE_HINT_LABELS[note.user.role]})
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      "System"
+                    )}
                   </span>
                   {note.is_important && (
                     <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">

@@ -12,6 +12,13 @@ export const ROLE_LABELS: Record<string, string> = {
   processor: "Processor",
 };
 
+/** Compact labels for inline hints (e.g. note author). */
+export const ROLE_HINT_LABELS: Record<string, string> = {
+  super_admin: "Admin",
+  sales_agent: "Sales agent",
+  processor: "Processor",
+};
+
 export const SALE_TYPES = [
   { value: "utility", label: "Utility" },
   { value: "insurance", label: "Insurance" },
