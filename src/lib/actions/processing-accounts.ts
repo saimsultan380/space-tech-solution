@@ -53,6 +53,7 @@ export async function getProcessingAccounts(filters?: {
   pageSize?: number;
   search?: string;
   status?: ProcessingAccountStatus | "all";
+  date?: string;
 }) {
   const supabase = await createClient();
   const page = filters?.page || 1;
@@ -72,6 +73,11 @@ export async function getProcessingAccounts(filters?: {
 
   if (filters?.status && filters.status !== "all") {
     query = query.eq("status", filters.status);
+  }
+  if (filters?.date) {
+    query = query
+      .gte("created_at", `${filters.date}T00:00:00.000Z`)
+      .lte("created_at", `${filters.date}T23:59:59.999Z`);
   }
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);

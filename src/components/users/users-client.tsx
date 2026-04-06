@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
-import { TableDataExport } from "@/components/ui/table-data-export";
 import { CreateUserDialog } from "./create-user-dialog";
 import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
@@ -128,20 +127,6 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
                 {count} user{count !== 1 ? "s" : ""}
               </CardTitle>
             </div>
-            <TableDataExport
-              filenameBase="users"
-              headers={["Name", "Email", "Employee ID", "Role", "Status", "Joined"]}
-              rows={users.map((u) => [
-                u.full_name,
-                u.email,
-                u.employee_id || "-",
-                ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] || u.role,
-                u.is_active ? "Active" : "Inactive",
-                formatDate(u.created_at),
-              ])}
-              disabled={users.length === 0}
-              className="shrink-0"
-            />
           </div>
         </CardHeader>
         <CardContent className="relative">

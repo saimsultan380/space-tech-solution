@@ -119,6 +119,7 @@ export function ProcessingAccountsClient({
   const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
     useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
+  const dateFilter = searchParams.get("date") || "";
 
   const canManage = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
 
@@ -250,6 +251,13 @@ export function ProcessingAccountsClient({
                 ]}
                 containerClassName="sm:w-[180px]"
               />
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => updateFilters({ date: e.target.value })}
+                aria-label="Filter by date"
+                className="sm:w-[170px] [color-scheme:light] dark:[color-scheme:dark]"
+              />
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -284,12 +292,12 @@ export function ProcessingAccountsClient({
             <EmptyState
               title="No processing accounts found"
               description={
-                urlSearch || statusFilter !== "all"
+                urlSearch || statusFilter !== "all" || dateFilter
                   ? "Try adjusting your search or filters"
                   : "Add your first processing account to get started"
               }
               action={
-                canManage && !urlSearch && statusFilter === "all" ? (
+                canManage && !urlSearch && statusFilter === "all" && !dateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Processing Account
                   </Button>

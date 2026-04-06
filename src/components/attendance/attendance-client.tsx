@@ -487,7 +487,7 @@ export function AttendanceClient({
                     type="month"
                     value={monthParam}
                     onChange={(e) => handleMonthChange(e.target.value)}
-                    className="w-[160px]"
+                    className="w-[190px] min-w-[190px] pr-10 [color-scheme:light] dark:[color-scheme:dark]"
                   />
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-3">

@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { getSale } from "@/lib/actions/sales";
 import { getSalesAgentUserOptions } from "@/lib/actions/users";
 import { SaleForm } from "@/components/sales/sale-form";
@@ -26,7 +26,7 @@ function toMonthInputValue(v: string | null | undefined): string {
 
 export default async function EditSalePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const user = await requireAuth();
+  const user = await requireRole(["super_admin", "sales_agent"]);
   const [sale, attachments, salesAgentUsers, latestPayment] = await Promise.all([
     getSale(params.id),
     getSaleAttachments(params.id),

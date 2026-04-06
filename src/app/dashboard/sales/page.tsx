@@ -4,7 +4,13 @@ import { getUsers } from "@/lib/actions/users";
 import { SalesClient } from "@/components/sales/sales-client";
 
 export default async function SalesPage(props: {
-  searchParams: Promise<{ page?: string; type?: string; agent_id?: string; q?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    type?: string;
+    agent_id?: string;
+    date?: string;
+    q?: string;
+  }>;
 }) {
   const user = await requireAuth();
   const searchParams = await props.searchParams;
@@ -12,6 +18,7 @@ export default async function SalesPage(props: {
   const page = Number(searchParams.page) || 1;
   const type = searchParams.type || "all";
   const agent_id = user.role === "sales_agent" ? user.id : searchParams.agent_id || "all";
+  const date = searchParams.date || "";
   const search = searchParams.q || "";
 
   const salesFilters = {
@@ -19,6 +26,7 @@ export default async function SalesPage(props: {
     sale_type: type,
     page,
     pageSize: 10,
+    date,
     search,
   };
 

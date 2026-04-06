@@ -232,7 +232,7 @@ export default async function SaleDetailPage(props: {
                   key={p.id}
                   className="space-y-2 rounded-xl border border-border bg-muted/20 p-4 text-left text-sm"
                 >
-                  <div className="flex flex-wrap justify-between gap-2 font-medium text-foreground">
+                  <div className="flex flex-wrap items-center gap-3 font-medium text-foreground">
                     <span className="capitalize">{p.method === "bank" ? "Bank / ACH" : "Card"}</span>
                     <span>{formatCurrency(Number(p.amount), currency)}</span>
                   </div>

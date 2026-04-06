@@ -1,9 +1,9 @@
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { getSalesAgentUserOptions } from "@/lib/actions/users";
 import { SaleForm } from "@/components/sales/sale-form";
 
 export default async function NewSalePage() {
-  const user = await requireAuth();
+  const user = await requireRole(["super_admin", "sales_agent"]);
   const salesAgentUsers =
     user.role === "super_admin" ? await getSalesAgentUserOptions() : [];
 

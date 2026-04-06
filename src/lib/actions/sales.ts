@@ -10,6 +10,7 @@ export async function getSales(filters?: {
   status?: string;
   sale_type?: string;
   agent_id?: string;
+  date?: string;
   page?: number;
   pageSize?: number;
   search?: string;
@@ -35,6 +36,11 @@ export async function getSales(filters?: {
   }
   if (filters?.agent_id && filters.agent_id !== "all") {
     query = query.eq("agent_id", filters.agent_id);
+  }
+  if (filters?.date) {
+    query = query
+      .gte("created_at", `${filters.date}T00:00:00.000Z`)
+      .lte("created_at", `${filters.date}T23:59:59.999Z`);
   }
   const searchTerm = filters?.search?.trim();
   if (searchTerm) {
@@ -127,31 +133,59 @@ export interface UpdateSaleInput extends CreateSaleInput {
 }
 
 export async function createSale(formData: CreateSaleInput) {
-  const user = await requireAuth();
+  const user = await requireRole(["super_admin", "sales_agent"]);
   const supabase = await createClient();
 
   const chargedAmount = formData.amount - formData.discount;
 
-  // If customer dropdown is removed, allow creating a new customer on-the-fly.
+  // If customer dropdown is removed, resolve an existing customer first to avoid duplicates
+  // between Sales and Call Logs Responses datasets.
   let customerId = formData.customer_id;
   if (!customerId) {
-    const { data: customerData, error: customerError } = await supabase
-      .from("customers")
-      .insert({
-        name: formData.customer_name,
-        phone: formData.customer_phone,
-        email: formData.customer_email,
-        address: formData.service_address,
-        dob: formData.dob || null,
-        ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
-        account_no: formData.account_no || "",
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
+    const email = formData.customer_email?.trim();
+    const phone = formData.customer_phone?.trim();
+    let existingCustomerId: string | null = null;
 
-    if (customerError) throw new Error(customerError.message);
-    customerId = customerData.id as string;
+    if (email) {
+      const { data: byEmail } = await supabase
+        .from("customers")
+        .select("id")
+        .ilike("email", email)
+        .limit(1)
+        .maybeSingle();
+      existingCustomerId = (byEmail?.id as string | undefined) || null;
+    }
+    if (!existingCustomerId && phone) {
+      const { data: byPhone } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone", phone)
+        .limit(1)
+        .maybeSingle();
+      existingCustomerId = (byPhone?.id as string | undefined) || null;
+    }
+
+    if (existingCustomerId) {
+      customerId = existingCustomerId;
+    } else {
+      const { data: customerData, error: customerError } = await supabase
+        .from("customers")
+        .insert({
+          name: formData.customer_name,
+          phone: formData.customer_phone,
+          email: formData.customer_email,
+          address: formData.service_address,
+          dob: formData.dob || null,
+          ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
+          account_no: formData.account_no || "",
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+
+      if (customerError) throw new Error(customerError.message);
+      customerId = customerData.id as string;
+    }
   }
 
   const agentId =
@@ -240,7 +274,7 @@ export async function createSale(formData: CreateSaleInput) {
 }
 
 export async function updateSaleDetails(formData: UpdateSaleInput) {
-  const user = await requireAuth();
+  const user = await requireRole(["super_admin", "sales_agent"]);
   const supabase = await createClient();
 
   const chargedAmount = formData.amount - formData.discount;

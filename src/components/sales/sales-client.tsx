@@ -85,6 +85,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   );
   const typeFilter = searchParams.get("type") || "all";
   const agentFilter = searchParams.get("agent_id") || "all";
+  const dateFilter = searchParams.get("date") || "";
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
 
@@ -129,8 +130,8 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
+            <div className="relative sm:col-span-2 lg:col-span-5">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={inputRef}
@@ -140,21 +141,50 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                 className="pl-10"
               />
             </div>
-            <Select
-              options={[{ value: "all", label: "All Types" }, ...SALE_TYPES]}
-              value={typeFilter}
-              onChange={(e) => updateFilters({ type: e.target.value })}
-            />
-            {userRole !== "sales_agent" && (
+            <div className="lg:col-span-2 min-w-0">
               <Select
-                options={[
-                  { value: "all", label: "All Agents" },
-                  ...agents.map((a) => ({ value: a.id, label: a.full_name })),
-                ]}
-                value={agentFilter}
-                onChange={(e) => updateFilters({ agent_id: e.target.value })}
+                options={[{ value: "all", label: "All Types" }, ...SALE_TYPES]}
+                value={typeFilter}
+                onChange={(e) => updateFilters({ type: e.target.value })}
               />
+            </div>
+            {userRole !== "sales_agent" && (
+              <div className="lg:col-span-2 min-w-0">
+                <Select
+                  options={[
+                    { value: "all", label: "All Agents" },
+                    ...agents.map((a) => ({ value: a.id, label: a.full_name })),
+                  ]}
+                  value={agentFilter}
+                  onChange={(e) => updateFilters({ agent_id: e.target.value })}
+                />
+              </div>
             )}
+            <div className="sm:col-span-1 lg:col-span-2 min-w-[170px]">
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => updateFilters({ date: e.target.value })}
+                aria-label="Date"
+                className="w-full [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </div>
+            <div className="sm:col-span-1 lg:col-span-1 min-w-0">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() =>
+                  updateFilters({
+                    q: "",
+                    type: "all",
+                    agent_id: "all",
+                    date: "",
+                  })
+                }
+              >
+                Clear
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="relative">
