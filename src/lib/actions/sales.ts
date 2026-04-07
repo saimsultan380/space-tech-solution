@@ -190,7 +190,7 @@ export interface UpdateSaleInput extends CreateSaleInput {
 }
 
 export async function createSale(formData: CreateSaleInput) {
-  const user = await requireRole(["super_admin", "sales_agent"]);
+  const user = await requireRole(["super_admin", "sales_agent", "processor"]);
   const supabase = await createClient();
 
   const chargedAmount = formData.amount - formData.discount;
@@ -256,6 +256,7 @@ export async function createSale(formData: CreateSaleInput) {
       subtype: formData.subtype,
       customer_id: customerId,
       agent_id: agentId,
+      processor_id: user.role === "processor" ? user.id : null,
       agent_name: formData.agent_name || null,
       company_name: formData.company_name,
       utility_company_service_number: formData.utility_company_service_number?.trim() || "",

@@ -21,7 +21,7 @@ import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_TYPES } from "@/lib/constants";
 import { deleteSale } from "@/lib/actions/sales";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Database, CircleDollarSign, Wallet, Target, Zap, Shield } from "lucide-react";
 import Link from "next/link";
 import {
   Dialog,
@@ -96,7 +96,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
 
-  const canCreate = userRole === "super_admin" || userRole === "sales_agent";
+  const canCreate = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
 
   const canEditSale = (sale: (typeof sales)[number]) =>
     userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
@@ -140,37 +140,67 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground">Filtered records</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Filtered records</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Database className="h-4 w-4" />
+              </span>
+            </div>
             <p className="text-2xl font-semibold">{stats.totalRecords}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground">Total amount</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Total amount</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-success/10 text-success">
+                <CircleDollarSign className="h-4 w-4" />
+              </span>
+            </div>
             <p className="text-2xl font-semibold">{formatCurrency(stats.totalAmount, currency)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground">Total charged</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Total charged</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Wallet className="h-4 w-4" />
+              </span>
+            </div>
             <p className="text-2xl font-semibold">{formatCurrency(stats.totalChargedAmount, currency)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground">Avg charged</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Avg charged</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-warning/10 text-warning">
+                <Target className="h-4 w-4" />
+              </span>
+            </div>
             <p className="text-2xl font-semibold">{formatCurrency(stats.avgChargedAmount, currency)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground">Utility sales</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Utility sales</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
+                <Zap className="h-4 w-4" />
+              </span>
+            </div>
             <p className="text-2xl font-semibold">{stats.utilityCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground">Insurance sales</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Insurance sales</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-blue-500/10 text-blue-500">
+                <Shield className="h-4 w-4" />
+              </span>
+            </div>
             <p className="text-2xl font-semibold">{stats.insuranceCount}</p>
           </CardContent>
         </Card>

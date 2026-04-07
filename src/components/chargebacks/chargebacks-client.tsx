@@ -68,7 +68,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole }: Chargebacks
   const [showForm, setShowForm] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const canCreate = userRole === "super_admin" || userRole === "processor";
+  const canCreate = userRole === "super_admin" || userRole === "processor" || userRole === "sales_agent";
   const canManage = userRole === "super_admin" || userRole === "processor";
 
   const updateFilters = (updates: Record<string, string | number | undefined>) => {

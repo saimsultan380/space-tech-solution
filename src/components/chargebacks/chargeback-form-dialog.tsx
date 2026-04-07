@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
+import { X } from "lucide-react";
 import { createChargeback } from "@/lib/actions/chargebacks";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,6 +23,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     Array<{
       id: string;
       company_name: string;
+      agent_id: string | null;
       customer_id: string | null;
       customer_name: string | null;
       customer_phone: string | null;
@@ -36,6 +38,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
   const [selectedSaleSnapshot, setSelectedSaleSnapshot] = useState<{
     id: string;
     company_name: string;
+    agent_id: string | null;
     customer_id: string | null;
     customer_name: string | null;
     customer_phone: string | null;
@@ -88,7 +91,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       const q = saleSearch.trim();
       const base = supabase
         .from("sales")
-        .select("id, company_name, customer_id, customer_name, customer_phone, customer_email, amount, charged_amount")
+        .select("id, company_name, agent_id, customer_id, customer_name, customer_phone, customer_email, amount, charged_amount")
         .neq("status", "rejected")
         .order("created_at", { ascending: false })
         .limit(100);
@@ -155,6 +158,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
               aria-label="Sale"
               placeholder="Search and select a sale"
               value={saleSearch}
+              className={form.sale_id ? "pr-10" : undefined}
               onFocus={() => setShowSaleOptions(true)}
               onBlur={() => setTimeout(() => setShowSaleOptions(false), 120)}
               onChange={(e) => {
@@ -162,10 +166,26 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
                 setSaleSearch(next);
                 setShowSaleOptions(true);
                 setSelectedSaleSnapshot(null);
-                setForm((f) => ({ ...f, sale_id: "" }));
+                setForm((f) => ({ ...f, sale_id: "", assigned_to: "" }));
               }}
               required
             />
+            {form.sale_id && (
+              <button
+                type="button"
+                aria-label="Clear selected sale"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-red-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setSaleSearch("");
+                  setSelectedSaleSnapshot(null);
+                  setShowSaleOptions(false);
+                  setForm((f) => ({ ...f, sale_id: "", assigned_to: "" }));
+                }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
             {showSaleOptions && (
               <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
                 <div className="max-h-64 overflow-y-auto py-1">
@@ -186,7 +206,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setSelectedSaleSnapshot(s);
-                            setForm((f) => ({ ...f, sale_id: s.id }));
+                            setForm((f) => ({ ...f, sale_id: s.id, assigned_to: s.agent_id ?? "" }));
                             setSaleSearch(label);
                             setShowSaleOptions(false);
                           }}

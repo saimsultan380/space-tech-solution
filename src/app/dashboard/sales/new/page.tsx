@@ -3,7 +3,7 @@ import { getSalesAgentUserOptions } from "@/lib/actions/users";
 import { SaleForm } from "@/components/sales/sale-form";
 
 export default async function NewSalePage() {
-  const user = await requireRole(["super_admin", "sales_agent"]);
+  const user = await requireRole(["super_admin", "sales_agent", "processor"]);
   const salesAgentUsers =
     user.role === "super_admin" ? await getSalesAgentUserOptions() : [];
 

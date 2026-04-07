@@ -42,7 +42,7 @@ export async function createChargeback(formData: {
   reason: string;
   assigned_to: string;
 }) {
-  const user = await requireRole(["super_admin", "processor"]);
+  const user = await requireRole(["super_admin", "processor", "sales_agent"]);
   const supabase = await createClient();
 
   if (!formData.assigned_to?.trim()) {
