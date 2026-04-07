@@ -269,7 +269,6 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           placeholder="Describe the reason for this chargeback..."
           value={form.reason}
           onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-          required
         />
 
         {error && <p className="text-sm text-destructive">{error}</p>}
