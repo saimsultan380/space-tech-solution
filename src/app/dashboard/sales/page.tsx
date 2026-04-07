@@ -8,7 +8,8 @@ export default async function SalesPage(props: {
     page?: string;
     type?: string;
     agent_id?: string;
-    date?: string;
+    from_date?: string;
+    to_date?: string;
     q?: string;
   }>;
 }) {
@@ -18,7 +19,8 @@ export default async function SalesPage(props: {
   const page = Number(searchParams.page) || 1;
   const type = searchParams.type || "all";
   const agent_id = user.role === "sales_agent" ? user.id : searchParams.agent_id || "all";
-  const date = searchParams.date || "";
+  const from_date = searchParams.from_date || "";
+  const to_date = searchParams.to_date || "";
   const search = searchParams.q || "";
 
   const salesFilters = {
@@ -26,7 +28,8 @@ export default async function SalesPage(props: {
     sale_type: type,
     page,
     pageSize: 10,
-    date,
+    from_date,
+    to_date,
     search,
   };
 

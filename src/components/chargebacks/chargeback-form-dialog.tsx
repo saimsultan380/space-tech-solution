@@ -19,8 +19,30 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sales, setSales] = useState<
-    Array<{ id: string; company_name: string; customer_id: string | null; customer_name: string | null }>
+    Array<{
+      id: string;
+      company_name: string;
+      customer_id: string | null;
+      customer_name: string | null;
+      customer_phone: string | null;
+      customer_email: string | null;
+      amount: number | null;
+      charged_amount: number | null;
+    }>
   >([]);
+  const [saleSearch, setSaleSearch] = useState("");
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [showSaleOptions, setShowSaleOptions] = useState(false);
+  const [selectedSaleSnapshot, setSelectedSaleSnapshot] = useState<{
+    id: string;
+    company_name: string;
+    customer_id: string | null;
+    customer_name: string | null;
+    customer_phone: string | null;
+    customer_email: string | null;
+    amount: number | null;
+    charged_amount: number | null;
+  } | null>(null);
   const [assignableUsers, setAssignableUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
 
   const [form, setForm] = useState({
@@ -40,30 +62,60 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       date: new Date().toISOString().split("T")[0],
       reason: "",
     });
+    setSaleSearch("");
+    setSales([]);
+    setShowSaleOptions(false);
+    setSelectedSaleSnapshot(null);
 
     const supabase = createClient();
-    const load = async () => {
-      const [{ data: salesData }, { data: usersData }] = await Promise.all([
-        supabase
-          .from("sales")
-          .select("id, company_name, customer_id, customer_name")
-          .neq("status", "rejected")
-          .order("company_name", { ascending: true }),
-        supabase
-          .from("users")
-          .select("id, full_name, role")
-          .eq("is_active", true)
-          .order("full_name", { ascending: true }),
-      ]);
-      setSales(salesData || []);
+    const loadUsers = async () => {
+      const { data: usersData } = await supabase
+        .from("users")
+        .select("id, full_name, role")
+        .eq("is_active", true)
+        .order("full_name", { ascending: true });
       setAssignableUsers(usersData || []);
     };
-    void load();
+    void loadUsers();
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const supabase = createClient();
+    const timer = setTimeout(async () => {
+      setSalesLoading(true);
+      const q = saleSearch.trim();
+      const base = supabase
+        .from("sales")
+        .select("id, company_name, customer_id, customer_name, customer_phone, customer_email, amount, charged_amount")
+        .neq("status", "rejected")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      const numericSearch = Number(q.replace(/,/g, ""));
+      const isNumericSearch = q.length > 0 && Number.isFinite(numericSearch);
+      const amountOr = isNumericSearch
+        ? `,amount.eq.${numericSearch},charged_amount.eq.${numericSearch}`
+        : "";
+      const query =
+        q.length === 0
+          ? base
+          : base.or(
+              `customer_name.ilike.%${q}%,company_name.ilike.%${q}%,customer_phone.ilike.%${q}%,customer_email.ilike.%${q}%,account_holder_name.ilike.%${q}%${amountOr}`,
+            );
+
+      const { data: salesData } = await query;
+      setSales(salesData || []);
+      setSalesLoading(false);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [open, saleSearch]);
+
   const selectedSale = useMemo(
-    () => sales.find((s) => s.id === form.sale_id) ?? null,
-    [sales, form.sale_id],
+    () => sales.find((s) => s.id === form.sale_id) ?? selectedSaleSnapshot,
+    [sales, form.sale_id, selectedSaleSnapshot],
   );
 
   const customerDisplay = !selectedSale
@@ -76,6 +128,9 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     setError("");
 
     try {
+      if (!form.sale_id) {
+        throw new Error("Please select a sale.");
+      }
       await createChargeback(form);
       onClose();
     } catch (err) {
@@ -91,19 +146,65 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <div className="space-y-1.5">
-          <Select
-            id="sale_id"
-            label="Sale"
-            aria-label="Sale"
-            options={sales.map((s) => ({
-              value: s.id,
-              label: s.customer_name ? `${s.customer_name} — ${s.company_name}` : s.company_name,
-            }))}
-            placeholder="Select a sale"
-            value={form.sale_id}
-            onChange={(e) => setForm((f) => ({ ...f, sale_id: e.target.value }))}
-            required
-          />
+          <label htmlFor="sale_search" className="text-sm font-medium text-foreground">
+            Sale
+          </label>
+          <div className="relative">
+            <Input
+              id="sale_search"
+              aria-label="Sale"
+              placeholder="Search and select a sale"
+              value={saleSearch}
+              onFocus={() => setShowSaleOptions(true)}
+              onBlur={() => setTimeout(() => setShowSaleOptions(false), 120)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSaleSearch(next);
+                setShowSaleOptions(true);
+                setSelectedSaleSnapshot(null);
+                setForm((f) => ({ ...f, sale_id: "" }));
+              }}
+              required
+            />
+            {showSaleOptions && (
+              <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+                <div className="max-h-64 overflow-y-auto py-1">
+                  {salesLoading ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">Loading sales...</p>
+                  ) : sales.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">No sales found</p>
+                  ) : (
+                    sales.map((s) => {
+                      const label = s.customer_name
+                        ? `${s.customer_name} — ${s.company_name}${s.customer_phone ? ` (${s.customer_phone})` : ""}${s.charged_amount != null ? ` — $${Number(s.charged_amount).toFixed(2)}` : ""}`
+                        : `${s.company_name}${s.customer_phone ? ` (${s.customer_phone})` : ""}${s.charged_amount != null ? ` — $${Number(s.charged_amount).toFixed(2)}` : ""}`;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSelectedSaleSnapshot(s);
+                            setForm((f) => ({ ...f, sale_id: s.id }));
+                            setSaleSearch(label);
+                            setShowSaleOptions(false);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                <p className="border-t border-input px-3 py-1.5 text-xs text-muted-foreground">
+                  {sales.length >= 100
+                    ? "Showing first 100 results. Keep typing to narrow your search."
+                    : `${sales.length} sale${sales.length === 1 ? "" : "s"} found`}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-1.5">

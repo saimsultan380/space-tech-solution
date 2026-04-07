@@ -6,11 +6,66 @@ import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
 
+export interface SalesStats {
+  totalRecords: number;
+  totalAmount: number;
+  totalChargedAmount: number;
+  avgChargedAmount: number;
+  utilityCount: number;
+  insuranceCount: number;
+}
+
+function applySalesFilters(
+  query: any,
+  filters?: {
+    status?: string;
+    sale_type?: string;
+    agent_id?: string;
+    from_date?: string;
+    to_date?: string;
+    search?: string;
+  },
+) {
+  let next = query;
+
+  if (filters?.status && filters.status !== "all") {
+    next = next.eq("status", filters.status);
+  }
+  if (filters?.sale_type && filters.sale_type !== "all") {
+    next = next.eq("sale_type", filters.sale_type);
+  }
+  if (filters?.agent_id && filters.agent_id !== "all") {
+    next = next.eq("agent_id", filters.agent_id);
+  }
+  if (filters?.from_date) {
+    next = next.gte("created_at", `${filters.from_date}T00:00:00.000Z`);
+  }
+  if (filters?.to_date) {
+    next = next.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
+  }
+
+  const searchTerm = filters?.search?.trim();
+  if (searchTerm) {
+    const like = `%${searchTerm}%`;
+    const numericSearch = Number(searchTerm.replace(/,/g, ""));
+    const isNumericSearch = Number.isFinite(numericSearch);
+    const textMatch = `customer_name.ilike.${like},customer_email.ilike.${like},customer_phone.ilike.${like},company_name.ilike.${like}`;
+    const amountMatch = isNumericSearch
+      ? `amount.eq.${numericSearch},charged_amount.eq.${numericSearch}`
+      : "";
+    const textOrAmount = amountMatch ? `${textMatch},${amountMatch}` : textMatch;
+    next = next.or(textOrAmount);
+  }
+
+  return next;
+}
+
 export async function getSales(filters?: {
   status?: string;
   sale_type?: string;
   agent_id?: string;
-  date?: string;
+  from_date?: string;
+  to_date?: string;
   page?: number;
   pageSize?: number;
   search?: string;
@@ -28,42 +83,43 @@ export async function getSales(filters?: {
     )
     .order("created_at", { ascending: false });
 
-  if (filters?.status && filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-  if (filters?.sale_type && filters.sale_type !== "all") {
-    query = query.eq("sale_type", filters.sale_type);
-  }
-  if (filters?.agent_id && filters.agent_id !== "all") {
-    query = query.eq("agent_id", filters.agent_id);
-  }
-  if (filters?.date) {
-    query = query
-      .gte("created_at", `${filters.date}T00:00:00.000Z`)
-      .lte("created_at", `${filters.date}T23:59:59.999Z`);
-  }
-  const searchTerm = filters?.search?.trim();
-  if (searchTerm) {
-    const like = `%${searchTerm}%`;
-    const { data: customerHits } = await supabase
-      .from("customers")
-      .select("id")
-      .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
-      .limit(500);
+  query = applySalesFilters(query, filters);
 
-    const customerIds = customerHits?.map((r) => r.id) ?? [];
-    const companyMatch = `company_name.ilike.${like}`;
-    query =
-      customerIds.length > 0
-        ? query.or(
-            `${companyMatch},customer_id.in.(${customerIds.join(",")})`,
-          )
-        : query.or(companyMatch);
-  }
+  const statsQuery = applySalesFilters(
+    supabase.from("sales").select("sale_type, amount, charged_amount"),
+    filters,
+  );
 
-  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  const [{ data, error, count }, { data: statsRows, error: statsError }] = await Promise.all([
+    query.range(offset, offset + pageSize - 1),
+    statsQuery,
+  ]);
 
   if (error) throw new Error(error.message);
+  if (statsError) throw new Error(statsError.message);
+
+  const rows = (statsRows || []) as Array<{ sale_type: string | null; amount: number | null; charged_amount: number | null }>;
+  const totals = rows.reduce(
+    (acc, row) => {
+      const amount = Number(row.amount || 0);
+      const charged = Number(row.charged_amount || 0);
+      acc.totalAmount += amount;
+      acc.totalChargedAmount += charged;
+      if (row.sale_type === "utility") acc.utilityCount += 1;
+      if (row.sale_type === "insurance") acc.insuranceCount += 1;
+      return acc;
+    },
+    { totalAmount: 0, totalChargedAmount: 0, utilityCount: 0, insuranceCount: 0 },
+  );
+  const totalRecords = rows.length;
+  const stats: SalesStats = {
+    totalRecords,
+    totalAmount: totals.totalAmount,
+    totalChargedAmount: totals.totalChargedAmount,
+    avgChargedAmount: totalRecords > 0 ? totals.totalChargedAmount / totalRecords : 0,
+    utilityCount: totals.utilityCount,
+    insuranceCount: totals.insuranceCount,
+  };
 
   return {
     data: data || [],
@@ -71,6 +127,7 @@ export async function getSales(filters?: {
     page,
     pageSize,
     totalPages: Math.ceil((count || 0) / pageSize),
+    stats,
   };
 }
 

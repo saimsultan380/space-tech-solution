@@ -41,6 +41,14 @@ interface SalesClientProps {
     page: number;
     pageSize: number;
     totalPages: number;
+    stats: {
+      totalRecords: number;
+      totalAmount: number;
+      totalChargedAmount: number;
+      avgChargedAmount: number;
+      utilityCount: number;
+      insuranceCount: number;
+    };
   };
   agents: Array<{ id: string; full_name: string }>;
   userRole: UserRole;
@@ -60,7 +68,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const { data: sales, count, page, totalPages, pageSize } = salesResponse;
+  const { data: sales, count, page, totalPages, pageSize, stats } = salesResponse;
 
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -85,7 +93,8 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   );
   const typeFilter = searchParams.get("type") || "all";
   const agentFilter = searchParams.get("agent_id") || "all";
-  const dateFilter = searchParams.get("date") || "";
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
 
@@ -128,10 +137,49 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Filtered records</p>
+            <p className="text-2xl font-semibold">{stats.totalRecords}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Total amount</p>
+            <p className="text-2xl font-semibold">{formatCurrency(stats.totalAmount, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Total charged</p>
+            <p className="text-2xl font-semibold">{formatCurrency(stats.totalChargedAmount, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Avg charged</p>
+            <p className="text-2xl font-semibold">{formatCurrency(stats.avgChargedAmount, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Utility sales</p>
+            <p className="text-2xl font-semibold">{stats.utilityCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Insurance sales</p>
+            <p className="text-2xl font-semibold">{stats.insuranceCount}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-            <div className="relative sm:col-span-2 lg:col-span-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
+            <div className="relative sm:col-span-2 xl:col-span-4">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={inputRef}
@@ -141,7 +189,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                 className="pl-10"
               />
             </div>
-            <div className="lg:col-span-2 min-w-0">
+            <div className="xl:col-span-2 min-w-0">
               <Select
                 options={[{ value: "all", label: "All Types" }, ...SALE_TYPES]}
                 value={typeFilter}
@@ -149,7 +197,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
               />
             </div>
             {userRole !== "sales_agent" && (
-              <div className="lg:col-span-2 min-w-0">
+              <div className="xl:col-span-2 min-w-0">
                 <Select
                   options={[
                     { value: "all", label: "All Agents" },
@@ -160,16 +208,25 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                 />
               </div>
             )}
-            <div className="sm:col-span-1 lg:col-span-2 min-w-[170px]">
+            <div className="sm:col-span-1 xl:col-span-2 min-w-[180px]">
               <Input
                 type="date"
-                value={dateFilter}
-                onChange={(e) => updateFilters({ date: e.target.value })}
-                aria-label="Date"
-                className="w-full [color-scheme:light] dark:[color-scheme:dark]"
+                value={fromDateFilter}
+                onChange={(e) => updateFilters({ from_date: e.target.value, page: 1 })}
+                aria-label="From date"
+                className="w-full min-w-[180px] [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
-            <div className="sm:col-span-1 lg:col-span-1 min-w-0">
+            <div className="sm:col-span-1 xl:col-span-2 min-w-[180px]">
+              <Input
+                type="date"
+                value={toDateFilter}
+                onChange={(e) => updateFilters({ to_date: e.target.value, page: 1 })}
+                aria-label="To date"
+                className="w-full min-w-[180px] [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </div>
+            <div className="sm:col-span-2 xl:col-span-2 min-w-0">
               <Button
                 variant="outline"
                 className="w-full"
@@ -178,7 +235,8 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                     q: "",
                     type: "all",
                     agent_id: "all",
-                    date: "",
+                    from_date: "",
+                    to_date: "",
                   })
                 }
               >

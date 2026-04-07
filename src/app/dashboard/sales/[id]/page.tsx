@@ -232,11 +232,12 @@ export default async function SaleDetailPage(props: {
                   key={p.id}
                   className="space-y-2 rounded-xl border border-border bg-muted/20 p-4 text-left text-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-3 font-medium text-foreground">
+                  <div className="font-medium text-foreground">
                     <span className="capitalize">{p.method === "bank" ? "Bank / ACH" : "Card"}</span>
-                    <span>{formatCurrency(Number(p.amount), currency)}</span>
                   </div>
                   <div className="grid max-w-xl grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr]">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="text-foreground">{formatCurrency(Number(p.amount), currency)}</span>
                     {p.method === "card" && (
                       <>
                         <span className="text-muted-foreground">Card number</span>
