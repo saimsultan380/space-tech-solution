@@ -20,6 +20,19 @@ function createdAtDayBoundsUtc(yyyyMmDd: string): { start: string; end: string }
   return { start, end };
 }
 
+async function customersSourceColumnExists(supabase: any) {
+  const { data, error } = await supabase
+    .from("information_schema.columns")
+    .select("column_name")
+    .eq("table_schema", "public")
+    .eq("table_name", "customers")
+    .eq("column_name", "source")
+    .limit(1);
+
+  if (error) return false;
+  return Array.isArray(data) && data.length > 0;
+}
+
 export async function getCustomers(filters?: {
   page?: number;
   pageSize?: number;
@@ -28,6 +41,7 @@ export async function getCustomers(filters?: {
   createdDate?: string;
 }) {
   const supabase = await createClient();
+  const hasSourceColumn = await customersSourceColumnExists(supabase);
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
@@ -35,8 +49,24 @@ export async function getCustomers(filters?: {
   let query = supabase
     .from("customers")
     .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
-    .eq("source", "call_log")
     .order("created_at", { ascending: false });
+
+  if (hasSourceColumn) {
+    query = query.eq("source", "call_log");
+  } else {
+    // Backward-compatible fallback before migration:
+    // hide customers that are already linked to sales.
+    const { data: salesCustomerRows } = await supabase
+      .from("sales")
+      .select("customer_id")
+      .not("customer_id", "is", null);
+    const salesCustomerIds = Array.from(
+      new Set((salesCustomerRows || []).map((row: { customer_id: string | null }) => row.customer_id).filter(Boolean)),
+    ) as string[];
+    if (salesCustomerIds.length > 0) {
+      query = query.not("id", "in", `(${salesCustomerIds.join(",")})`);
+    }
+  }
 
   if (filters?.search) {
     query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
@@ -113,20 +143,25 @@ export async function createCustomer(formData: {
 }) {
   const user = await requireAuth();
   const supabase = await createClient();
+  const hasSourceColumn = await customersSourceColumnExists(supabase);
+
+  const payload: Record<string, unknown> = {
+    name: formData.name,
+    phone: formData.phone,
+    email: formData.email,
+    address: formData.address,
+    dob: formData.dob || null,
+    ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
+    account_no: formData.account_no || "",
+    created_by: user.id,
+  };
+  if (hasSourceColumn) {
+    payload.source = "call_log";
+  }
 
   const { data, error } = await supabase
     .from("customers")
-    .insert({
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      address: formData.address,
-      dob: formData.dob || null,
-      ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
-      account_no: formData.account_no || "",
-      source: "call_log",
-      created_by: user.id,
-    })
+    .insert(payload)
     .select("id")
     .single();
 

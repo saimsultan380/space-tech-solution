@@ -6,6 +6,19 @@ import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
 
+async function customersSourceColumnExists(supabase: any) {
+  const { data, error } = await supabase
+    .from("information_schema.columns")
+    .select("column_name")
+    .eq("table_schema", "public")
+    .eq("table_name", "customers")
+    .eq("column_name", "source")
+    .limit(1);
+
+  if (error) return false;
+  return Array.isArray(data) && data.length > 0;
+}
+
 export interface SalesStats {
   totalRecords: number;
   totalAmount: number;
@@ -192,6 +205,7 @@ export interface UpdateSaleInput extends CreateSaleInput {
 export async function createSale(formData: CreateSaleInput) {
   const user = await requireRole(["super_admin", "sales_agent", "processor"]);
   const supabase = await createClient();
+  const hasCustomerSourceColumn = await customersSourceColumnExists(supabase);
 
   const chargedAmount = formData.amount - formData.discount;
 
@@ -225,19 +239,23 @@ export async function createSale(formData: CreateSaleInput) {
     if (existingCustomerId) {
       customerId = existingCustomerId;
     } else {
+      const customerPayload: Record<string, unknown> = {
+        name: formData.customer_name,
+        phone: formData.customer_phone,
+        email: formData.customer_email,
+        address: formData.service_address,
+        dob: formData.dob || null,
+        ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
+        account_no: formData.account_no || "",
+        created_by: user.id,
+      };
+      if (hasCustomerSourceColumn) {
+        customerPayload.source = "sales";
+      }
+
       const { data: customerData, error: customerError } = await supabase
         .from("customers")
-        .insert({
-          name: formData.customer_name,
-          phone: formData.customer_phone,
-          email: formData.customer_email,
-          address: formData.service_address,
-          dob: formData.dob || null,
-          ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
-          account_no: formData.account_no || "",
-          source: "sales",
-          created_by: user.id,
-        })
+        .insert(customerPayload)
         .select("id")
         .single();
 
