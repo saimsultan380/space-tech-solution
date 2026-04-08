@@ -6,17 +6,9 @@ import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
 
-async function customersSourceColumnExists(supabase: any) {
-  const { data, error } = await supabase
-    .from("information_schema.columns")
-    .select("column_name")
-    .eq("table_schema", "public")
-    .eq("table_name", "customers")
-    .eq("column_name", "source")
-    .limit(1);
-
-  if (error) return false;
-  return Array.isArray(data) && data.length > 0;
+function isMissingSourceColumnError(error: { message?: string } | null) {
+  const message = error?.message?.toLowerCase() || "";
+  return message.includes("source") && (message.includes("column") || message.includes("schema cache"));
 }
 
 export interface SalesStats {
@@ -205,7 +197,6 @@ export interface UpdateSaleInput extends CreateSaleInput {
 export async function createSale(formData: CreateSaleInput) {
   const user = await requireRole(["super_admin", "sales_agent", "processor"]);
   const supabase = await createClient();
-  const hasCustomerSourceColumn = await customersSourceColumnExists(supabase);
 
   const chargedAmount = formData.amount - formData.discount;
 
@@ -239,7 +230,7 @@ export async function createSale(formData: CreateSaleInput) {
     if (existingCustomerId) {
       customerId = existingCustomerId;
     } else {
-      const customerPayload: Record<string, unknown> = {
+      const baseCustomerPayload: Record<string, unknown> = {
         name: formData.customer_name,
         phone: formData.customer_phone,
         email: formData.customer_email,
@@ -249,17 +240,26 @@ export async function createSale(formData: CreateSaleInput) {
         account_no: formData.account_no || "",
         created_by: user.id,
       };
-      if (hasCustomerSourceColumn) {
-        customerPayload.source = "sales";
-      }
+      const withSourceCustomerPayload = { ...baseCustomerPayload, source: "sales" };
 
-      const { data: customerData, error: customerError } = await supabase
+      let { data: customerData, error: customerError } = await supabase
         .from("customers")
-        .insert(customerPayload)
+        .insert(withSourceCustomerPayload)
         .select("id")
         .single();
 
+      if (isMissingSourceColumnError(customerError)) {
+        const retryResult = await supabase
+          .from("customers")
+          .insert(baseCustomerPayload)
+          .select("id")
+          .single();
+        customerData = retryResult.data;
+        customerError = retryResult.error;
+      }
+
       if (customerError) throw new Error(customerError.message);
+      if (!customerData?.id) throw new Error("Failed to create customer for sale");
       customerId = customerData.id as string;
     }
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
-import { createCustomer, updateCustomer } from "@/lib/actions/customers";
+import { createCustomer, getCustomerSsnForEdit, updateCustomer } from "@/lib/actions/customers";
 import { createNote } from "@/lib/actions/notes";
 import { Pencil } from "lucide-react";
 
@@ -52,6 +52,27 @@ export function CustomerFormDialog({
     account_no: customer?.account_no || "",
     notes: "",
   });
+
+  useEffect(() => {
+    if (!isOpen || !isEdit || !customer?.id) return;
+    let cancelled = false;
+
+    const loadSsn = async () => {
+      try {
+        const ssn = await getCustomerSsnForEdit(customer.id);
+        if (!cancelled) {
+          setForm((f) => ({ ...f, ssn }));
+        }
+      } catch {
+        // keep form usable even if ssn fetch fails
+      }
+    };
+
+    void loadSsn();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, isEdit, customer?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,7 +143,7 @@ export function CustomerFormDialog({
           />
           <Input
             id="ssn"
-            label={isEdit ? "SSN (leave blank to keep)" : "SSN"}
+            label="SSN"
             type="text"
             autoComplete="off"
             spellCheck={false}

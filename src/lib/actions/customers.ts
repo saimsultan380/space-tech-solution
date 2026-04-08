@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth, requireRole } from "@/lib/auth";
-import { encrypt } from "@/lib/encryption";
+import { decrypt, encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
 function revalidateCallLogsResponsesPaths() {
@@ -20,17 +20,9 @@ function createdAtDayBoundsUtc(yyyyMmDd: string): { start: string; end: string }
   return { start, end };
 }
 
-async function customersSourceColumnExists(supabase: any) {
-  const { data, error } = await supabase
-    .from("information_schema.columns")
-    .select("column_name")
-    .eq("table_schema", "public")
-    .eq("table_name", "customers")
-    .eq("column_name", "source")
-    .limit(1);
-
-  if (error) return false;
-  return Array.isArray(data) && data.length > 0;
+function isMissingSourceColumnError(error: { message?: string } | null) {
+  const message = error?.message?.toLowerCase() || "";
+  return message.includes("source") && (message.includes("column") || message.includes("schema cache"));
 }
 
 export async function getCustomers(filters?: {
@@ -41,21 +33,33 @@ export async function getCustomers(filters?: {
   createdDate?: string;
 }) {
   const supabase = await createClient();
-  const hasSourceColumn = await customersSourceColumnExists(supabase);
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
-  let query = supabase
-    .from("customers")
-    .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
-    .order("created_at", { ascending: false });
+  const applySharedFilters = (query: any) => {
+    let next = query;
+    if (filters?.search) {
+      next = next.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+    }
+    const dayBounds = filters?.createdDate?.trim() ? createdAtDayBoundsUtc(filters.createdDate.trim()) : null;
+    if (dayBounds) {
+      next = next.gte("created_at", dayBounds.start).lt("created_at", dayBounds.end);
+    }
+    return next;
+  };
 
-  if (hasSourceColumn) {
-    query = query.eq("source", "call_log");
-  } else {
-    // Backward-compatible fallback before migration:
-    // hide customers that are already linked to sales.
+  let query = applySharedFilters(
+    supabase
+      .from("customers")
+      .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+      .eq("source", "call_log")
+      .order("created_at", { ascending: false }),
+  );
+
+  let { data, error, count } = await query.range(offset, offset + pageSize - 1);
+
+  if (isMissingSourceColumnError(error)) {
     const { data: salesCustomerRows } = await supabase
       .from("sales")
       .select("customer_id")
@@ -63,21 +67,21 @@ export async function getCustomers(filters?: {
     const salesCustomerIds = Array.from(
       new Set((salesCustomerRows || []).map((row: { customer_id: string | null }) => row.customer_id).filter(Boolean)),
     ) as string[];
+
+    let fallbackQuery = applySharedFilters(
+      supabase
+        .from("customers")
+        .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+        .order("created_at", { ascending: false }),
+    );
     if (salesCustomerIds.length > 0) {
-      query = query.not("id", "in", `(${salesCustomerIds.join(",")})`);
+      fallbackQuery = fallbackQuery.not("id", "in", `(${salesCustomerIds.join(",")})`);
     }
+    const fallbackResult = await fallbackQuery.range(offset, offset + pageSize - 1);
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+    count = fallbackResult.count;
   }
-
-  if (filters?.search) {
-    query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
-  }
-
-  const dayBounds = filters?.createdDate?.trim() ? createdAtDayBoundsUtc(filters.createdDate.trim()) : null;
-  if (dayBounds) {
-    query = query.gte("created_at", dayBounds.start).lt("created_at", dayBounds.end);
-  }
-
-  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
 
@@ -132,6 +136,24 @@ export async function getCustomer(id: string) {
   return data;
 }
 
+export async function getCustomerSsnForEdit(id: string) {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select("created_by, ssn_encrypted")
+    .eq("id", id)
+    .single();
+
+  if (error) throw new Error(error.message);
+  if (user.role === "sales_agent" && data?.created_by !== user.id) {
+    throw new Error("You don't have permission to view this SSN");
+  }
+
+  return data?.ssn_encrypted ? decrypt(data.ssn_encrypted) || "" : "";
+}
+
 export async function createCustomer(formData: {
   name: string;
   phone: string;
@@ -143,9 +165,8 @@ export async function createCustomer(formData: {
 }) {
   const user = await requireAuth();
   const supabase = await createClient();
-  const hasSourceColumn = await customersSourceColumnExists(supabase);
 
-  const payload: Record<string, unknown> = {
+  const basePayload: Record<string, unknown> = {
     name: formData.name,
     phone: formData.phone,
     email: formData.email,
@@ -155,17 +176,26 @@ export async function createCustomer(formData: {
     account_no: formData.account_no || "",
     created_by: user.id,
   };
-  if (hasSourceColumn) {
-    payload.source = "call_log";
-  }
+  const withSourcePayload = { ...basePayload, source: "call_log" };
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("customers")
-    .insert(payload)
+    .insert(withSourcePayload)
     .select("id")
     .single();
 
+  if (isMissingSourceColumnError(error)) {
+    const retryResult = await supabase
+      .from("customers")
+      .insert(basePayload)
+      .select("id")
+      .single();
+    data = retryResult.data;
+    error = retryResult.error;
+  }
+
   if (error) throw new Error(error.message);
+  if (!data?.id) throw new Error("Failed to create customer");
   revalidateCallLogsResponsesPaths();
   return data.id as string;
 }
