@@ -35,6 +35,7 @@ export async function getCustomers(filters?: {
   let query = supabase
     .from("customers")
     .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+    .eq("source", "call_log")
     .order("created_at", { ascending: false });
 
   if (filters?.search) {
@@ -123,6 +124,7 @@ export async function createCustomer(formData: {
       dob: formData.dob || null,
       ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
       account_no: formData.account_no || "",
+      source: "call_log",
       created_by: user.id,
     })
     .select("id")

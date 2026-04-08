@@ -235,6 +235,7 @@ export async function createSale(formData: CreateSaleInput) {
           dob: formData.dob || null,
           ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
           account_no: formData.account_no || "",
+          source: "sales",
           created_by: user.id,
         })
         .select("id")

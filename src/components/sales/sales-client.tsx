@@ -302,9 +302,11 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                             href={`/dashboard/sales/${sale.id}`}
                             className="text-foreground hover:underline"
                           >
-                            {sale.customer?.name || "N/A"}
+                            {sale.customer?.name || sale.customer_name || "N/A"}
                           </Link>
-                          <span className="text-[11px] text-muted-foreground">{sale.customer?.email}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {sale.customer?.email || sale.customer_email || ""}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>{sale.company_name}</TableCell>
@@ -354,7 +356,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                               onClick={() =>
                                 setSaleToDelete({
                                   id: sale.id,
-                                  label: sale.customer?.name || sale.company_name || "this sale",
+                                  label: sale.customer?.name || sale.customer_name || sale.company_name || "this sale",
                                 })
                               }
                             >

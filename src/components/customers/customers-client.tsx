@@ -114,6 +114,7 @@ export function CustomersClient({
     c.phone,
     c.dob ? formatDate(c.dob) : "-",
     c.recent_note || "-",
+    c.created_by_user?.full_name || "-",
     formatDate(c.created_at),
   ]);
 
@@ -129,7 +130,7 @@ export function CustomersClient({
         <div className="flex w-full max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-2 lg:w-auto lg:shrink-0">
           <TableDataExport
             filenameBase="call-logs-responses"
-            headers={["Name", "Email", "Phone", "DOB", "Recent Note", "Created"]}
+            headers={["Name", "Email", "Phone", "DOB", "Recent Note", "Agent Name", "Created"]}
             rows={exportRows}
             disabled={customers.length === 0}
             className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:flex-1 sm:[&_button]:flex-initial sm:[&_button]:min-h-9"
@@ -213,6 +214,7 @@ export function CustomersClient({
                     <TableHead>Phone</TableHead>
                     <TableHead>DOB</TableHead>
                     <TableHead>Recent Note</TableHead>
+                    <TableHead>Agent Name</TableHead>
                     <TableHead>Created</TableHead>
                     {canManageCallLogs && (
                       <TableHead className="text-right">Actions</TableHead>
@@ -249,6 +251,7 @@ export function CustomersClient({
                           </span>
                         )}
                       </TableCell>
+                      <TableCell>{customer.created_by_user?.full_name || "-"}</TableCell>
                       <TableCell>{formatDate(customer.created_at)}</TableCell>
                       {canManageCallLogs && (
                         <TableCell className="text-right">
