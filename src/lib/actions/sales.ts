@@ -11,6 +11,11 @@ function isMissingSourceColumnError(error: { message?: string } | null) {
   return message.includes("source") && (message.includes("column") || message.includes("schema cache"));
 }
 
+function isSubtypeConstraintError(error: { message?: string } | null) {
+  const message = error?.message?.toLowerCase() || "";
+  return message.includes("subtype") && (message.includes("invalid") || message.includes("constraint"));
+}
+
 export interface SalesStats {
   totalRecords: number;
   totalAmount: number;
@@ -267,41 +272,57 @@ export async function createSale(formData: CreateSaleInput) {
   const agentId =
     user.role === "super_admin" && formData.agent_id ? formData.agent_id : user.id;
 
-  const { data: saleData, error: saleError } = await supabase
+  const saleInsertPayload: Record<string, unknown> = {
+    status: "approved",
+    sale_type: formData.sale_type,
+    subtype: formData.subtype,
+    customer_id: customerId,
+    agent_id: agentId,
+    processor_id: user.role === "processor" ? user.id : null,
+    agent_name: formData.agent_name || null,
+    company_name: formData.company_name,
+    utility_company_service_number: formData.utility_company_service_number?.trim() || "",
+    amount: formData.amount,
+    discount: formData.discount,
+    charged_amount: chargedAmount,
+    billed_month: formData.billed_month,
+    next_billing_date: formData.next_billing_date || null,
+    sales_notes: formData.sales_notes,
+    sale_date: formData.sale_date || null,
+    customer_phone: formData.customer_phone,
+    customer_name: formData.customer_name,
+    customer_email: formData.customer_email,
+    service_address: formData.service_address,
+    account_holder_name: formData.account_holder_name,
+    dob: formData.dob,
+    ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
+    account_status: formData.account_status,
+    other_sale_data: formData.other_sale_data,
+    policy_holder_name: formData.policy_holder_name,
+    vehicle_details: formData.vehicle_details,
+    payment_method: formData.payment_method,
+    merchant_name: formData.merchant_name,
+  };
+
+  let { data: saleData, error: saleError } = await supabase
     .from("sales")
-    .insert({
-      status: "approved",
-      sale_type: formData.sale_type,
-      subtype: formData.subtype,
-      customer_id: customerId,
-      agent_id: agentId,
-      processor_id: user.role === "processor" ? user.id : null,
-      agent_name: formData.agent_name || null,
-      company_name: formData.company_name,
-      utility_company_service_number: formData.utility_company_service_number?.trim() || "",
-      amount: formData.amount,
-      discount: formData.discount,
-      charged_amount: chargedAmount,
-      billed_month: formData.billed_month,
-      next_billing_date: formData.next_billing_date || null,
-      sales_notes: formData.sales_notes,
-      sale_date: formData.sale_date || null,
-      customer_phone: formData.customer_phone,
-      customer_name: formData.customer_name,
-      customer_email: formData.customer_email,
-      service_address: formData.service_address,
-      account_holder_name: formData.account_holder_name,
-      dob: formData.dob,
-      ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
-      account_status: formData.account_status,
-      other_sale_data: formData.other_sale_data,
-      policy_holder_name: formData.policy_holder_name,
-      vehicle_details: formData.vehicle_details,
-      payment_method: formData.payment_method,
-      merchant_name: formData.merchant_name,
-    })
+    .insert(saleInsertPayload)
     .select("id")
     .single();
+
+  if (
+    saleError &&
+    formData.subtype === "cancellation" &&
+    isSubtypeConstraintError(saleError)
+  ) {
+    const retryResult = await supabase
+      .from("sales")
+      .insert({ ...saleInsertPayload, subtype: "cancelation" })
+      .select("id")
+      .single();
+    saleData = retryResult.data;
+    saleError = retryResult.error;
+  }
 
   if (saleError) throw new Error(saleError.message);
 
@@ -420,10 +441,22 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     updatePayload.ssn_encrypted = encrypt(formData.ssn);
   }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from("sales")
     .update(updatePayload)
     .eq("id", formData.id);
+
+  if (
+    error &&
+    formData.subtype === "cancellation" &&
+    isSubtypeConstraintError(error)
+  ) {
+    const retryResult = await supabase
+      .from("sales")
+      .update({ ...updatePayload, subtype: "cancelation" })
+      .eq("id", formData.id);
+    error = retryResult.error;
+  }
 
   if (error) throw new Error(error.message);
 
