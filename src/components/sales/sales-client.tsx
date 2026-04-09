@@ -289,7 +289,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Agent Name</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead className="min-w-[180px]">Date</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -322,7 +322,16 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                       <TableCell>
                         <span className="text-sm">{sale.agent?.full_name || "N/A"}</span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(sale.created_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                            Sale: {sale.sale_date ? formatDate(sale.sale_date) : "N/A"}
+                          </span>
+                          <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
+                            Recorded: {formatDate(sale.created_at)}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-0.5">
                           <Link href={`/dashboard/sales/${sale.id}`}>
