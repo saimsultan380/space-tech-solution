@@ -34,6 +34,17 @@ import {
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
+const KARACHI_TIMEZONE = "Asia/Karachi";
+
+function formatDateKarachi(date: string | Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: KARACHI_TIMEZONE,
+  }).format(new Date(date));
+}
+
 interface SalesClientProps {
   salesResponse: {
     data: any[];
@@ -325,10 +336,10 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
-                            Sale: {sale.sale_date ? formatDate(sale.sale_date) : "N/A"}
+                            Sale: {sale.sale_date ? formatDateKarachi(sale.sale_date) : "N/A"}
                           </span>
                           <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
-                            Recorded: {formatDate(sale.created_at)}
+                            Recorded: {formatDateKarachi(sale.created_at)}
                           </span>
                         </div>
                       </TableCell>
