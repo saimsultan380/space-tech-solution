@@ -145,11 +145,12 @@ async function buildPayslipPdfDoc(payslip: Payslip, branding?: Partial<PayslipBr
   doc.text("Deductions", 150.5, currentY + 6, { align: "center" });
   currentY += 9;
 
-  const totalAllowances = Number(payslip.basic_salary || 0) + Number(payslip.commission || 0) + Number(payslip.advance || 0);
+  const totalAllowances = Number(payslip.basic_salary || 0) + Number(payslip.commission || 0);
   const breakRows = [
     [`Basic Salary = ${formatCurrency(Number(payslip.basic_salary || 0), currency)}`, `Late Attendance = ${payslip.late_attendance || 0}`],
     [`Commission = ${formatCurrency(Number(payslip.commission || 0), currency)}`, `Leaves = ${payslip.leaves || 0}`],
-    [`Advance = ${formatCurrency(Number(payslip.advance || 0), currency)}`, `Deductions = ${formatCurrency(Number(payslip.deductions || 0), currency)}`],
+    ["", `Deductions = ${formatCurrency(Number(payslip.deductions || 0), currency)}`],
+    ["", `Advance (recovery) = ${formatCurrency(Number(payslip.advance || 0), currency)}`],
     [`Total Pay and Allowances = ${formatCurrency(totalAllowances, currency)}`, `Net Pay = ${formatCurrency(Number(payslip.net_pay || 0), currency)}`],
   ];
 

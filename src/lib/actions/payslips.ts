@@ -296,18 +296,15 @@ export async function createPayslip(input: CreatePayslipInput) {
   const bonus = Number(input.bonus || 0);
   const commission = Number(input.commission || 0);
   const advance = Number(input.advance || 0);
-  const netPay = basicSalary + allowances + bonus + commission + advance - deductions;
+  const netPay = basicSalary + allowances + bonus + commission - advance - deductions;
   if (netPay < 0) {
     throw new Error("Net pay cannot be negative");
   }
 
   const status = input.status || "processed";
   const nowIso = new Date().toISOString();
-  const attendanceSummary = await computePayslipAttendanceSummary(supabase, {
-    user_id: input.user_id,
-    period_start: input.period_start,
-    period_end: input.period_end,
-  });
+  const lateAttendance = Number(input.late_attendance ?? 0);
+  const leaves = Number(input.leaves ?? 0);
 
   const employeeIdDisplay = await resolveEmployeeIdDisplayForPayslip(input.user_id, null);
 
@@ -343,8 +340,8 @@ export async function createPayslip(input: CreatePayslipInput) {
       monthly_revenue: input.monthly_revenue,
       chargeback_amount: input.chargeback_amount,
       remaining: input.remaining,
-      late_attendance: attendanceSummary.late_attendance,
-      leaves: attendanceSummary.leaves,
+      late_attendance: lateAttendance,
+      leaves,
       paid_through: input.paid_through,
       bank_account_no: input.bank_account_no,
       bank_branch: input.bank_branch,
@@ -394,18 +391,15 @@ export async function updatePayslip(input: UpdatePayslipInput) {
   const bonus = Number(input.bonus || 0);
   const commission = Number(input.commission || 0);
   const advance = Number(input.advance || 0);
-  const netPay = basicSalary + allowances + bonus + commission + advance - deductions;
+  const netPay = basicSalary + allowances + bonus + commission - advance - deductions;
   if (netPay < 0) {
     throw new Error("Net pay cannot be negative");
   }
 
   const status = input.status || "processed";
   const sentAt = status === "paid" ? new Date().toISOString() : null;
-  const attendanceSummary = await computePayslipAttendanceSummary(supabase, {
-    user_id: input.user_id,
-    period_start: input.period_start,
-    period_end: input.period_end,
-  });
+  const lateAttendance = Number(input.late_attendance ?? 0);
+  const leaves = Number(input.leaves ?? 0);
 
   const employeeIdDisplay = await resolveEmployeeIdDisplayForPayslip(
     input.user_id,
@@ -444,8 +438,8 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       monthly_revenue: input.monthly_revenue,
       chargeback_amount: input.chargeback_amount,
       remaining: input.remaining,
-      late_attendance: attendanceSummary.late_attendance,
-      leaves: attendanceSummary.leaves,
+      late_attendance: lateAttendance,
+      leaves,
       paid_through: input.paid_through,
       bank_account_no: input.bank_account_no,
       bank_branch: input.bank_branch,

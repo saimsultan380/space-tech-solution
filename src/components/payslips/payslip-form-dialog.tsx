@@ -6,7 +6,7 @@ import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/loading";
-import { createPayslip, getPayslipAttendanceSummary, updatePayslip } from "@/lib/actions/payslips";
+import { createPayslip, updatePayslip } from "@/lib/actions/payslips";
 import type { Payslip, PayslipStatus } from "@/lib/types";
 import { formatCnic } from "@/lib/utils";
 
@@ -48,7 +48,6 @@ export function PayslipFormDialog({
   initialPayslip = null,
 }: PayslipFormDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [error, setError] = useState("");
   
   const initialEmployeeId = (initialPayslip?.employee_id_display || initialPayslip?.user?.employee_id || "");
@@ -159,39 +158,6 @@ export function PayslipFormDialog({
     }
   }, [form.user_id, mode, employeeMap]);
 
-  useEffect(() => {
-    if (mode !== "create") return;
-    if (!form.user_id || !form.period_start || !form.period_end) return;
-
-    let active = true;
-    (async () => {
-      setError("");
-      setAttendanceLoading(true);
-      try {
-        const summary = await getPayslipAttendanceSummary({
-          user_id: form.user_id,
-          period_start: form.period_start,
-          period_end: form.period_end,
-        });
-        if (!active) return;
-        setForm((prev) => ({
-          ...prev,
-          late_attendance: String(summary.late_attendance ?? 0),
-          leaves: String(summary.leaves ?? 0),
-        }));
-      } catch {
-        if (!active) return;
-        setError("Could not load late attendance/leaves from records.");
-      } finally {
-        if (active) setAttendanceLoading(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [mode, form.user_id, form.period_start, form.period_end]);
-
   const employeeOptions = employees.map((emp) => ({
     value: emp.id,
     label: `${emp.full_name} (${emp.role === "sales_agent" ? "Sales Agent" : "Processor"})`,
@@ -202,7 +168,7 @@ export function PayslipFormDialog({
     Number(form.basic_salary || 0) +
     Number(form.allowances || 0) +
     Number(form.bonus || 0) +
-    Number(form.commission || 0) +
+    Number(form.commission || 0) -
     Number(form.advance || 0) -
     Number(form.deductions || 0);
 
@@ -537,17 +503,21 @@ export function PayslipFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               id="late_attendance"
-              label={attendanceLoading ? "Late Attendance (Count) - calculating..." : "Late Attendance (Count)"}
+              label="Late Attendance (Count)"
               type="number"
+              min="0"
+              step="1"
               value={form.late_attendance}
-              disabled={mode === "create"}
+              onChange={(e) => setForm((prev) => ({ ...prev, late_attendance: e.target.value }))}
             />
             <Input
               id="leaves"
-              label={attendanceLoading ? "Leaves (Count) - calculating..." : "Leaves (Count)"}
+              label="Leaves (Count)"
               type="number"
+              min="0"
+              step="1"
               value={form.leaves}
-              disabled={mode === "create"}
+              onChange={(e) => setForm((prev) => ({ ...prev, leaves: e.target.value }))}
             />
           </div>
         </div>

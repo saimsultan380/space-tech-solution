@@ -184,7 +184,7 @@ export default async function SaleDetailPage(props: {
             <InfoRow label="Charged Amount" value={formatCurrency(sale.charged_amount, currency)} />
             <InfoRow label="Billed Month" value={formatBilledMonth(sale.billed_month)} />
             <InfoRow
-              label={isInsurance ? "Next Premium" : "Next Bill"}
+              label="Due Date"
               value={sale.next_billing_date ? formatDate(sale.next_billing_date) : "—"}
             />
           </CardContent>

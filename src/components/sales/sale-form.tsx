@@ -407,7 +407,7 @@ export function SaleForm({
               </div>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
             <Input
               id="billed_month"
               label="Billed Month"
@@ -415,13 +415,15 @@ export function SaleForm({
               value={form.billed_month}
               onChange={(e) => set("billed_month", e.target.value)}
               required
+              className="h-11 py-0 leading-none"
             />
             <Input
               id="next_billing_date"
-              label={isInsurance ? "Next Premium Generated" : "Next Bill Generated"}
+              label="Due Date"
               type="date"
               value={form.next_billing_date}
               onChange={(e) => set("next_billing_date", e.target.value)}
+              className="h-11 py-0 leading-none"
             />
           </div>
         </CardContent>

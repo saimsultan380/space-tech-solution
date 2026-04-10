@@ -21,8 +21,10 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
     Number(payslip.basic_salary || 0) +
     Number(payslip.allowances || 0) +
     Number(payslip.bonus || 0) +
-    Number(payslip.commission || 0) +
-    Number(payslip.advance || 0);
+    Number(payslip.commission || 0);
+
+  const totalDeductions =
+    Number(payslip.deductions || 0) + Number(payslip.advance || 0);
 
   return (
     <Dialog open={open} onClose={onClose} className="w-[calc(100vw-1.5rem)] max-w-4xl">
@@ -98,7 +100,6 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
                 <BreakdownRow label="Allowances" value={payslip.allowances} currency={payslip.currency} />
                 <BreakdownRow label="Bonus" value={payslip.bonus} currency={payslip.currency} />
                 <BreakdownRow label="Commission" value={payslip.commission} currency={payslip.currency} />
-                <BreakdownRow label="Advance" value={payslip.advance} currency={payslip.currency} />
                 <div className="border-t border-border pt-3">
                   <BreakdownRow label="Total Earnings" value={totalEarnings} currency={payslip.currency} className="font-bold text-success" />
                 </div>
@@ -109,8 +110,9 @@ export function PayslipDetailDialog({ payslip, open, onClose }: PayslipDetailDia
               <h4 className="font-semibold text-destructive">Deductions</h4>
               <div className="space-y-3">
                 <BreakdownRow label="Deductions" value={payslip.deductions} currency={payslip.currency} />
+                <BreakdownRow label="Advance (recovery)" value={payslip.advance} currency={payslip.currency} />
                 <div className="border-t border-border pt-3">
-                  <BreakdownRow label="Total Deductions" value={payslip.deductions} currency={payslip.currency} className="font-bold text-destructive" />
+                  <BreakdownRow label="Total Deductions" value={totalDeductions} currency={payslip.currency} className="font-bold text-destructive" />
                 </div>
               </div>
             </div>
