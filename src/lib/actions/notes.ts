@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function getNotes(params: { sale_id?: string; customer_id?: string }) {
+  await requireAuth();
   const supabase = await createClient();
   let query = supabase
     .from("notes")

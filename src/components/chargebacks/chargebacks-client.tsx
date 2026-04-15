@@ -19,10 +19,10 @@ import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { ChargebackFormDialog } from "./chargeback-form-dialog";
-import { deleteChargeback, updateChargebackStatus } from "@/lib/actions/chargebacks";
+import { deleteChargeback, updateChargebackPriority, updateChargebackStatus } from "@/lib/actions/chargebacks";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { CHARGEBACK_STATUSES } from "@/lib/constants";
-import type { UserRole, ChargebackStatus } from "@/lib/types";
+import { CHARGEBACK_PRIORITIES, CHARGEBACK_STATUSES } from "@/lib/constants";
+import type { UserRole, ChargebackPriority, ChargebackStatus } from "@/lib/types";
 import {
   Plus,
   Trash2,
@@ -34,17 +34,32 @@ import {
   UserCheck,
   Search,
   FileSpreadsheet,
+  BarChart3,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { downloadTableXlsx } from "@/lib/table-export";
+import { ChargebackCaseDialog } from "./chargeback-case-dialog";
+import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from "recharts";
+import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const statusVariant: Record<string, "default" | "success" | "destructive" | "warning"> = {
   open: "warning",
   resolved: "success",
   disputed: "destructive",
 };
+
+const priorityVariant: Record<ChargebackPriority, "default" | "success" | "destructive" | "warning"> = {
+  high: "destructive",
+  medium: "warning",
+  low: "default",
+};
+
+const reasonChartColors = ["#3B82F6", "#8B5CF6", "#14B8A6", "#F59E0B", "#EF4444"];
 
 interface ChargebacksClientProps {
   chargebacksResponse: {
@@ -53,6 +68,7 @@ interface ChargebacksClientProps {
       date: string;
       reason: string;
       status: string;
+      priority: ChargebackPriority;
       created_at: string;
       assigned_to: string | null;
       sale: {
@@ -80,6 +96,11 @@ interface ChargebacksClientProps {
       disputed: number;
       assigned: number;
       impactedAmount: number;
+      avgResolutionDays: number;
+      resolutionRate: number;
+      disputeSuccessRate: number;
+      byMonth: Array<{ month: string; count: number }>;
+      topReasons: Array<{ reason: string; count: number }>;
     };
   };
   userRole: UserRole;
@@ -97,7 +118,9 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
 
   const [showForm, setShowForm] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updatingPriorityId, setUpdatingPriorityId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
   const canCreate = userRole === "super_admin" || userRole === "processor" || userRole === "sales_agent";
   const canManage = userRole === "super_admin" || userRole === "processor";
 
@@ -120,9 +143,54 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
 
   const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
+  const selectedStatusFilters = statusFilter === "all" ? [] : statusFilter.split(",").filter(Boolean);
   const assignedToFilter = searchParams.get("assigned_to") || "all";
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
+  const minAmountFilter = searchParams.get("min_amount") || "";
+  const maxAmountFilter = searchParams.get("max_amount") || "";
+  const quickRangeFilter = searchParams.get("quick_range") || "custom";
+
+  const toDateInputValue = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const applyQuickRange = (range: "custom" | "last7" | "last30" | "quarter") => {
+    if (range === "custom") {
+      updateFilters({ quick_range: "custom", page: 1 });
+      return;
+    }
+    const today = new Date();
+    const toDate = toDateInputValue(today);
+    const fromDate = new Date(today);
+    if (range === "last7") {
+      fromDate.setDate(today.getDate() - 6);
+    } else if (range === "last30") {
+      fromDate.setDate(today.getDate() - 29);
+    } else {
+      const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+      fromDate.setMonth(quarterStartMonth, 1);
+    }
+    updateFilters({
+      from_date: toDateInputValue(fromDate),
+      to_date: toDate,
+      quick_range: range,
+      page: 1,
+    });
+  };
+
+  const toggleStatusFilter = (statusValue: string) => {
+    const nextStatuses = selectedStatusFilters.includes(statusValue)
+      ? selectedStatusFilters.filter((value) => value !== statusValue)
+      : [...selectedStatusFilters, statusValue];
+    updateFilters({
+      status: nextStatuses.length > 0 ? nextStatuses.join(",") : "all",
+      page: 1,
+    });
+  };
 
   const handleStatusChange = async (id: string, status: string) => {
     setUpdatingId(id);
@@ -143,6 +211,16 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
       // error handling
     }
     setDeletingId(null);
+  };
+
+  const handlePriorityChange = async (id: string, priority: string) => {
+    setUpdatingPriorityId(id);
+    try {
+      await updateChargebackPriority(id, priority as ChargebackPriority);
+    } catch {
+      // error handling
+    }
+    setUpdatingPriorityId(null);
   };
 
   return (
@@ -230,6 +308,109 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
         </Card>
       </div>
 
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Card>
+          <CardContent className="pt-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Resolution rate</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-success/10 text-success">
+                <CheckCircle2 className="h-4 w-4" />
+              </span>
+            </div>
+            <p className="text-2xl font-semibold">{stats.resolutionRate}%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Avg resolution time</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Clock3 className="h-4 w-4" />
+              </span>
+            </div>
+            <p className="text-2xl font-semibold">{stats.avgResolutionDays} days</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Dispute success rate</p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-warning/10 text-warning">
+                <ShieldAlert className="h-4 w-4" />
+              </span>
+            </div>
+            <p className="text-2xl font-semibold">{stats.disputeSuccessRate}%</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Monthly chargeback volume</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.byMonth.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={stats.byMonth}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                  <Tooltip
+                    cursor={false}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Top chargeback reasons</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.topReasons.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No reasons available</p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-[220px_1fr] md:items-center">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={stats.topReasons} dataKey="count" nameKey="reason" innerRadius={50} outerRadius={80}>
+                      {stats.topReasons.map((_, index) => (
+                        <Cell key={`reason-${index}`} fill={reasonChartColors[index % reasonChartColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-2">
+                  {stats.topReasons.map((entry, index) => (
+                    <div key={entry.reason} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: reasonChartColors[index % reasonChartColors.length] }}
+                        />
+                        <span className="max-w-[220px] truncate">{entry.reason}</span>
+                      </div>
+                      <span className="text-muted-foreground">{entry.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -275,55 +456,18 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
               Export
             </Button>
           </div>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
-            <div className="relative sm:col-span-2 xl:col-span-4">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-12">
+            <div className="relative sm:col-span-9">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={inputRef}
-                placeholder="Search by chargeback reason..."
+                placeholder="Search by reason, customer, company, or agent..."
                 value={searchInput}
                 onChange={(e) => onInputChange(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <div className="xl:col-span-2 min-w-0">
-              <SelectField
-                options={[{ value: "all", label: "All Statuses" }, ...CHARGEBACK_STATUSES]}
-                value={statusFilter}
-                onChange={(e) => updateFilters({ status: e.target.value })}
-              />
-            </div>
-            {userRole !== "sales_agent" && (
-              <div className="xl:col-span-2 min-w-0">
-                <SelectField
-                  options={[
-                    { value: "all", label: "All Assignees" },
-                    ...assignees.map((u) => ({ value: u.id, label: u.full_name })),
-                  ]}
-                  value={assignedToFilter}
-                  onChange={(e) => updateFilters({ assigned_to: e.target.value })}
-                />
-              </div>
-            )}
-            <div className="sm:col-span-1 xl:col-span-2 min-w-[180px]">
-              <Input
-                type="date"
-                value={fromDateFilter}
-                onChange={(e) => updateFilters({ from_date: e.target.value, page: 1 })}
-                aria-label="From date"
-                className="w-full min-w-[180px] [color-scheme:light] dark:[color-scheme:dark]"
-              />
-            </div>
-            <div className="sm:col-span-1 xl:col-span-2 min-w-[180px]">
-              <Input
-                type="date"
-                value={toDateFilter}
-                onChange={(e) => updateFilters({ to_date: e.target.value, page: 1 })}
-                aria-label="To date"
-                className="w-full min-w-[180px] [color-scheme:light] dark:[color-scheme:dark]"
-              />
-            </div>
-            <div className="sm:col-span-2 xl:col-span-2 min-w-0">
+            <div className="sm:col-span-3 min-w-0">
               <Button
                 variant="outline"
                 className="w-full"
@@ -334,11 +478,122 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
                     assigned_to: "all",
                     from_date: "",
                     to_date: "",
+                    min_amount: "",
+                    max_amount: "",
+                    quick_range: "custom",
                   })
                 }
               >
                 Clear
               </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
+            <div className="xl:col-span-2 min-w-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3.5 py-2 text-left text-sm shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <span className="truncate">
+                      {selectedStatusFilters.length === 0
+                        ? "All statuses"
+                        : selectedStatusFilters.length === 1
+                          ? CHARGEBACK_STATUSES.find((s) => s.value === selectedStatusFilters[0])?.label || "1 status"
+                          : `${selectedStatusFilters.length} statuses selected`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-2" align="start">
+                  <div className="mb-2 flex items-center justify-between px-1">
+                    <p className="text-xs font-medium text-muted-foreground">Select statuses</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => updateFilters({ status: "all", page: 1 })}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {CHARGEBACK_STATUSES.map((status) => {
+                      const isSelected = selectedStatusFilters.includes(status.value);
+                      return (
+                        <button
+                          key={status.value}
+                          type="button"
+                          onClick={() => toggleStatusFilter(status.value)}
+                          className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                        >
+                          <span>{status.label}</span>
+                          {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            {userRole !== "sales_agent" && (
+              <div className="xl:col-span-2 min-w-0">
+                <SelectField
+                  options={[
+                    { value: "all", label: "All Assignees" },
+                    ...assignees.map((u) => ({ value: u.id, label: u.full_name })),
+                  ]}
+                  value={assignedToFilter}
+                  onChange={(e) => updateFilters({ assigned_to: e.target.value, page: 1 })}
+                />
+              </div>
+            )}
+            <div className="xl:col-span-2 min-w-0">
+              <SelectField
+                options={[
+                  { value: "custom", label: "Custom range" },
+                  { value: "last7", label: "Last 7 days" },
+                  { value: "last30", label: "Last 30 days" },
+                  { value: "quarter", label: "This quarter" },
+                ]}
+                value={quickRangeFilter}
+                onChange={(e) => applyQuickRange(e.target.value as "custom" | "last7" | "last30" | "quarter")}
+              />
+            </div>
+            <div className="sm:col-span-2 xl:col-span-3 min-w-[220px]">
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
+                onApply={(range) =>
+                  updateFilters({
+                    ...toFilterDates(range),
+                    quick_range: "custom",
+                    page: 1,
+                  })
+                }
+                triggerClassName="h-11 w-full justify-start text-left font-normal"
+              />
+            </div>
+            <div className="xl:col-span-3 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Min amount"
+                value={minAmountFilter}
+                onChange={(e) => updateFilters({ min_amount: e.target.value, page: 1 })}
+                aria-label="Minimum amount"
+              />
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Max amount"
+                value={maxAmountFilter}
+                onChange={(e) => updateFilters({ max_amount: e.target.value, page: 1 })}
+                aria-label="Maximum amount"
+              />
             </div>
           </div>
         </CardHeader>
@@ -361,7 +616,8 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
                   <TableHead className="whitespace-nowrap">Chargeback Date</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
-                  {canManage && <TableHead className="min-w-[170px] text-right whitespace-nowrap">Actions</TableHead>}
+                  <TableHead>Priority</TableHead>
+                  {canCreate && <TableHead className="min-w-[170px] text-right whitespace-nowrap">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -403,34 +659,69 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
                         {cb.status}
                       </Badge>
                     </TableCell>
-                    {canManage && (
+                    <TableCell>
+                      <Badge variant={priorityVariant[cb.priority]} className="capitalize">
+                        {cb.priority}
+                      </Badge>
+                    </TableCell>
+                    {canCreate && (
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <div className="relative">
-                            <SelectField
-                              options={CHARGEBACK_STATUSES}
-                              value={cb.status}
-                              onChange={(e) => handleStatusChange(cb.id, e.target.value)}
-                              className="w-[120px] min-w-[120px]"
-                              disabled={updatingId === cb.id || deletingId === cb.id}
-                            />
-                            {updatingId === cb.id && (
-                              <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2">
-                                <Spinner />
-                              </span>
-                            )}
-                          </div>
+                          {canManage && (
+                            <div className="relative">
+                              <SelectField
+                                options={CHARGEBACK_STATUSES}
+                                value={cb.status}
+                                onChange={(e) => handleStatusChange(cb.id, e.target.value)}
+                                className="w-[104px] min-w-[104px] pr-10"
+                                disabled={updatingId === cb.id || deletingId === cb.id}
+                              />
+                              {updatingId === cb.id && (
+                                <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2">
+                                  <Spinner />
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(cb.id)}
-                            disabled={deletingId === cb.id || updatingId === cb.id}
-                            title="Delete chargeback"
-                            aria-label="Delete chargeback"
+                            className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() => setActiveCaseId(cb.id)}
+                            title="Case details"
+                            aria-label="Case details"
                           >
-                            {deletingId === cb.id ? <Spinner /> : <Trash2 className="h-4 w-4" />}
+                            <BarChart3 className="h-4 w-4" />
                           </Button>
+                          {canManage && (
+                            <>
+                              <div className="relative">
+                                <SelectField
+                                  options={CHARGEBACK_PRIORITIES}
+                                  value={cb.priority}
+                                  onChange={(e) => handlePriorityChange(cb.id, e.target.value)}
+                                  className="w-[115px] min-w-[115px]"
+                                  disabled={updatingPriorityId === cb.id || deletingId === cb.id}
+                                />
+                                {updatingPriorityId === cb.id && (
+                                  <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2">
+                                    <Spinner />
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDelete(cb.id)}
+                                disabled={deletingId === cb.id || updatingId === cb.id}
+                                title="Delete chargeback"
+                                aria-label="Delete chargeback"
+                              >
+                                {deletingId === cb.id ? <Spinner /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     )}
@@ -451,6 +742,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
       </Card>
 
       {showForm && <ChargebackFormDialog open onClose={() => setShowForm(false)} />}
+      <ChargebackCaseDialog open={!!activeCaseId} chargebackId={activeCaseId} onClose={() => setActiveCaseId(null)} />
     </div>
   );
 }

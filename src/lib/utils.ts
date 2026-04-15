@@ -50,3 +50,18 @@ export function formatCnic(value: string | null | undefined): string {
   if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
   return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
 }
+
+/**
+ * Escape user input for use inside PostgREST `.or()` / `.ilike()` filter strings.
+ * Prevents filter injection via commas, parentheses, and SQL LIKE wildcards.
+ */
+export function sanitizeFilterValue(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/,/g, "")
+    .replace(/\(/g, "")
+    .replace(/\)/g, "")
+    .replace(/\./g, "");
+}

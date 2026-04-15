@@ -39,6 +39,7 @@ import {
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { formatDate } from "@/lib/utils";
+import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 
 interface ProcessingAccountRow {
   id: string;
@@ -119,7 +120,8 @@ export function ProcessingAccountsClient({
   const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
     useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
-  const dateFilter = searchParams.get("date") || "";
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
 
   const canManage = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
 
@@ -235,7 +237,7 @@ export function ProcessingAccountsClient({
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={inputRef}
-                  placeholder="Search by account holder name..."
+                  placeholder="Search by account holder name or notes..."
                   value={searchInput}
                   onChange={(e) => onInputChange(e.target.value)}
                   className="pl-10"
@@ -251,12 +253,10 @@ export function ProcessingAccountsClient({
                 ]}
                 containerClassName="sm:w-[180px]"
               />
-              <Input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => updateFilters({ date: e.target.value })}
-                aria-label="Filter by date"
-                className="sm:w-[170px] [color-scheme:light] dark:[color-scheme:dark]"
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
+                onApply={(range) => updateFilters({ ...toFilterDates(range), page: 1 })}
+                triggerClassName="h-11 w-full justify-start text-left font-normal sm:w-[260px]"
               />
             </div>
           </div>
@@ -292,12 +292,12 @@ export function ProcessingAccountsClient({
             <EmptyState
               title="No processing accounts found"
               description={
-                urlSearch || statusFilter !== "all" || dateFilter
+                urlSearch || statusFilter !== "all" || fromDateFilter || toDateFilter
                   ? "Try adjusting your search or filters"
                   : "Add your first processing account to get started"
               }
               action={
-                canManage && !urlSearch && statusFilter === "all" && !dateFilter ? (
+                canManage && !urlSearch && statusFilter === "all" && !fromDateFilter && !toDateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Processing Account
                   </Button>

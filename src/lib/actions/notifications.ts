@@ -13,6 +13,7 @@ interface CreateNotificationInput {
 
 export async function createNotification(input: CreateNotificationInput) {
   try {
+    await requireAuth();
     const supabase = createAdminClient();
     const { error } = await supabase.from("notifications").insert({
       user_id: input.user_id,
@@ -35,6 +36,7 @@ export async function notifySuperAdmins(payload: {
   type?: string;
 }) {
   try {
+    await requireAuth();
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("users")

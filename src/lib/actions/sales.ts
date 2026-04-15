@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 function isMissingSourceColumnError(error: { message?: string } | null) {
   const message = error?.message?.toLowerCase() || "";
@@ -19,6 +20,8 @@ function isSubtypeConstraintError(error: { message?: string } | null) {
 export interface SalesStats {
   totalRecords: number;
   totalAmount: number;
+  grossChargedAmount: number;
+  chargebackImpactedAmount: number;
   totalChargedAmount: number;
   avgChargedAmount: number;
   utilityCount: number;
@@ -56,9 +59,10 @@ function applySalesFilters(
 
   const searchTerm = filters?.search?.trim();
   if (searchTerm) {
-    const like = `%${searchTerm}%`;
-    const numericSearch = Number(searchTerm.replace(/,/g, ""));
-    const isNumericSearch = Number.isFinite(numericSearch);
+    const safe = sanitizeFilterValue(searchTerm);
+    const like = `%${safe}%`;
+    const numericSearch = Number(searchTerm.replace(/[^0-9.-]/g, ""));
+    const isNumericSearch = Number.isFinite(numericSearch) && searchTerm.replace(/[^0-9.-]/g, "").length > 0;
     const textMatch = `customer_name.ilike.${like},customer_email.ilike.${like},customer_phone.ilike.${like},company_name.ilike.${like}`;
     const amountMatch = isNumericSearch
       ? `amount.eq.${numericSearch},charged_amount.eq.${numericSearch}`
@@ -80,6 +84,7 @@ export async function getSales(filters?: {
   pageSize?: number;
   search?: string;
 }) {
+  await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
@@ -96,7 +101,7 @@ export async function getSales(filters?: {
   query = applySalesFilters(query, filters);
 
   const statsQuery = applySalesFilters(
-    supabase.from("sales").select("sale_type, amount, charged_amount"),
+    supabase.from("sales").select("id, sale_type, amount, charged_amount"),
     filters,
   );
 
@@ -108,7 +113,12 @@ export async function getSales(filters?: {
   if (error) throw new Error(error.message);
   if (statsError) throw new Error(statsError.message);
 
-  const rows = (statsRows || []) as Array<{ sale_type: string | null; amount: number | null; charged_amount: number | null }>;
+  const rows = (statsRows || []) as Array<{
+    id: string;
+    sale_type: string | null;
+    amount: number | null;
+    charged_amount: number | null;
+  }>;
   const totals = rows.reduce(
     (acc, row) => {
       const amount = Number(row.amount || 0);
@@ -121,12 +131,33 @@ export async function getSales(filters?: {
     },
     { totalAmount: 0, totalChargedAmount: 0, utilityCount: 0, insuranceCount: 0 },
   );
+
+  let chargebackImpactedAmount = 0;
+  if (rows.length > 0) {
+    const chargedBySaleId = new Map(rows.map((row) => [row.id, Number(row.charged_amount || 0)]));
+    const saleIds = rows.map((row) => row.id);
+    const { data: chargebackRows, error: chargebackError } = await supabase
+      .from("chargebacks")
+      .select("sale_id")
+      .in("sale_id", saleIds);
+
+    if (chargebackError) throw new Error(chargebackError.message);
+
+    for (const chargebackRow of chargebackRows || []) {
+      const impacted = chargedBySaleId.get(chargebackRow.sale_id as string) || 0;
+      chargebackImpactedAmount += impacted;
+    }
+  }
+
+  const netTotalChargedAmount = totals.totalChargedAmount - chargebackImpactedAmount;
   const totalRecords = rows.length;
   const stats: SalesStats = {
     totalRecords,
     totalAmount: totals.totalAmount,
-    totalChargedAmount: totals.totalChargedAmount,
-    avgChargedAmount: totalRecords > 0 ? totals.totalChargedAmount / totalRecords : 0,
+    grossChargedAmount: totals.totalChargedAmount,
+    chargebackImpactedAmount,
+    totalChargedAmount: netTotalChargedAmount,
+    avgChargedAmount: totalRecords > 0 ? netTotalChargedAmount / totalRecords : 0,
     utilityCount: totals.utilityCount,
     insuranceCount: totals.insuranceCount,
   };
@@ -142,6 +173,7 @@ export async function getSales(filters?: {
 }
 
 export async function getSale(id: string) {
+  await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sales")
@@ -462,6 +494,41 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
 
   revalidatePath("/dashboard/sales");
   revalidatePath(`/dashboard/sales/${formData.id}`);
+}
+
+/** Updates free-text sale fields. Any authenticated staff member may edit (subject to RLS). */
+export async function updateSaleNoteFields(
+  saleId: string,
+  patch: {
+    other_sale_data?: string;
+    sales_notes?: string;
+    processing_notes?: string;
+  },
+) {
+  await requireAuth();
+  const supabase = await createClient();
+
+  const updatePayload: Record<string, string> = {};
+  if (patch.other_sale_data !== undefined) {
+    updatePayload.other_sale_data = patch.other_sale_data;
+  }
+  if (patch.sales_notes !== undefined) {
+    updatePayload.sales_notes = patch.sales_notes;
+  }
+  if (patch.processing_notes !== undefined) {
+    updatePayload.processing_notes = patch.processing_notes;
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.from("sales").update(updatePayload).eq("id", saleId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/sales");
+  revalidatePath(`/dashboard/sales/${saleId}`);
 }
 
 export async function updateSaleStatus(

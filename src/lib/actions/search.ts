@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 export async function globalSearch(term: string) {
   await requireAuth();
@@ -18,7 +19,8 @@ export async function globalSearch(term: string) {
     };
   }
 
-  const like = `%${q}%`;
+  const safe = sanitizeFilterValue(q);
+  const like = `%${safe}%`;
 
   const { data: saleCustomerMatches } = await supabase
     .from("customers")
@@ -45,6 +47,7 @@ export async function globalSearch(term: string) {
     supabase
       .from("payments")
       .select("id, method, amount, created_at, customer:customers(id, name), sale:sales(id, company_name)")
+      .or(`sale_id.in.(${(saleCustomerIds.length > 0 ? saleCustomerIds : []).join(",")})`)
       .limit(10),
     supabase
       .from("users")

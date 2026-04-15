@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 
 export async function getDashboardStats() {
+  await requireAuth();
   const supabase = await createClient();
 
   const [salesRes, customersRes, chargebacksRes, usersRes, leavesRes] = await Promise.all([
@@ -49,6 +50,7 @@ export async function getDashboardStats() {
 }
 
 export async function getSalesPerAgent() {
+  await requireAuth();
   const supabase = await createClient();
   const { data } = await supabase
     .from("sales")
@@ -77,6 +79,7 @@ export async function getSalesPerAgent() {
 }
 
 export async function getSalesPerProcessor() {
+  await requireAuth();
   const supabase = await createClient();
   const { data } = await supabase
     .from("sales")
@@ -105,6 +108,7 @@ export async function getSalesPerProcessor() {
 }
 
 export async function getRevenueOverTime(period: "day" | "week" | "month" = "day") {
+  await requireAuth();
   const supabase = await createClient();
   const { data } = await supabase
     .from("sales")
@@ -138,6 +142,7 @@ export async function getRevenueOverTime(period: "day" | "week" | "month" = "day
 }
 
 export async function getChargebacksPerEmployee() {
+  await requireAuth();
   const supabase = await createClient();
   const { data } = await supabase
     .from("chargebacks")
@@ -158,6 +163,7 @@ export async function getChargebacksPerEmployee() {
 }
 
 export async function getAttendanceVsPerformance() {
+  await requireAuth();
   const supabase = await createClient();
 
   const [attendanceRes, salesRes] = await Promise.all([
@@ -295,6 +301,7 @@ export async function getProcessorDashboardStats() {
 }
 
 export async function getEmployeeMonthlyStats(month?: string) {
+  await requireAuth();
   const supabase = await createClient();
 
   const targetMonth = month || new Date().toISOString().substring(0, 7); // e.g. "2026-03"

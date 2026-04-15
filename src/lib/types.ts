@@ -4,6 +4,7 @@ export type SaleType = "utility" | "insurance";
 export type SaleSubtype = "new" | "bill" | "premium" | "cancellation";
 export type SaleStatus = "pending" | "approved" | "rejected";
 export type ChargebackStatus = "open" | "resolved" | "disputed";
+export type ChargebackPriority = "high" | "medium" | "low";
 export type LeaveStatus = "pending" | "approved" | "rejected";
 export type PaymentMethod = "card" | "bank";
 export type PayslipStatus = "processed" | "paid";
@@ -181,6 +182,7 @@ export interface Chargeback {
   date: string;
   reason: string;
   status: ChargebackStatus;
+  priority: ChargebackPriority;
   created_at: string;
   sale?: Sale;
   assignee?: Pick<AppUser, "id" | "full_name"> | null;

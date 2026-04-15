@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 function revalidateCallLogsResponsesPaths() {
   revalidatePath("/dashboard/call-logs-responses");
@@ -20,6 +21,16 @@ function createdAtDayBoundsUtc(yyyyMmDd: string): { start: string; end: string }
   return { start, end };
 }
 
+function dateOnlyUtcStart(yyyyMmDd: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd.trim())) return null;
+  return `${yyyyMmDd.trim()}T00:00:00.000Z`;
+}
+
+function dateOnlyUtcEnd(yyyyMmDd: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd.trim())) return null;
+  return `${yyyyMmDd.trim()}T23:59:59.999Z`;
+}
+
 function isMissingSourceColumnError(error: { message?: string } | null) {
   const message = error?.message?.toLowerCase() || "";
   return message.includes("source") && (message.includes("column") || message.includes("schema cache"));
@@ -29,9 +40,12 @@ export async function getCustomers(filters?: {
   page?: number;
   pageSize?: number;
   search?: string;
-  /** Filter by record created date (UTC calendar day), format YYYY-MM-DD */
-  createdDate?: string;
+  /** Filter by record created from date (UTC day), format YYYY-MM-DD */
+  createdFromDate?: string;
+  /** Filter by record created to date (UTC day), format YYYY-MM-DD */
+  createdToDate?: string;
 }) {
+  await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
@@ -40,11 +54,23 @@ export async function getCustomers(filters?: {
   const applySharedFilters = (query: any) => {
     let next = query;
     if (filters?.search) {
-      next = next.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+      const safe = sanitizeFilterValue(filters.search);
+      next = next.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`);
     }
-    const dayBounds = filters?.createdDate?.trim() ? createdAtDayBoundsUtc(filters.createdDate.trim()) : null;
-    if (dayBounds) {
-      next = next.gte("created_at", dayBounds.start).lt("created_at", dayBounds.end);
+    if (filters?.createdFromDate?.trim() && filters?.createdToDate?.trim() && filters.createdFromDate === filters.createdToDate) {
+      const dayBounds = createdAtDayBoundsUtc(filters.createdFromDate.trim());
+      if (dayBounds) {
+        next = next.gte("created_at", dayBounds.start).lt("created_at", dayBounds.end);
+      }
+      return next;
+    }
+    const fromStart = filters?.createdFromDate?.trim() ? dateOnlyUtcStart(filters.createdFromDate.trim()) : null;
+    const toEnd = filters?.createdToDate?.trim() ? dateOnlyUtcEnd(filters.createdToDate.trim()) : null;
+    if (fromStart) {
+      next = next.gte("created_at", fromStart);
+    }
+    if (toEnd) {
+      next = next.lte("created_at", toEnd);
     }
     return next;
   };
@@ -125,6 +151,7 @@ export async function getCustomers(filters?: {
 }
 
 export async function getCustomer(id: string) {
+  await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("customers")
@@ -271,11 +298,13 @@ export async function deleteCustomer(id: string) {
 }
 
 export async function searchCustomers(query: string) {
+  await requireAuth();
   const supabase = await createClient();
+  const safe = sanitizeFilterValue(query.trim());
   const { data, error } = await supabase
     .from("customers")
     .select("id, name, email, phone")
-    .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
+    .or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`)
     .limit(20);
 
   if (error) throw new Error(error.message);

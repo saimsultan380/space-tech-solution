@@ -65,26 +65,21 @@ export async function updateProfile(formData: {
   if (formData.address !== undefined) {
     updateData.address = formData.address || null;
   }
-  if (formData.pay_days !== undefined) {
-    updateData.pay_days = formData.pay_days;
+
+  // HR/payroll fields — only super_admin may modify these
+  const HR_FIELDS = ["pay_days", "pay_rate", "gross_pay", "basic_salary", "paid_through", "bank_account_no", "bank_branch"] as const;
+  const hasHrChange = HR_FIELDS.some((f) => formData[f] !== undefined);
+  if (hasHrChange && user.role !== "super_admin") {
+    throw new Error("Only administrators can update pay and salary fields");
   }
-  if (formData.pay_rate !== undefined) {
-    updateData.pay_rate = formData.pay_rate;
-  }
-  if (formData.gross_pay !== undefined) {
-    updateData.gross_pay = formData.gross_pay;
-  }
-  if (formData.basic_salary !== undefined) {
-    updateData.basic_salary = formData.basic_salary;
-  }
-  if (formData.paid_through !== undefined) {
-    updateData.paid_through = formData.paid_through || null;
-  }
-  if (formData.bank_account_no !== undefined) {
-    updateData.bank_account_no = formData.bank_account_no || null;
-  }
-  if (formData.bank_branch !== undefined) {
-    updateData.bank_branch = formData.bank_branch || null;
+  if (hasHrChange && user.role === "super_admin") {
+    if (formData.pay_days !== undefined) updateData.pay_days = formData.pay_days;
+    if (formData.pay_rate !== undefined) updateData.pay_rate = formData.pay_rate;
+    if (formData.gross_pay !== undefined) updateData.gross_pay = formData.gross_pay;
+    if (formData.basic_salary !== undefined) updateData.basic_salary = formData.basic_salary;
+    if (formData.paid_through !== undefined) updateData.paid_through = formData.paid_through || null;
+    if (formData.bank_account_no !== undefined) updateData.bank_account_no = formData.bank_account_no || null;
+    if (formData.bank_branch !== undefined) updateData.bank_branch = formData.bank_branch || null;
   }
 
   const { error } = await admin

@@ -10,14 +10,13 @@ import { NotesSection } from "@/components/shared/notes-section";
 import { decrypt } from "@/lib/encryption";
 import { getSaleAttachments } from "@/lib/actions/sale-attachments";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
+import { SaleDetailNoteFields } from "@/components/sales/sale-detail-note-fields";
 import Link from "next/link";
 import {
   ArrowLeft,
   User,
   Building2,
   DollarSign,
-  CreditCard,
-  FileText,
   Shield,
   Zap,
   LayoutGrid,
@@ -297,42 +296,12 @@ export default async function SaleDetailPage(props: {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-4 w-4 text-orange-500" /> Other Sale Data
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm whitespace-pre-wrap text-foreground">
-            {sale.other_sale_data?.trim() ? sale.other_sale_data : "—"}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <CreditCard className="h-4 w-4" /> Sales Notes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm whitespace-pre-wrap text-foreground">
-            {sale.sales_notes?.trim() ? sale.sales_notes : "—"}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Processing Notes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm whitespace-pre-wrap text-foreground">
-            {sale.processing_notes?.trim() ? sale.processing_notes : "—"}
-          </p>
-        </CardContent>
-      </Card>
+      <SaleDetailNoteFields
+        saleId={sale.id}
+        initialOtherSaleData={sale.other_sale_data}
+        initialSalesNotes={sale.sales_notes}
+        initialProcessingNotes={sale.processing_notes}
+      />
 
       <SaleAttachmentsSection
         saleId={sale.id}

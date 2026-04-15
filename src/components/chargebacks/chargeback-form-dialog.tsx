@@ -10,6 +10,8 @@ import { Spinner } from "@/components/ui/loading";
 import { X } from "lucide-react";
 import { createChargeback } from "@/lib/actions/chargebacks";
 import { createClient } from "@/lib/supabase/client";
+import { CHARGEBACK_PRIORITIES } from "@/lib/constants";
+import type { ChargebackPriority } from "@/lib/types";
 
 interface ChargebackFormDialogProps {
   open: boolean;
@@ -30,8 +32,10 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       customer_email: string | null;
       amount: number | null;
       charged_amount: number | null;
+      created_at: string;
     }>
   >([]);
+  const [saleCardLastFourById, setSaleCardLastFourById] = useState<Record<string, string>>({});
   const [saleSearch, setSaleSearch] = useState("");
   const [salesLoading, setSalesLoading] = useState(false);
   const [showSaleOptions, setShowSaleOptions] = useState(false);
@@ -45,6 +49,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     customer_email: string | null;
     amount: number | null;
     charged_amount: number | null;
+      created_at: string;
   } | null>(null);
   const [assignableUsers, setAssignableUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
 
@@ -53,6 +58,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     assigned_to: "",
     date: new Date().toISOString().split("T")[0],
     reason: "",
+    priority: "medium" as ChargebackPriority,
   });
 
   useEffect(() => {
@@ -64,9 +70,11 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       assigned_to: "",
       date: new Date().toISOString().split("T")[0],
       reason: "",
+      priority: "medium" as ChargebackPriority,
     });
     setSaleSearch("");
     setSales([]);
+    setSaleCardLastFourById({});
     setShowSaleOptions(false);
     setSelectedSaleSnapshot(null);
 
@@ -91,7 +99,9 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       const q = saleSearch.trim();
       const base = supabase
         .from("sales")
-        .select("id, company_name, agent_id, customer_id, customer_name, customer_phone, customer_email, amount, charged_amount")
+        .select(
+          "id, company_name, agent_id, customer_id, customer_name, customer_phone, customer_email, amount, charged_amount, created_at",
+        )
         .neq("status", "rejected")
         .order("created_at", { ascending: false })
         .limit(100);
@@ -108,8 +118,66 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
               `customer_name.ilike.%${q}%,company_name.ilike.%${q}%,customer_phone.ilike.%${q}%,customer_email.ilike.%${q}%,account_holder_name.ilike.%${q}%${amountOr}`,
             );
 
-      const { data: salesData } = await query;
-      setSales(salesData || []);
+      const cardDigits = q.replace(/\D/g, "");
+      const shouldSearchCardLast4 = cardDigits.length >= 2;
+
+      const [{ data: salesData }, { data: paymentMatches }] = await Promise.all([
+        query,
+        shouldSearchCardLast4
+          ? supabase
+              .from("payments")
+              .select("sale_id")
+              .ilike("card_last_four", `%${cardDigits}%`)
+              .limit(200)
+          : Promise.resolve({ data: [] as Array<{ sale_id: string }> }),
+      ]);
+
+      const initialSales = salesData || [];
+      const paymentMatchedSaleIds = Array.from(
+        new Set((paymentMatches || []).map((row) => row.sale_id).filter(Boolean)),
+      );
+
+      const missingSaleIds = paymentMatchedSaleIds.filter(
+        (id) => !initialSales.some((sale) => sale.id === id),
+      );
+
+      let mergedSales = initialSales;
+      if (missingSaleIds.length > 0) {
+        const { data: additionalSales } = await supabase
+          .from("sales")
+          .select(
+            "id, company_name, agent_id, customer_id, customer_name, customer_phone, customer_email, amount, charged_amount, created_at",
+          )
+          .neq("status", "rejected")
+          .in("id", missingSaleIds)
+          .order("created_at", { ascending: false });
+        mergedSales = [...initialSales, ...(additionalSales || [])];
+      }
+
+      const dedupedSales = Array.from(new Map(mergedSales.map((sale) => [sale.id, sale])).values()).slice(0, 100);
+      setSales(dedupedSales);
+
+      if (dedupedSales.length > 0) {
+        const { data: paymentRows } = await supabase
+          .from("payments")
+          .select("sale_id, card_last_four, created_at")
+          .in(
+            "sale_id",
+            dedupedSales.map((sale) => sale.id),
+          )
+          .not("card_last_four", "is", null)
+          .order("created_at", { ascending: false });
+
+        const lastFourBySaleId: Record<string, string> = {};
+        for (const row of paymentRows || []) {
+          if (!row.sale_id || !row.card_last_four || lastFourBySaleId[row.sale_id]) continue;
+          lastFourBySaleId[row.sale_id] = row.card_last_four;
+        }
+        setSaleCardLastFourById(lastFourBySaleId);
+      } else {
+        setSaleCardLastFourById({});
+      }
+
       setSalesLoading(false);
     }, 250);
 
@@ -156,7 +224,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
             <Input
               id="sale_search"
               aria-label="Sale"
-              placeholder="Search and select a sale"
+              placeholder="Search by name, phone, amount, or card last 4"
               value={saleSearch}
               className={form.sale_id ? "pr-10" : undefined}
               onFocus={() => setShowSaleOptions(true)}
@@ -195,9 +263,10 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
                     <p className="px-3 py-2 text-sm text-muted-foreground">No sales found</p>
                   ) : (
                     sales.map((s) => {
+                      const cardLastFour = saleCardLastFourById[s.id];
                       const label = s.customer_name
-                        ? `${s.customer_name} — ${s.company_name}${s.customer_phone ? ` (${s.customer_phone})` : ""}${s.charged_amount != null ? ` — $${Number(s.charged_amount).toFixed(2)}` : ""}`
-                        : `${s.company_name}${s.customer_phone ? ` (${s.customer_phone})` : ""}${s.charged_amount != null ? ` — $${Number(s.charged_amount).toFixed(2)}` : ""}`;
+                        ? `${s.customer_name} — ${s.company_name}${s.customer_phone ? ` (${s.customer_phone})` : ""}${s.charged_amount != null ? ` — $${Number(s.charged_amount).toFixed(2)}` : ""}${cardLastFour ? ` — Card ****${cardLastFour}` : ""}`
+                        : `${s.company_name}${s.customer_phone ? ` (${s.customer_phone})` : ""}${s.charged_amount != null ? ` — $${Number(s.charged_amount).toFixed(2)}` : ""}${cardLastFour ? ` — Card ****${cardLastFour}` : ""}`;
                       return (
                         <button
                           key={s.id}
@@ -263,6 +332,16 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
           required
         />
+        <div className="space-y-1.5">
+          <Select
+            id="priority"
+            label="Priority"
+            options={CHARGEBACK_PRIORITIES}
+            value={form.priority}
+            onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as ChargebackPriority }))}
+            required
+          />
+        </div>
         <Textarea
           id="reason"
           label="Reason"

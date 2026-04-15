@@ -20,20 +20,9 @@ export async function getAppUser(): Promise<AppUser | null> {
     .single();
 
   if (error || !data) {
-    // Auth user exists but no profile row yet — return a fallback
-    // so we don't redirect to /login and cause an infinite loop
-    return {
-      id: user.id,
-      email: user.email ?? "",
-      full_name: user.email?.split("@")[0] ?? "User",
-      employee_id: "ST-0000",
-      role: "sales_agent",
-      is_active: true,
-      created_at: new Date().toISOString(),
-      avatar_url: null,
-      preferred_currency: "PKR",
-      allowed_modules: null,
-    };
+    // Auth user exists but no profile row — treat as unauthorised
+    // instead of synthesising a fake active user with default role.
+    return null;
   }
 
   return data;

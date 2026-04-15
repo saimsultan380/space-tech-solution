@@ -62,6 +62,12 @@ export const CHARGEBACK_STATUSES = [
   { value: "disputed", label: "Disputed" },
 ];
 
+export const CHARGEBACK_PRIORITIES = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+];
+
 export const LEAVE_STATUSES = [
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },

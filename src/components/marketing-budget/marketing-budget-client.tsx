@@ -24,6 +24,7 @@ import {
   type MarketingEntryStats,
 } from "@/lib/actions/marketing-budget";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
+import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 import type { MarketingEntryCampaign } from "@/lib/types";
 import {
   Plus,
@@ -184,20 +185,18 @@ export function MarketingBudgetClient({
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Input
-              id="filter_from"
-              label="From Date"
-              type="date"
-              value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-            />
-            <Input
-              id="filter_to"
-              label="To Date"
-              type="date"
-              value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-            />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Date Range</label>
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(filterStartDate, filterEndDate)}
+                onApply={(range) => {
+                  const dates = toFilterDates(range);
+                  setFilterStartDate(dates.from_date || "");
+                  setFilterEndDate(dates.to_date || "");
+                }}
+                triggerClassName="h-11 w-full justify-start text-left font-normal"
+              />
+            </div>
             <Select
               id="filter_campaign"
               label="Campaign"

@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { ProcessingAccountImportPayload, ProcessingAccountStatus } from "@/lib/types";
+import { sanitizeFilterValue } from "@/lib/utils";
 
 function safeDecrypt(ciphertext: string | null | undefined): string {
   if (!ciphertext?.trim()) return "";
@@ -29,6 +30,7 @@ export interface ProcessingAccountStats {
 }
 
 export async function getProcessingAccountStats(): Promise<ProcessingAccountStats> {
+  await requireAuth();
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -53,8 +55,10 @@ export async function getProcessingAccounts(filters?: {
   pageSize?: number;
   search?: string;
   status?: ProcessingAccountStatus | "all";
-  date?: string;
+  from_date?: string;
+  to_date?: string;
 }) {
+  await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
@@ -66,18 +70,22 @@ export async function getProcessingAccounts(filters?: {
     .order("created_at", { ascending: false });
 
   if (filters?.search) {
+    const safe = sanitizeFilterValue(filters.search);
     query = query.or(
-      `account_holder_name.ilike.%${filters.search}%,billing_address.ilike.%${filters.search}%`
+      `account_holder_name.ilike.%${safe}%,billing_address.ilike.%${safe}%,notes.ilike.%${safe}%`
     );
   }
 
   if (filters?.status && filters.status !== "all") {
     query = query.eq("status", filters.status);
   }
-  if (filters?.date) {
+  if (filters?.from_date) {
     query = query
-      .gte("created_at", `${filters.date}T00:00:00.000Z`)
-      .lte("created_at", `${filters.date}T23:59:59.999Z`);
+      .gte("created_at", `${filters.from_date}T00:00:00.000Z`);
+  }
+  if (filters?.to_date) {
+    query = query
+      .lte("created_at", `${filters.to_date}T23:59:59.999Z`);
   }
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
@@ -100,6 +108,7 @@ export async function getProcessingAccounts(filters?: {
 }
 
 export async function getProcessingAccount(id: string) {
+  await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("processing_accounts")

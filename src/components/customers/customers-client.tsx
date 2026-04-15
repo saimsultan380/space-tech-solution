@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -21,11 +21,12 @@ import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, Eye, CalendarDays } from "lucide-react";
+import { Plus, Search, Eye } from "lucide-react";
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
+import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 
 interface CustomersClientProps {
   customersResponse: {
@@ -85,22 +86,8 @@ export function CustomersClient({
   const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
     useDebouncedUrlSearchInput(searchParams, updateFilters);
 
-  const dateFilter = searchParams.get("date") || "";
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  const openDatePicker = () => {
-    const el = dateInputRef.current;
-    if (!el) return;
-    try {
-      if (typeof el.showPicker === "function") {
-        el.showPicker();
-      } else {
-        el.focus();
-      }
-    } catch {
-      el.focus();
-    }
-  };
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
 
   /** Super admin, sales agents, and processors (when given Call Logs access) use full list management UI. */
   const canManageCallLogs =
@@ -161,25 +148,11 @@ export function CustomersClient({
                   aria-label="Search call logs responses"
                 />
               </div>
-              <div className="relative w-full max-w-[152px] shrink-0 sm:w-[152px] sm:max-w-[152px]">
-                <Input
-                  ref={dateInputRef}
-                  id="call_logs_created_date"
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => updateFilters({ date: e.target.value, page: 1 })}
-                  className="h-11 w-full max-w-full pr-10 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden sm:h-11"
-                  aria-label="Filter by date"
-                />
-                <button
-                  type="button"
-                  onClick={openDatePicker}
-                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  aria-label="Open date picker"
-                >
-                  <CalendarDays className="h-4 w-4 shrink-0" />
-                </button>
-              </div>
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
+                onApply={(range) => updateFilters({ ...toFilterDates(range), page: 1 })}
+                triggerClassName="h-11 w-full justify-start text-left font-normal sm:w-[260px]"
+              />
             </div>
             <p className="shrink-0 text-sm text-muted-foreground md:max-w-[min(100%,14rem)] md:text-right">
               {count} call log response{count !== 1 ? "s" : ""}
@@ -192,12 +165,12 @@ export function CustomersClient({
             <EmptyState
               title="No call logs responses found"
               description={
-                urlSearch || dateFilter
+                urlSearch || fromDateFilter || toDateFilter
                   ? "Try adjusting your search or created date filter"
                   : "Add your first call log response to get started"
               }
               action={
-                canManageCallLogs && !urlSearch && !dateFilter ? (
+                canManageCallLogs && !urlSearch && !fromDateFilter && !toDateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Call Log Response
                   </Button>

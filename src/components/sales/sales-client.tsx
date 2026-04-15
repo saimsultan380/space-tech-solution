@@ -21,7 +21,8 @@ import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_TYPES } from "@/lib/constants";
 import { deleteSale } from "@/lib/actions/sales";
 import type { UserRole } from "@/lib/types";
-import { Plus, Search, Eye, Pencil, Trash2, Database, CircleDollarSign, Wallet, Target, Zap, Shield } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Database, Wallet, Target, Zap, Shield } from "lucide-react";
+import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 import Link from "next/link";
 import {
   Dialog,
@@ -55,6 +56,8 @@ interface SalesClientProps {
     stats: {
       totalRecords: number;
       totalAmount: number;
+      grossChargedAmount: number;
+      chargebackImpactedAmount: number;
       totalChargedAmount: number;
       avgChargedAmount: number;
       utilityCount: number;
@@ -148,7 +151,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
@@ -163,23 +166,23 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
         <Card>
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Total amount</p>
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-success/10 text-success">
-                <CircleDollarSign className="h-4 w-4" />
-              </span>
-            </div>
-            <p className="text-2xl font-semibold">{formatCurrency(stats.totalAmount, currency)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5">
-            <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Total charged</p>
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <Wallet className="h-4 w-4" />
               </span>
             </div>
             <p className="text-2xl font-semibold">{formatCurrency(stats.totalChargedAmount, currency)}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              <span className="text-foreground">{formatCurrency(stats.grossChargedAmount, currency)}</span>
+              {" "}
+              <span className="text-muted-foreground">-</span>
+              {" "}
+              <span className="text-destructive">{formatCurrency(stats.chargebackImpactedAmount, currency)}</span>
+              {" "}
+              <span className="text-muted-foreground">=</span>
+              {" "}
+              <span className="font-medium text-primary">{formatCurrency(stats.totalChargedAmount, currency)}</span>
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -249,22 +252,11 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                 />
               </div>
             )}
-            <div className="sm:col-span-1 xl:col-span-2 min-w-[180px]">
-              <Input
-                type="date"
-                value={fromDateFilter}
-                onChange={(e) => updateFilters({ from_date: e.target.value, page: 1 })}
-                aria-label="From date"
-                className="w-full min-w-[180px] [color-scheme:light] dark:[color-scheme:dark]"
-              />
-            </div>
-            <div className="sm:col-span-1 xl:col-span-2 min-w-[180px]">
-              <Input
-                type="date"
-                value={toDateFilter}
-                onChange={(e) => updateFilters({ to_date: e.target.value, page: 1 })}
-                aria-label="To date"
-                className="w-full min-w-[180px] [color-scheme:light] dark:[color-scheme:dark]"
+            <div className="sm:col-span-1 xl:col-span-4 min-w-[220px]">
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
+                onApply={(range) => updateFilters({ ...toFilterDates(range), page: 1 })}
+                triggerClassName="h-11 w-full justify-start text-left font-normal"
               />
             </div>
             <div className="sm:col-span-2 xl:col-span-2 min-w-0">

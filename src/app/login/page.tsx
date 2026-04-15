@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -22,9 +21,7 @@ export default function LoginPage() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("inactive") === "1") {
-      setNotice(
-        "Your account is inactive. It was deactivated by an administrator. Please contact admin to reactivate it.",
-      );
+      setError("Your session has expired. Please sign in again.");
     }
   }, []);
 
@@ -41,12 +38,11 @@ export default function LoginPage() {
       });
 
     if (authError) {
-      setError(authError.message);
+      setError("Invalid email or password");
       setLoading(false);
       return;
     }
 
-    // If auth succeeded but the profile is inactive, immediately sign out and show a clear notice.
     try {
       const userId = authData.user?.id;
       if (userId) {
@@ -58,9 +54,7 @@ export default function LoginPage() {
 
         if (profile?.is_active === false) {
           await supabase.auth.signOut();
-          setNotice(
-            "Your account is inactive. It was deactivated by an administrator. Please contact admin to reactivate it.",
-          );
+          setError("Invalid email or password");
           setLoading(false);
           return;
         }
@@ -237,13 +231,6 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
-              {notice && (
-                <div className="flex items-center gap-3 rounded-md bg-destructive/5 border border-destructive/30 px-4 py-3 text-[14px] text-destructive animate-in fade-in zoom-in duration-300">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <p className="font-medium">{notice}</p>
-                </div>
-              )}
 
               {error && (
                 <div className="flex items-center gap-3 rounded-md bg-destructive/5 border border-destructive/20 px-4 py-3 text-[14px] text-destructive animate-in fade-in zoom-in duration-300">

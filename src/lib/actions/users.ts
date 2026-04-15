@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
 import { NAV_ITEMS } from "@/lib/constants";
-import { formatCnic } from "@/lib/utils";
+import { formatCnic, sanitizeFilterValue } from "@/lib/utils";
 
 export async function getUsers(filters?: {
   page?: number;
@@ -25,7 +25,8 @@ export async function getUsers(filters?: {
     .order("created_at", { ascending: false });
 
   if (filters?.search) {
-    query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
+    const safe = sanitizeFilterValue(filters.search);
+    query = query.or(`full_name.ilike.%${safe}%,email.ilike.%${safe}%`);
   }
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);

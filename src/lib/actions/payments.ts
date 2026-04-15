@@ -6,6 +6,7 @@ import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
 export async function getPayments() {
+  await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("payments")

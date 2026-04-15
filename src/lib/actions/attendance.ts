@@ -64,6 +64,7 @@ export async function getAttendance(filters?: {
   page?: number;
   pageSize?: number;
 }) {
+  await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
@@ -239,6 +240,7 @@ export async function getTodayAttendance() {
 }
 
 export async function getMonthlyAttendanceSummary(month?: string, userId?: string) {
+  await requireAuth();
   const supabase = await createClient();
 
   const targetMonth = month || new Date().toISOString().substring(0, 7);
