@@ -1,43 +1,43 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { AppUser, UserRole } from "@/lib/types";
 
-export async function getSession() {
+/**
+ * Cached per-request: resolves the Supabase auth user once,
+ * reused across layout → page → server actions within the same request.
+ */
+export const getSession = cache(async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
-}
+});
 
-export async function getAppUser(): Promise<AppUser | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+/**
+ * Cached per-request: resolves the app profile row once.
+ */
+export const getAppUser = cache(async (): Promise<AppUser | null> => {
+  const user = await getSession();
   if (!user) return null;
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("users")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  if (error || !data) {
-    // Auth user exists but no profile row — treat as unauthorised
-    // instead of synthesising a fake active user with default role.
-    return null;
-  }
-
+  if (error || !data) return null;
   return data;
-}
+});
 
 export async function requireAuth(): Promise<AppUser> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
+  const user = await getSession();
   if (!user) redirect("/login");
 
   const appUser = await getAppUser();
   if (!appUser) redirect("/login");
   if (appUser.is_active === false) {
-    // User is authenticated in Supabase Auth but disabled in app profile
     redirect("/login?inactive=1");
   }
   return appUser;

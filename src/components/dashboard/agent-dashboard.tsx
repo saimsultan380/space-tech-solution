@@ -181,14 +181,14 @@ export function AgentDashboard({
         <Card className="text-center">
           <CardContent className="pt-6">
             <DollarSign className="mx-auto mb-2 h-8 w-8 text-blue-500" />
-            <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue, currency)}</p>
+            <p className="text-2xl font-semibold">{formatCurrency(stats.totalRevenue, currency)}</p>
             <p className="text-sm text-muted-foreground">Total revenue (excl. rejected)</p>
           </CardContent>
         </Card>
         <Card className="text-center">
           <CardContent className="pt-6">
             <ShoppingCart className="mx-auto mb-2 h-8 w-8 text-violet-500" />
-            <p className="text-2xl font-bold">{stats.totalSales}</p>
+            <p className="text-2xl font-semibold">{stats.totalSales}</p>
             <p className="text-sm text-muted-foreground">Total sales</p>
           </CardContent>
         </Card>

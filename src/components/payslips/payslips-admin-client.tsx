@@ -261,7 +261,7 @@ export function PayslipsAdminClient({
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Total Payslips
             </p>
-            <p className="mt-2 text-3xl font-bold text-foreground">
+            <p className="mt-2 text-3xl font-semibold text-foreground">
               {totals.total}
             </p>
           </CardContent>
@@ -271,7 +271,7 @@ export function PayslipsAdminClient({
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Paid
             </p>
-            <p className="mt-2 text-3xl font-bold text-success">
+            <p className="mt-2 text-3xl font-semibold text-success">
               {totals.paid}
             </p>
           </CardContent>
@@ -281,7 +281,7 @@ export function PayslipsAdminClient({
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Processed
             </p>
-            <p className="mt-2 text-3xl font-bold text-warning">
+            <p className="mt-2 text-3xl font-semibold text-warning">
               {totals.processed}
             </p>
           </CardContent>

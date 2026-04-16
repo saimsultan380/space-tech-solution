@@ -1,8 +1,7 @@
 import { requireRole } from "@/lib/auth";
 import {
   getMarketingEntriesPage,
-  getMarketingEntryStats,
-  getMarketingEntryChartData,
+  getMarketingEntryStatsAndChart,
 } from "@/lib/actions/marketing-budget";
 import { MarketingBudgetClient } from "@/components/marketing-budget/marketing-budget-client";
 import type { MarketingEntryCampaign } from "@/lib/types";
@@ -32,7 +31,7 @@ export default async function MarketingBudgetPage(props: MarketingBudgetPageProp
   const q = searchParams?.q?.trim() || "";
   const page = Math.max(1, Number.parseInt(searchParams?.page || "1", 10) || 1);
 
-  const [entriesResponse, stats, chartData] = await Promise.all([
+  const [entriesResponse, { stats, chartData }] = await Promise.all([
     getMarketingEntriesPage({
       startDate: filters.startDate || undefined,
       endDate: filters.endDate || undefined,
@@ -41,12 +40,7 @@ export default async function MarketingBudgetPage(props: MarketingBudgetPageProp
       page,
       pageSize: ENTRIES_PAGE_SIZE,
     }),
-    getMarketingEntryStats({
-      startDate: filters.startDate || undefined,
-      endDate: filters.endDate || undefined,
-      campaign: filters.campaign,
-    }),
-    getMarketingEntryChartData({
+    getMarketingEntryStatsAndChart({
       startDate: filters.startDate || undefined,
       endDate: filters.endDate || undefined,
       campaign: filters.campaign,

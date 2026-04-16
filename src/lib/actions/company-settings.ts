@@ -9,14 +9,32 @@ export type CompanySettings = {
   address_line: string;
   contact_email: string;
   logo_url: string | null;
+  sidebar_color: string | null;
+  sidebar_text_color: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
+  active_tab_color: string | null;
+  active_tab_text_color: string | null;
 };
+
+export type ThemeColors = Pick<
+  CompanySettings,
+  | "sidebar_color"
+  | "sidebar_text_color"
+  | "button_color"
+  | "button_text_color"
+  | "active_tab_color"
+  | "active_tab_text_color"
+>;
 
 export async function getCompanySettings(): Promise<CompanySettings> {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_settings")
-    .select("company_name, address_line, contact_email, logo_url")
+    .select(
+      "company_name, address_line, contact_email, logo_url, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color"
+    )
     .eq("id", 1)
     .single();
 
@@ -26,10 +44,18 @@ export async function getCompanySettings(): Promise<CompanySettings> {
     address_line: data.address_line,
     contact_email: data.contact_email,
     logo_url: data.logo_url ?? null,
+    sidebar_color: data.sidebar_color ?? null,
+    sidebar_text_color: data.sidebar_text_color ?? null,
+    button_color: data.button_color ?? null,
+    button_text_color: data.button_text_color ?? null,
+    active_tab_color: data.active_tab_color ?? null,
+    active_tab_text_color: data.active_tab_text_color ?? null,
   };
 }
 
-export async function updateCompanySettings(input: CompanySettings) {
+type BrandingInput = Pick<CompanySettings, "company_name" | "address_line" | "contact_email" | "logo_url">;
+
+export async function updateCompanySettings(input: BrandingInput) {
   await requireRole(["super_admin"]);
   const supabase = await createClient();
   const { error } = await supabase
@@ -45,5 +71,31 @@ export async function updateCompanySettings(input: CompanySettings) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/settings");
+}
+
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+function validHex(v: string | null): string | null {
+  if (!v) return null;
+  return HEX_RE.test(v) ? v : null;
+}
+
+export async function updateThemeColors(input: ThemeColors) {
+  await requireRole(["super_admin"]);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("company_settings")
+    .update({
+      sidebar_color: validHex(input.sidebar_color),
+      sidebar_text_color: validHex(input.sidebar_text_color),
+      button_color: validHex(input.button_color),
+      button_text_color: validHex(input.button_text_color),
+      active_tab_color: validHex(input.active_tab_color),
+      active_tab_text_color: validHex(input.active_tab_text_color),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard", "layout");
 }
 

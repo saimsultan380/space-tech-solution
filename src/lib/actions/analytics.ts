@@ -6,46 +6,47 @@ import { requireAuth } from "@/lib/auth";
 export async function getDashboardStats() {
   await requireAuth();
   const supabase = await createClient();
+  const today = new Date().toISOString().split("T")[0];
 
-  const [salesRes, customersRes, chargebacksRes, usersRes, leavesRes] = await Promise.all([
-    supabase.from("sales").select("id, status, charged_amount, agent_id, sale_type, created_at"),
+  const [
+    totalSalesRes,
+    rejectedSalesRes,
+    revenueRes,
+    customersRes,
+    totalChargebacksRes,
+    openChargebacksRes,
+    pendingLeavesRes,
+    todayLeavesRes,
+  ] = await Promise.all([
+    supabase.from("sales").select("id", { count: "exact", head: true }),
+    supabase.from("sales").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+    supabase.from("sales").select("charged_amount").neq("status", "rejected"),
     supabase.from("customers").select("id", { count: "exact", head: true }),
-    supabase.from("chargebacks").select("id, status", { count: "exact" }),
-    supabase.from("users").select("id, role", { count: "exact" }),
-    supabase.from("leaves").select("id, status, start_date, end_date"),
+    supabase.from("chargebacks").select("id", { count: "exact", head: true }),
+    supabase.from("chargebacks").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("leaves").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("leaves").select("id", { count: "exact", head: true })
+      .eq("status", "approved").lte("start_date", today).gte("end_date", today),
   ]);
 
-  const sales = salesRes.data || [];
-  const rejectedSales = sales.filter((s) => s.status === "rejected").length;
-  const recordedSales = sales.length - rejectedSales;
-  const totalRevenue = sales
-    .filter((s) => s.status !== "rejected")
-    .reduce((sum, s) => sum + Number(s.charged_amount), 0);
-  const totalChargebacks = chargebacksRes.count || 0;
-  const openChargebacks = (chargebacksRes.data || []).filter((c) => c.status === "open").length;
-
-  const leaves = leavesRes.data || [];
-  const pendingLeaves = leaves.filter((l) => l.status === "pending").length;
-  const today = new Date().toISOString().split("T")[0];
-  const todayOnLeave = leaves.filter((l) => {
-    const start = l.start_date;
-    const end = l.end_date || l.start_date;
-    return start <= today && today <= end && l.status === "approved";
-  }).length;
+  const totalSales = totalSalesRes.count || 0;
+  const rejectedSales = rejectedSalesRes.count || 0;
+  const recordedSales = totalSales - rejectedSales;
+  const totalRevenue = (revenueRes.data || []).reduce((sum, s) => sum + Number(s.charged_amount), 0);
 
   return {
-    totalSales: sales.length,
+    totalSales,
     totalRevenue,
     totalCustomers: customersRes.count || 0,
     pendingSales: 0,
     approvedSales: recordedSales,
     rejectedSales,
-    totalChargebacks,
-    openChargebacks,
-    pendingLeaves,
-    todayOnLeave,
+    totalChargebacks: totalChargebacksRes.count || 0,
+    openChargebacks: openChargebacksRes.count || 0,
+    pendingLeaves: pendingLeavesRes.count || 0,
+    todayOnLeave: todayLeavesRes.count || 0,
     conversionRate:
-      sales.length > 0 ? ((recordedSales / sales.length) * 100).toFixed(1) : "0",
+      totalSales > 0 ? ((recordedSales / totalSales) * 100).toFixed(1) : "0",
   };
 }
 
@@ -311,7 +312,11 @@ export async function getEmployeeMonthlyStats(month?: string) {
   const monthEnd = nextMonth.toISOString().split("T")[0];
 
   const [salesRes, attendanceRes, usersRes] = await Promise.all([
-    supabase.from("sales").select("agent_id, status, charged_amount, sale_date, created_at"),
+    supabase
+      .from("sales")
+      .select("agent_id, status, charged_amount, sale_date, created_at")
+      .gte("created_at", `${monthStart}T00:00:00.000Z`)
+      .lt("created_at", `${monthEnd}T00:00:00.000Z`),
     supabase
       .from("attendance")
       .select("user_id, date, check_in, check_out")
@@ -325,14 +330,7 @@ export async function getEmployeeMonthlyStats(month?: string) {
   const attendance = attendanceRes.data || [];
 
   return users.map((u) => {
-      const userSales = sales.filter((s) => {
-        const raw = (s as { sale_date?: string | null; created_at?: string | null }).sale_date || 
-          (s as { created_at?: string | null }).created_at;
-        if (!raw) return false;
-        const d = new Date(raw);
-        const iso = d.toISOString().split("T")[0];
-        return iso >= monthStart && iso < monthEnd && s.agent_id === u.id;
-      });
+      const userSales = sales.filter((s) => s.agent_id === u.id);
       const userAttendance = attendance.filter((a) => a.user_id === u.id);
       const totalHours = userAttendance.reduce((sum, a) => {
         if (!a.check_out) return sum;

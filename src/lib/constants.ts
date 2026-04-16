@@ -108,6 +108,7 @@ export const CURRENCIES = [
 export const NAV_ITEMS = {
   super_admin: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
+    { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
     { href: "/dashboard/users", label: "Users", icon: "Users" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
@@ -123,6 +124,7 @@ export const NAV_ITEMS = {
   ],
   sales_agent: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
+    { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
@@ -134,6 +136,7 @@ export const NAV_ITEMS = {
   ],
   processor: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
+    { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "Sales Queue", icon: "TrendingUp" },

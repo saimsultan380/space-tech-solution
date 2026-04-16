@@ -19,12 +19,14 @@ import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
-import { SalesPerAgentChart } from "./charts/sales-per-agent-chart";
-import { SalesPerProcessorChart } from "./charts/sales-per-processor-chart";
-import { RevenueChart } from "./charts/revenue-chart";
-import { ChargebacksChart } from "./charts/chargebacks-chart";
-import { AttendancePerformanceChart } from "./charts/attendance-performance-chart";
-import { ConversionChart } from "./charts/conversion-chart";
+import dynamic from "next/dynamic";
+
+const SalesPerAgentChart = dynamic(() => import("./charts/sales-per-agent-chart").then((m) => m.SalesPerAgentChart), { ssr: false });
+const SalesPerProcessorChart = dynamic(() => import("./charts/sales-per-processor-chart").then((m) => m.SalesPerProcessorChart), { ssr: false });
+const RevenueChart = dynamic(() => import("./charts/revenue-chart").then((m) => m.RevenueChart), { ssr: false });
+const ChargebacksChart = dynamic(() => import("./charts/chargebacks-chart").then((m) => m.ChargebacksChart), { ssr: false });
+const AttendancePerformanceChart = dynamic(() => import("./charts/attendance-performance-chart").then((m) => m.AttendancePerformanceChart), { ssr: false });
+const ConversionChart = dynamic(() => import("./charts/conversion-chart").then((m) => m.ConversionChart), { ssr: false });
 import {
   DollarSign,
   ShoppingCart,

@@ -211,7 +211,7 @@ export function ProcessingAccountsClient({
                     <p className="text-sm font-medium text-muted-foreground">
                       {stat.label}
                     </p>
-                    <p className={`mt-2 text-3xl font-bold ${stat.color}`}>
+                    <p className={`mt-2 text-3xl font-semibold ${stat.color}`}>
                       {stat.value}
                     </p>
                   </div>

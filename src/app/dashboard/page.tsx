@@ -34,11 +34,11 @@ export default async function DashboardPage() {
   const user = await requireAuth();
 
   if (user.role === "sales_agent") {
-    return <AgentDashboardPage />;
+    return <AgentDashboardPage user={user} />;
   }
 
   if (user.role === "processor") {
-    return <ProcessorDashboardPage />;
+    return <ProcessorDashboardPage user={user} />;
   }
 
   let stats = defaultStats;
@@ -46,20 +46,24 @@ export default async function DashboardPage() {
   let salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }> = [];
   let revenueData: Array<{ date: string; revenue: number }> = [];
   let recentPayslips: Payslip[] = [];
-  let attendanceSettings = await getAttendanceSettings();
-  let companySettings = await getCompanySettings();
+  let attendanceSettings;
+  let companySettings;
 
   try {
-    [stats, todayAttendance, salesPerAgent, revenueData, recentPayslips, attendanceSettings] = await Promise.all([
+    [stats, todayAttendance, salesPerAgent, revenueData, recentPayslips, attendanceSettings, companySettings] = await Promise.all([
       getDashboardStats(),
       getTodayAttendance(),
       getSalesPerAgent(),
       getRevenueOverTime("day"),
       getRecentPayslips(5),
       getAttendanceSettings(),
+      getCompanySettings(),
     ]);
   } catch {
-    // Tables may not exist yet
+    [attendanceSettings, companySettings] = await Promise.all([
+      getAttendanceSettings(),
+      getCompanySettings(),
+    ]);
   }
 
   return (
@@ -70,15 +74,13 @@ export default async function DashboardPage() {
       salesPerAgent={salesPerAgent}
       revenueData={revenueData}
       recentPayslips={recentPayslips}
-      attendanceSettings={attendanceSettings}
-      companySettings={companySettings}
+      attendanceSettings={attendanceSettings!}
+      companySettings={companySettings!}
     />
   );
 }
 
-async function AgentDashboardPage() {
-  const user = await requireAuth();
-
+async function AgentDashboardPage({ user }: { user: Awaited<ReturnType<typeof requireAuth>> }) {
   const defaultAgentStats = {
     totalSales: 0,
     todaySales: 0,
@@ -102,19 +104,23 @@ async function AgentDashboardPage() {
   }> = [];
   let todayAttendance = null;
   let recentPayslips: Payslip[] = [];
-  let attendanceSettings = await getAttendanceSettings();
-  let companySettings = await getCompanySettings();
+  let attendanceSettings;
+  let companySettings;
 
   try {
-    [agentStats, recentSales, todayAttendance, recentPayslips, attendanceSettings] = await Promise.all([
+    [agentStats, recentSales, todayAttendance, recentPayslips, attendanceSettings, companySettings] = await Promise.all([
       getAgentDashboardStats(),
       getAgentRecentSales(),
       getTodayAttendance(),
       getRecentPayslips(5),
       getAttendanceSettings(),
+      getCompanySettings(),
     ]);
   } catch {
-    // Tables may not exist yet
+    [attendanceSettings, companySettings] = await Promise.all([
+      getAttendanceSettings(),
+      getCompanySettings(),
+    ]);
   }
 
   return (
@@ -124,15 +130,13 @@ async function AgentDashboardPage() {
       recentSales={recentSales}
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
-      attendanceSettings={attendanceSettings}
-      companySettings={companySettings}
+      attendanceSettings={attendanceSettings!}
+      companySettings={companySettings!}
     />
   );
 }
 
-async function ProcessorDashboardPage() {
-  const user = await requireAuth();
-
+async function ProcessorDashboardPage({ user }: { user: Awaited<ReturnType<typeof requireAuth>> }) {
   const defaultProcStats = {
     totalSales: 0,
     salesThisWeek: 0,
@@ -142,18 +146,22 @@ async function ProcessorDashboardPage() {
   let procStats = defaultProcStats;
   let todayAttendance = null;
   let recentPayslips: Payslip[] = [];
-  let attendanceSettings = await getAttendanceSettings();
-  let companySettings = await getCompanySettings();
+  let attendanceSettings;
+  let companySettings;
 
   try {
-    [procStats, todayAttendance, recentPayslips, attendanceSettings] = await Promise.all([
+    [procStats, todayAttendance, recentPayslips, attendanceSettings, companySettings] = await Promise.all([
       getProcessorDashboardStats(),
       getTodayAttendance(),
       getRecentPayslips(5),
       getAttendanceSettings(),
+      getCompanySettings(),
     ]);
   } catch {
-    // Tables may not exist yet
+    [attendanceSettings, companySettings] = await Promise.all([
+      getAttendanceSettings(),
+      getCompanySettings(),
+    ]);
   }
 
   return (
@@ -162,8 +170,8 @@ async function ProcessorDashboardPage() {
       stats={procStats}
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
-      attendanceSettings={attendanceSettings}
-      companySettings={companySettings}
+      attendanceSettings={attendanceSettings!}
+      companySettings={companySettings!}
     />
   );
 }

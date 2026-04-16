@@ -5,16 +5,30 @@ import { requireAuth } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
-export async function getPayments() {
+export async function getPayments(filters?: {
+  page?: number;
+  pageSize?: number;
+}) {
   await requireAuth();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const page = filters?.page || 1;
+  const pageSize = filters?.pageSize || 20;
+  const offset = (page - 1) * pageSize;
+
+  const { data, error, count } = await supabase
     .from("payments")
-    .select("*, sale:sales(id, company_name, status), customer:customers(id, name)")
-    .order("created_at", { ascending: false });
+    .select("*, sale:sales(id, company_name, status), customer:customers(id, name)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
-  return data;
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
 }
 
 export async function getPaymentsBySaleId(saleId: string) {

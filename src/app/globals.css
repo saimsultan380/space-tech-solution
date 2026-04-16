@@ -3,7 +3,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-poppins: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
   --background: 220 33% 98%;
   --foreground: 224 71% 4%;
   --card: 0 0% 100%;
@@ -101,23 +100,45 @@
   --animate-scale-in: scale-in 0.2s ease-out;
 
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slide-up {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @keyframes slide-down {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @keyframes scale-in {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }
 
@@ -139,10 +160,28 @@ html {
   scroll-behavior: smooth;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family:
+    var(--font-quicksand),
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-weight: 700;
+}
+
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
+  font-family:
+    var(--font-poppins),
+    system-ui,
+    -apple-system,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -158,6 +197,22 @@ select {
   * {
     @apply border-border;
   }
+}
+
+/* Admin theme color overrides — applied when ThemeColorsProvider sets CSS vars on body */
+.sidebar-active-item {
+  background-color: var(--theme-sidebar-color, hsl(var(--primary))) !important;
+  color: var(--theme-sidebar-text-color, hsl(var(--primary-foreground))) !important;
+}
+
+body[style*="--theme-button-color"] {
+  --color-primary: var(--theme-button-color);
+  --color-primary-foreground: var(--theme-button-text-color, #ffffff);
+}
+
+[data-state="active"][role="tab"] {
+  background-color: var(--theme-active-tab-color, hsl(var(--primary))) !important;
+  color: var(--theme-active-tab-text-color, hsl(var(--primary-foreground))) !important;
 }
 
 /* Scrollbar */

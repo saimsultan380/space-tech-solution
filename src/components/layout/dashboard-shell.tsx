@@ -6,7 +6,9 @@ import { Header } from "./header";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { UserRole } from "@/lib/types";
 import { CurrencyProvider } from "@/components/providers/currency-provider";
+import { ThemeColorsProvider } from "@/components/providers/theme-colors-provider";
 import { InactivityTracker } from "@/components/auth/inactivity-tracker";
+import type { ThemeColors } from "@/lib/actions/company-settings";
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -16,6 +18,7 @@ interface DashboardShellProps {
   currency?: string | null;
   userId?: string;
   allowedModules?: string[] | null;
+  themeColors?: ThemeColors;
 }
 
 export function DashboardShell({
@@ -26,6 +29,7 @@ export function DashboardShell({
   currency,
   userId,
   allowedModules,
+  themeColors,
 }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -47,6 +51,14 @@ export function DashboardShell({
 
   return (
     <CurrencyProvider currency={currency}>
+      <ThemeColorsProvider
+        sidebar_color={themeColors?.sidebar_color ?? null}
+        sidebar_text_color={themeColors?.sidebar_text_color ?? null}
+        button_color={themeColors?.button_color ?? null}
+        button_text_color={themeColors?.button_text_color ?? null}
+        active_tab_color={themeColors?.active_tab_color ?? null}
+        active_tab_text_color={themeColors?.active_tab_text_color ?? null}
+      >
       <InactivityTracker />
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar
@@ -75,6 +87,7 @@ export function DashboardShell({
           </main>
         </div>
       </div>
+      </ThemeColorsProvider>
     </CurrencyProvider>
   );
 }

@@ -356,7 +356,7 @@ export function AttendanceClient({
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           {label}
                         </p>
-                        <p className="mt-1 text-xl font-bold">
+                        <p className="mt-1 text-xl font-semibold">
                           {stats.employees} employee{stats.employees !== 1 ? "s" : ""}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">

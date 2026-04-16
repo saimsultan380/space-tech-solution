@@ -664,6 +664,24 @@ export async function getMarketingEntryStats(filters?: {
   endDate?: string;
   campaign?: MarketingEntryCampaign | "all";
 }): Promise<MarketingEntryStats> {
+  const { stats } = await getMarketingEntryStatsAndChart(filters);
+  return stats;
+}
+
+export async function getMarketingEntryChartData(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaign?: MarketingEntryCampaign | "all";
+}) {
+  const { chartData } = await getMarketingEntryStatsAndChart(filters);
+  return chartData;
+}
+
+export async function getMarketingEntryStatsAndChart(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaign?: MarketingEntryCampaign | "all";
+}) {
   const entries = await getMarketingEntries(filters);
 
   const totalBudget = entries.reduce((sum, e) => sum + Number(e.budget_assigned || 0), 0);
@@ -676,7 +694,7 @@ export async function getMarketingEntryStats(filters?: {
   const avgCostPerLead = totalLeads > 0 ? totalBudget / totalLeads : 0;
   const avgCostPerSale = totalSales > 0 ? totalBudget / totalSales : 0;
 
-  return {
+  const stats: MarketingEntryStats = {
     totalBudget: Number(totalBudget.toFixed(2)),
     totalLeads,
     totalSales,
@@ -686,41 +704,29 @@ export async function getMarketingEntryStats(filters?: {
     avgCostPerLead: Number(avgCostPerLead.toFixed(2)),
     avgCostPerSale: Number(avgCostPerSale.toFixed(2)),
   };
-}
-
-export async function getMarketingEntryChartData(filters?: {
-  startDate?: string;
-  endDate?: string;
-  campaign?: MarketingEntryCampaign | "all";
-}) {
-  const entries = await getMarketingEntries(filters);
 
   const sortedEntries = [...entries].sort(
     (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
   );
 
-  const budgetVsSales = sortedEntries.map((e) => ({
-    date: e.entry_date,
-    budget: Number(e.budget_assigned || 0),
-    sales: Number(e.sales_acquired || 0),
-  }));
-
-  const leadsVsConversions = sortedEntries.map((e) => ({
-    date: e.entry_date,
-    leads: Number(e.calls_landed || 0),
-    conversions: Number(e.sales_acquired || 0),
-  }));
-
-  const dropRatioTrend = sortedEntries.map((e) => ({
-    date: e.entry_date,
-    dropRate: e.drop_rate,
-  }));
-
-  return {
-    budgetVsSales,
-    leadsVsConversions,
-    dropRatioTrend,
+  const chartData = {
+    budgetVsSales: sortedEntries.map((e) => ({
+      date: e.entry_date,
+      budget: Number(e.budget_assigned || 0),
+      sales: Number(e.sales_acquired || 0),
+    })),
+    leadsVsConversions: sortedEntries.map((e) => ({
+      date: e.entry_date,
+      leads: Number(e.calls_landed || 0),
+      conversions: Number(e.sales_acquired || 0),
+    })),
+    dropRatioTrend: sortedEntries.map((e) => ({
+      date: e.entry_date,
+      dropRate: e.drop_rate,
+    })),
   };
+
+  return { stats, chartData };
 }
 
 export async function createMarketingEntry(input: MarketingEntryInput) {

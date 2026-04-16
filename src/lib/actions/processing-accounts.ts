@@ -33,20 +33,21 @@ export async function getProcessingAccountStats(): Promise<ProcessingAccountStat
   await requireAuth();
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("processing_accounts")
-    .select("status");
+  const statuses = ["active", "not_working", "closed", "reversal_issue", "under_review"] as const;
+  const [totalRes, ...statusRes] = await Promise.all([
+    supabase.from("processing_accounts").select("id", { count: "exact", head: true }),
+    ...statuses.map((s) =>
+      supabase.from("processing_accounts").select("id", { count: "exact", head: true }).eq("status", s)
+    ),
+  ]);
 
-  if (error) throw new Error(error.message);
-
-  const accounts = data || [];
   return {
-    total: accounts.length,
-    active: accounts.filter((a) => a.status === "active").length,
-    not_working: accounts.filter((a) => a.status === "not_working").length,
-    closed: accounts.filter((a) => a.status === "closed").length,
-    reversal_issue: accounts.filter((a) => a.status === "reversal_issue").length,
-    under_review: accounts.filter((a) => a.status === "under_review").length,
+    total: totalRes.count || 0,
+    active: statusRes[0].count || 0,
+    not_working: statusRes[1].count || 0,
+    closed: statusRes[2].count || 0,
+    reversal_issue: statusRes[3].count || 0,
+    under_review: statusRes[4].count || 0,
   };
 }
 

@@ -271,7 +271,7 @@ function MetricCard({
         </div>
       </div>
       <div className="flex items-end gap-2">
-        <p className={`text-3xl font-bold text-foreground ${valueClassName || ""}`}>{value}</p>
+        <p className={`text-3xl font-semibold text-foreground ${valueClassName || ""}`}>{value}</p>
         <span className={`pb-1 text-xs font-semibold ${trendPositive ? "text-success" : "text-destructive"}`}>
           {trendPositive ? "▲" : "▼"} {Math.abs(trend)}%
         </span>

@@ -158,7 +158,7 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Total requests</p>
-              <p className="text-xl font-bold">{stats.total}</p>
+              <p className="text-xl font-semibold">{stats.total}</p>
             </div>
           </CardContent>
         </Card>
@@ -170,7 +170,7 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Pending</p>
-              <p className="text-xl font-bold">{stats.pending}</p>
+              <p className="text-xl font-semibold">{stats.pending}</p>
             </div>
           </CardContent>
         </Card>
@@ -182,7 +182,7 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Approved</p>
-              <p className="text-xl font-bold">{stats.approved}</p>
+              <p className="text-xl font-semibold">{stats.approved}</p>
             </div>
           </CardContent>
         </Card>
@@ -194,7 +194,7 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Rejected</p>
-              <p className="text-xl font-bold">{stats.rejected}</p>
+              <p className="text-xl font-semibold">{stats.rejected}</p>
             </div>
           </CardContent>
         </Card>
