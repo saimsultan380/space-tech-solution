@@ -15,6 +15,10 @@ export type CompanySettings = {
   button_text_color: string | null;
   active_tab_color: string | null;
   active_tab_text_color: string | null;
+  chat_user_bubble_color: string | null;
+  chat_user_bubble_text_color: string | null;
+  chat_bot_bubble_color: string | null;
+  chat_bot_bubble_text_color: string | null;
 };
 
 export type ThemeColors = Pick<
@@ -25,6 +29,10 @@ export type ThemeColors = Pick<
   | "button_text_color"
   | "active_tab_color"
   | "active_tab_text_color"
+  | "chat_user_bubble_color"
+  | "chat_user_bubble_text_color"
+  | "chat_bot_bubble_color"
+  | "chat_bot_bubble_text_color"
 >;
 
 export async function getCompanySettings(): Promise<CompanySettings> {
@@ -33,7 +41,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
   const { data, error } = await supabase
     .from("company_settings")
     .select(
-      "company_name, address_line, contact_email, logo_url, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color"
+      "company_name, address_line, contact_email, logo_url, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color, chat_user_bubble_color, chat_user_bubble_text_color, chat_bot_bubble_color, chat_bot_bubble_text_color"
     )
     .eq("id", 1)
     .single();
@@ -50,6 +58,10 @@ export async function getCompanySettings(): Promise<CompanySettings> {
     button_text_color: data.button_text_color ?? null,
     active_tab_color: data.active_tab_color ?? null,
     active_tab_text_color: data.active_tab_text_color ?? null,
+    chat_user_bubble_color: data.chat_user_bubble_color ?? null,
+    chat_user_bubble_text_color: data.chat_user_bubble_text_color ?? null,
+    chat_bot_bubble_color: data.chat_bot_bubble_color ?? null,
+    chat_bot_bubble_text_color: data.chat_bot_bubble_text_color ?? null,
   };
 }
 
@@ -91,6 +103,10 @@ export async function updateThemeColors(input: ThemeColors) {
       button_text_color: validHex(input.button_text_color),
       active_tab_color: validHex(input.active_tab_color),
       active_tab_text_color: validHex(input.active_tab_text_color),
+      chat_user_bubble_color: validHex(input.chat_user_bubble_color),
+      chat_user_bubble_text_color: validHex(input.chat_user_bubble_text_color),
+      chat_bot_bubble_color: validHex(input.chat_bot_bubble_color),
+      chat_bot_bubble_text_color: validHex(input.chat_bot_bubble_text_color),
       updated_at: new Date().toISOString(),
     })
     .eq("id", 1);

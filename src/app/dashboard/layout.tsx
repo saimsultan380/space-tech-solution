@@ -27,6 +27,10 @@ export default async function DashboardLayout({
         button_text_color: companySettings.button_text_color,
         active_tab_color: companySettings.active_tab_color,
         active_tab_text_color: companySettings.active_tab_text_color,
+        chat_user_bubble_color: companySettings.chat_user_bubble_color,
+        chat_user_bubble_text_color: companySettings.chat_user_bubble_text_color,
+        chat_bot_bubble_color: companySettings.chat_bot_bubble_color,
+        chat_bot_bubble_text_color: companySettings.chat_bot_bubble_text_color,
       }}
     >
       {children}

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouteLoading } from "@/components/providers/route-loading-provider";
 import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
-import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon } from "lucide-react";
+import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Notification, UserRole } from "@/lib/types";
 
@@ -273,6 +273,18 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            startLoading();
+            router.push("/chat");
+          }}
+          className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:p-2.5"
+          aria-label="Open chat"
+        >
+          <MessageSquare className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+        </button>
+
         {/* Theme Toggle */}
         <button
           type="button"

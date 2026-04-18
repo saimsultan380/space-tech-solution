@@ -94,6 +94,7 @@ const SECTION_CONFIG: Record<
       title: "Main Menu",
       hrefs: [
         "/dashboard",
+        "/dashboard/sales-performance",
         "/chat",
         "/dashboard/call-logs-responses",
         "/dashboard/sales",

@@ -98,6 +98,18 @@
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-slide-down: slide-down 0.2s ease-out;
   --animate-scale-in: scale-in 0.2s ease-out;
+  --animate-slide-in-right: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 
   @keyframes fade-in {
     from {
@@ -199,15 +211,23 @@ select {
   }
 }
 
-/* Admin theme color overrides — applied when ThemeColorsProvider sets CSS vars on body */
+/* Admin theme color overrides — applied when ThemeColorsProvider sets CSS vars on :root */
 .sidebar-active-item {
   background-color: var(--theme-sidebar-color, hsl(var(--primary))) !important;
   color: var(--theme-sidebar-text-color, hsl(var(--primary-foreground))) !important;
 }
 
-body[style*="--theme-button-color"] {
-  --color-primary: var(--theme-button-color);
-  --color-primary-foreground: var(--theme-button-text-color, #ffffff);
+/*
+ * `--color-primary` is used by some generated utilities; most `bg-primary` / `text-primary`
+ * in Tailwind v4 compile to `hsl(var(--primary))` directly. Admin hex colors sync to
+ * `--primary` / `--primary-foreground` (H S% L%) on documentElement in ThemeColorsProvider.
+ */
+:root {
+  --color-primary: var(--theme-button-color, hsl(var(--primary)));
+  --color-primary-foreground: var(
+    --theme-button-text-color,
+    hsl(var(--primary-foreground))
+  );
 }
 
 [data-state="active"][role="tab"] {
@@ -215,18 +235,108 @@ body[style*="--theme-button-color"] {
   color: var(--theme-active-tab-text-color, hsl(var(--primary-foreground))) !important;
 }
 
-/* Scrollbar */
+/* Chat bubble theme overrides (optional admin vars; fallbacks match default Tailwind tokens) */
+.chat-bubble-user {
+  background-color: var(--theme-chat-user-bg, hsl(var(--primary))) !important;
+  color: var(--theme-chat-user-text, hsl(var(--primary-foreground))) !important;
+}
+
+.chat-bubble-bot {
+  background-color: var(--theme-chat-bot-bg, hsl(var(--card))) !important;
+  color: var(--theme-chat-bot-text, hsl(var(--foreground))) !important;
+}
+
+/* Scrollbar — thin, accent-colored */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.2);
+  background: var(--theme-button-color, hsl(var(--primary) / 0.25));
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.4);
+  background: var(--theme-button-color, hsl(var(--primary) / 0.45));
+}
+
+/* ─── Chat-specific styles ─── */
+
+/* Glassmorphism utility — solid white in light, frosted in dark */
+.glass {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .glass {
+  background: hsl(var(--card) / 0.6);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Presence pulse ring */
+@keyframes presence-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 0 3px transparent; }
+}
+.presence-online {
+  color: hsl(var(--success));
+  animation: presence-pulse 2s ease-in-out infinite;
+}
+
+/* Message appear animation */
+@keyframes msg-appear {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.msg-animate {
+  animation: msg-appear 0.25s ease-out both;
+}
+
+/* Tab switch animation */
+@keyframes tab-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tab-content-animate {
+  animation: tab-fade 0.2s ease-out;
+}
+
+/* Typing indicator dots */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot:nth-child(1) { animation: typing-dot 1.2s ease-in-out infinite 0s; }
+.typing-dot:nth-child(2) { animation: typing-dot 1.2s ease-in-out infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typing-dot 1.2s ease-in-out infinite 0.4s; }
+
+/* Drag overlay */
+.drag-overlay {
+  background: hsl(var(--primary) / 0.08);
+  border: 2px dashed var(--theme-button-color, hsl(var(--primary)));
+}
+
+/* Panel slide */
+@keyframes panel-slide-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.panel-slide-in {
+  animation: panel-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Sidebar active item highlight */
+.chat-sidebar-active {
+  background-color: var(--theme-button-color, hsl(var(--primary) / 0.1)) !important;
+  border-left-color: var(--theme-button-color, hsl(var(--primary))) !important;
+}
+
+/* Active tab styling */
+.chat-tab-active {
+  color: var(--theme-active-tab-text-color, hsl(var(--primary-foreground))) !important;
+  background-color: var(--theme-active-tab-color, var(--theme-button-color, hsl(var(--primary)))) !important;
 }

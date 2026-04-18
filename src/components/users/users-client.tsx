@@ -21,7 +21,7 @@ import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
 import { formatDate } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
@@ -104,9 +104,7 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
           <h1 className="text-3xl font-bold">Users</h1>
           <p className="text-muted-foreground">Manage team members and roles</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" /> Add User
-        </Button>
+        <Button onClick={() => setShowCreate(true)}>Add User</Button>
       </div>
 
       <Card>

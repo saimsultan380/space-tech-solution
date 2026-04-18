@@ -14,7 +14,8 @@ import { createClient } from "@/lib/supabase/client";
 import { updateProfile, updatePreferences, changePassword } from "@/lib/actions/profile";
 import { updateUserAllowedModules } from "@/lib/actions/users";
 import { updateAttendanceSettings } from "@/lib/actions/attendance-settings";
-import { updateCompanySettings, updateThemeColors, type CompanySettings } from "@/lib/actions/company-settings";
+import { updateCompanySettings, type CompanySettings } from "@/lib/actions/company-settings";
+import { ThemeAppearance } from "@/components/settings/theme-appearance";
 import {
   User,
   Image as ImageIcon,
@@ -25,7 +26,6 @@ import {
   UploadCloud,
   CheckCircle2,
   Palette,
-  RotateCcw,
 } from "lucide-react";
 
 interface SettingsClientProps {
@@ -116,17 +116,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
   const [brandingMessage, setBrandingMessage] = useState<string | null>(null);
   const [brandingError, setBrandingError] = useState<string | null>(null);
 
-  const [themeForm, setThemeForm] = useState({
-    sidebar_color: companySettings.sidebar_color ?? "",
-    sidebar_text_color: companySettings.sidebar_text_color ?? "",
-    button_color: companySettings.button_color ?? "",
-    button_text_color: companySettings.button_text_color ?? "",
-    active_tab_color: companySettings.active_tab_color ?? "",
-    active_tab_text_color: companySettings.active_tab_text_color ?? "",
-  });
-  const [themeLoading, setThemeLoading] = useState(false);
-  const [themeMessage, setThemeMessage] = useState<string | null>(null);
-  const [themeError, setThemeError] = useState<string | null>(null);
+  
 
   useEffect(() => {
     setManagedUsersState(manageableUsers);
@@ -154,14 +144,6 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
       address_line: companySettings.address_line,
       contact_email: companySettings.contact_email,
       logo_url: companySettings.logo_url,
-    });
-    setThemeForm({
-      sidebar_color: companySettings.sidebar_color ?? "",
-      sidebar_text_color: companySettings.sidebar_text_color ?? "",
-      button_color: companySettings.button_color ?? "",
-      button_text_color: companySettings.button_text_color ?? "",
-      active_tab_color: companySettings.active_tab_color ?? "",
-      active_tab_text_color: companySettings.active_tab_text_color ?? "",
     });
   }, [companySettings]);
 
@@ -391,35 +373,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
     }
   };
 
-  const handleSaveThemeColors = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setThemeLoading(true);
-    setThemeMessage(null);
-    setThemeError(null);
-    try {
-      await updateThemeColors({
-        sidebar_color: themeForm.sidebar_color || null,
-        sidebar_text_color: themeForm.sidebar_text_color || null,
-        button_color: themeForm.button_color || null,
-        button_text_color: themeForm.button_text_color || null,
-        active_tab_color: themeForm.active_tab_color || null,
-        active_tab_text_color: themeForm.active_tab_text_color || null,
-      });
-      setThemeMessage("Theme colors updated. Reload the page to see changes across the app.");
-    } catch (err) {
-      setThemeError(err instanceof Error ? err.message : "Failed to update theme colors.");
-    } finally {
-      setThemeLoading(false);
-    }
-  };
-
-  const resetThemeSection = (section: "sidebar" | "button" | "tab") => {
-    setThemeForm((prev) => {
-      if (section === "sidebar") return { ...prev, sidebar_color: "", sidebar_text_color: "" };
-      if (section === "button") return { ...prev, button_color: "", button_text_color: "" };
-      return { ...prev, active_tab_color: "", active_tab_text_color: "" };
-    });
-  };
+  
 
   return (
     <div className="space-y-6">
@@ -778,184 +732,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
 
         {user.role === "super_admin" && (
           <TabsContent value="appearance" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  Theme Appearance
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveThemeColors} className="space-y-6">
-                  <p className="text-sm text-muted-foreground">
-                    Customize the colors used for sidebar active items, primary buttons, and active tabs across the app. Leave blank to use defaults.
-                  </p>
-
-                  <div className="space-y-4 rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Sidebar Active Item</h3>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs text-muted-foreground"
-                        onClick={() => resetThemeSection("sidebar")}
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        Reset
-                      </Button>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <ColorPickerField
-                        id="sidebar_color"
-                        label="Background"
-                        value={themeForm.sidebar_color}
-                        onChange={(v) => setThemeForm((p) => ({ ...p, sidebar_color: v }))}
-                      />
-                      <ColorPickerField
-                        id="sidebar_text_color"
-                        label="Text"
-                        value={themeForm.sidebar_text_color}
-                        onChange={(v) => setThemeForm((p) => ({ ...p, sidebar_text_color: v }))}
-                      />
-                    </div>
-                    {(themeForm.sidebar_color || themeForm.sidebar_text_color) && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">Preview:</span>
-                        <div
-                          className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shadow-sm"
-                          style={{
-                            backgroundColor: themeForm.sidebar_color || "hsl(221.2, 83.2%, 53.3%)",
-                            color: themeForm.sidebar_text_color || "#ffffff",
-                          }}
-                        >
-                          Dashboard
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-4 rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Primary Buttons</h3>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs text-muted-foreground"
-                        onClick={() => resetThemeSection("button")}
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        Reset
-                      </Button>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <ColorPickerField
-                        id="button_color"
-                        label="Background"
-                        value={themeForm.button_color}
-                        onChange={(v) => setThemeForm((p) => ({ ...p, button_color: v }))}
-                      />
-                      <ColorPickerField
-                        id="button_text_color"
-                        label="Text"
-                        value={themeForm.button_text_color}
-                        onChange={(v) => setThemeForm((p) => ({ ...p, button_text_color: v }))}
-                      />
-                    </div>
-                    {(themeForm.button_color || themeForm.button_text_color) && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">Preview:</span>
-                        <button
-                          type="button"
-                          className="inline-flex items-center rounded-md px-4 py-2 text-sm font-medium shadow-sm"
-                          style={{
-                            backgroundColor: themeForm.button_color || "hsl(221.2, 83.2%, 53.3%)",
-                            color: themeForm.button_text_color || "#ffffff",
-                          }}
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-4 rounded-lg border border-border p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Active Tabs</h3>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs text-muted-foreground"
-                        onClick={() => resetThemeSection("tab")}
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        Reset
-                      </Button>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <ColorPickerField
-                        id="active_tab_color"
-                        label="Background"
-                        value={themeForm.active_tab_color}
-                        onChange={(v) => setThemeForm((p) => ({ ...p, active_tab_color: v }))}
-                      />
-                      <ColorPickerField
-                        id="active_tab_text_color"
-                        label="Text"
-                        value={themeForm.active_tab_text_color}
-                        onChange={(v) => setThemeForm((p) => ({ ...p, active_tab_text_color: v }))}
-                      />
-                    </div>
-                    {(themeForm.active_tab_color || themeForm.active_tab_text_color) && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">Preview:</span>
-                        <div
-                          className="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium shadow-sm"
-                          style={{
-                            backgroundColor: themeForm.active_tab_color || "hsl(221.2, 83.2%, 53.3%)",
-                            color: themeForm.active_tab_text_color || "#ffffff",
-                          }}
-                        >
-                          Active Tab
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {themeError && <p className="text-sm text-destructive">{themeError}</p>}
-                  {themeMessage && !themeError && (
-                    <p className="text-sm text-emerald-600 flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      {themeMessage}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={themeLoading}>
-                      {themeLoading ? <Spinner /> : "Save Theme Colors"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setThemeForm({
-                          sidebar_color: "",
-                          sidebar_text_color: "",
-                          button_color: "",
-                          button_text_color: "",
-                          active_tab_color: "",
-                          active_tab_text_color: "",
-                        });
-                      }}
-                    >
-                      Reset All to Defaults
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+            <ThemeAppearance companySettings={companySettings} />
           </TabsContent>
         )}
 
@@ -1176,49 +953,4 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
   );
 }
 
-function ColorPickerField({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
-        {label}
-      </label>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          id={id}
-          value={value || "#3b82f6"}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-10 w-12 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
-        />
-        <input
-          type="text"
-          placeholder="#3b82f6"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          maxLength={7}
-          className="h-10 flex-1 rounded-md border border-border bg-transparent px-3 text-sm font-mono"
-        />
-        {value && (
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => onChange("")}
-          >
-            Clear
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 

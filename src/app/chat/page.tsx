@@ -16,6 +16,7 @@ export default async function ChatPage() {
       currentUserId={user.id}
       currentUserName={user.full_name}
       currentUserRole={user.role}
+      currentUserAvatar={user.avatar_url ?? null}
       allUsers={usersResponse.data.map((u) => ({
         id: u.id,
         full_name: u.full_name,

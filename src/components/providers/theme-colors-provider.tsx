@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 import type { ThemeColors } from "@/lib/actions/company-settings";
+import { applyTailwindPrimaryFromHex } from "@/lib/theme-css";
 
 const ThemeColorsContext = createContext<ThemeColors>({
   sidebar_color: null,
@@ -10,6 +11,10 @@ const ThemeColorsContext = createContext<ThemeColors>({
   button_text_color: null,
   active_tab_color: null,
   active_tab_text_color: null,
+  chat_user_bubble_color: null,
+  chat_user_bubble_text_color: null,
+  chat_bot_bubble_color: null,
+  chat_bot_bubble_text_color: null,
 });
 
 const VAR_MAP: Record<keyof ThemeColors, string> = {
@@ -19,6 +24,10 @@ const VAR_MAP: Record<keyof ThemeColors, string> = {
   button_text_color: "--theme-button-text-color",
   active_tab_color: "--theme-active-tab-color",
   active_tab_text_color: "--theme-active-tab-text-color",
+  chat_user_bubble_color: "--theme-chat-user-bg",
+  chat_user_bubble_text_color: "--theme-chat-user-text",
+  chat_bot_bubble_color: "--theme-chat-bot-bg",
+  chat_bot_bubble_text_color: "--theme-chat-bot-text",
 };
 
 export function ThemeColorsProvider({
@@ -26,7 +35,8 @@ export function ThemeColorsProvider({
   ...colors
 }: ThemeColors & { children: ReactNode }) {
   useEffect(() => {
-    const style = document.body.style;
+    const root = document.documentElement;
+    const style = root.style;
     for (const [key, cssVar] of Object.entries(VAR_MAP)) {
       const value = colors[key as keyof ThemeColors];
       if (value) {
@@ -35,10 +45,13 @@ export function ThemeColorsProvider({
         style.removeProperty(cssVar);
       }
     }
+    applyTailwindPrimaryFromHex(style, colors.button_color, colors.button_text_color);
     return () => {
       for (const cssVar of Object.values(VAR_MAP)) {
         style.removeProperty(cssVar);
       }
+      style.removeProperty("--primary");
+      style.removeProperty("--primary-foreground");
     };
   }, [
     colors.sidebar_color,
@@ -47,6 +60,10 @@ export function ThemeColorsProvider({
     colors.button_text_color,
     colors.active_tab_color,
     colors.active_tab_text_color,
+    colors.chat_user_bubble_color,
+    colors.chat_user_bubble_text_color,
+    colors.chat_bot_bubble_color,
+    colors.chat_bot_bubble_text_color,
   ]);
 
   return (

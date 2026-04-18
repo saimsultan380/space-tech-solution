@@ -13,6 +13,7 @@ export interface ChatChannel {
   created_at: string;
   avatar_url: string | null;
   last_message?: { content: string; sender_name: string; created_at: string } | null;
+  dm_partner?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
 export interface ChatMessage {
@@ -23,6 +24,7 @@ export interface ChatMessage {
   created_at: string;
   is_edited: boolean;
   is_deleted: boolean;
+  is_pinned: boolean;
   updated_at: string | null;
   attachment_url: string | null;
   attachment_name: string | null;
@@ -75,6 +77,24 @@ export async function getMyChannels(): Promise<ChatChannel[]> {
       .limit(1)
       .maybeSingle();
 
+    let dmPartner: ChatChannel["dm_partner"] = null;
+    if (ch.is_direct) {
+      const { data: dmMembers } = await supabase
+        .from("chat_channel_members")
+        .select("user_id")
+        .eq("channel_id", ch.id)
+        .neq("user_id", user.id);
+
+      if (dmMembers && dmMembers.length > 0) {
+        const { data: otherUser } = await supabase
+          .from("users")
+          .select("id, full_name, avatar_url")
+          .eq("id", dmMembers[0].user_id)
+          .single();
+        if (otherUser) dmPartner = otherUser;
+      }
+    }
+
     channelsWithPreview.push({
       ...ch,
       last_message: lastMsg
@@ -84,6 +104,7 @@ export async function getMyChannels(): Promise<ChatChannel[]> {
             created_at: lastMsg.created_at,
           }
         : null,
+      dm_partner: dmPartner,
     });
   }
 
@@ -129,6 +150,7 @@ export async function getChannelMessages(
 
   return data.map((m) => ({
     ...m,
+    is_pinned: m.is_pinned ?? false,
     reply_to: m.reply_to_id ? replyMap[m.reply_to_id] ?? null : null,
   })) as ChatMessage[];
 }
@@ -243,6 +265,138 @@ export async function createChannel(name: string, description: string, memberIds
 
   revalidatePath("/chat");
   return { error: null, channelId: channel.id as string };
+}
+
+export async function createDirectMessage(otherUserId: string) {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { data: myMemberships } = await supabase
+    .from("chat_channel_members")
+    .select("channel_id")
+    .eq("user_id", user.id);
+
+  if (myMemberships && myMemberships.length > 0) {
+    const myChannelIds = myMemberships.map((m) => m.channel_id);
+
+    const { data: directChannels } = await supabase
+      .from("chat_channels")
+      .select("id")
+      .in("id", myChannelIds)
+      .eq("is_direct", true);
+
+    if (directChannels) {
+      for (const ch of directChannels) {
+        const { data: chMembers } = await supabase
+          .from("chat_channel_members")
+          .select("user_id")
+          .eq("channel_id", ch.id);
+
+        if (chMembers && chMembers.length === 2 && chMembers.some((m) => m.user_id === otherUserId)) {
+          return { error: null, channelId: ch.id };
+        }
+      }
+    }
+  }
+
+  const { data: otherUser } = await supabase
+    .from("users")
+    .select("full_name")
+    .eq("id", otherUserId)
+    .single();
+
+  const dmName = `${user.full_name}, ${otherUser?.full_name ?? "Unknown"}`;
+
+  const { data: channel, error } = await supabase
+    .from("chat_channels")
+    .insert({
+      name: dmName,
+      description: "Direct message",
+      is_direct: true,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+  if (!channel) return { error: "Failed to create DM" };
+
+  await supabase.from("chat_channel_members").insert([
+    { channel_id: channel.id, user_id: user.id },
+    { channel_id: channel.id, user_id: otherUserId },
+  ]);
+
+  revalidatePath("/chat");
+  return { error: null, channelId: channel.id };
+}
+
+export async function pinMessage(messageId: string) {
+  await requireAuth();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chat_messages")
+    .update({ is_pinned: true })
+    .eq("id", messageId);
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function unpinMessage(messageId: string) {
+  await requireAuth();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chat_messages")
+    .update({ is_pinned: false })
+    .eq("id", messageId);
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function getPinnedMessages(channelId: string): Promise<ChatMessage[]> {
+  await requireAuth();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("chat_messages")
+    .select("*, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
+    .eq("channel_id", channelId)
+    .eq("is_pinned", true)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((m) => ({ ...m, is_pinned: true })) as ChatMessage[];
+}
+
+export async function searchMessages(query: string): Promise<{ messages: ChatMessage[]; channels: ChatChannel[] }> {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { data: memberships } = await supabase
+    .from("chat_channel_members")
+    .select("channel_id")
+    .eq("user_id", user.id);
+
+  if (!memberships || memberships.length === 0) return { messages: [], channels: [] };
+
+  const channelIds = memberships.map((m) => m.channel_id);
+
+  const { data: msgs } = await supabase
+    .from("chat_messages")
+    .select("*, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
+    .in("channel_id", channelIds)
+    .eq("is_deleted", false)
+    .ilike("content", `%${query}%`)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const { data: chs } = await supabase
+    .from("chat_channels")
+    .select("*")
+    .in("id", channelIds)
+    .ilike("name", `%${query}%`);
+
+  return {
+    messages: (msgs ?? []).map((m) => ({ ...m, is_pinned: m.is_pinned ?? false })) as ChatMessage[],
+    channels: (chs ?? []) as ChatChannel[],
+  };
 }
 
 export async function updateChannel(channelId: string, updates: { name?: string; description?: string; avatar_url?: string | null }) {

@@ -58,6 +58,10 @@ export function DashboardShell({
         button_text_color={themeColors?.button_text_color ?? null}
         active_tab_color={themeColors?.active_tab_color ?? null}
         active_tab_text_color={themeColors?.active_tab_text_color ?? null}
+        chat_user_bubble_color={themeColors?.chat_user_bubble_color ?? null}
+        chat_user_bubble_text_color={themeColors?.chat_user_bubble_text_color ?? null}
+        chat_bot_bubble_color={themeColors?.chat_bot_bubble_color ?? null}
+        chat_bot_bubble_text_color={themeColors?.chat_bot_bubble_text_color ?? null}
       >
       <InactivityTracker />
       <div className="flex h-screen overflow-hidden bg-background">
