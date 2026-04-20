@@ -90,7 +90,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
         <p className="text-muted-foreground">Track monthly payroll and download salary slips in PDF format.</p>
       </div>
 
-      <Card className="border-border shadow-sm overflow-hidden">
+      <Card className="border-border bg-gradient-to-br from-cyan-500/[0.07] via-card to-card shadow-sm overflow-hidden">
         <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="text-lg font-bold text-foreground">Payslip History</CardTitle>

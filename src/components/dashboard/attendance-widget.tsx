@@ -57,7 +57,7 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-xl border border-border bg-gradient-to-br from-indigo-500/[0.08] via-card to-card p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-foreground">Today&apos;s Attendance</p>
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">

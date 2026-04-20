@@ -23,7 +23,7 @@ export function PayslipDashboardCard({ payslips, title = "Recent Payslips", comp
 
   return (
     <>
-      <Card>
+      <Card className="border-border bg-gradient-to-br from-cyan-500/[0.07] via-card to-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">{title}</CardTitle>

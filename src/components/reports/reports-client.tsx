@@ -191,7 +191,7 @@ export function ReportsClient({
       </div>
 
       {/* Employee Performance Table */}
-      <Card>
+      <Card className="bg-gradient-to-br from-violet-500/[0.06] via-card to-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -294,7 +294,7 @@ export function ReportsClient({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500/[0.08] via-card to-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Revenue Over Time</CardTitle>
@@ -318,7 +318,7 @@ export function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Sales outcomes</CardTitle>
           </CardHeader>
@@ -327,7 +327,7 @@ export function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-violet-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Sales per Agent</CardTitle>
           </CardHeader>
@@ -336,7 +336,7 @@ export function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-sky-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Sales per Processor</CardTitle>
           </CardHeader>
@@ -345,7 +345,7 @@ export function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-rose-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Chargebacks per Employee</CardTitle>
           </CardHeader>
@@ -354,7 +354,7 @@ export function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Attendance vs Performance</CardTitle>
           </CardHeader>

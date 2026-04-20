@@ -27,6 +27,8 @@ interface ThemeAppearanceProps {
 }
 
 type ThemeFormState = {
+  shell_bg_color: string;
+  shell_text_color: string;
   sidebar_color: string;
   sidebar_text_color: string;
   button_color: string;
@@ -40,6 +42,8 @@ type ThemeFormState = {
 };
 
 const CSS_VAR_MAP: Record<keyof ThemeFormState, string> = {
+  shell_bg_color: "--theme-shell-bg-color",
+  shell_text_color: "--theme-shell-text-color",
   sidebar_color: "--theme-sidebar-color",
   sidebar_text_color: "--theme-sidebar-text-color",
   button_color: "--theme-button-color",
@@ -53,6 +57,8 @@ const CSS_VAR_MAP: Record<keyof ThemeFormState, string> = {
 };
 
 const DEFAULTS = {
+  shell_bg_color: "#f8fafc",
+  shell_text_color: "#0f172a",
   sidebar_color: "#3b82f6",
   sidebar_text_color: "#ffffff",
   button_color: "#2563eb",
@@ -67,6 +73,8 @@ const DEFAULTS = {
 
 function formFromSettings(cs: CompanySettings): ThemeFormState {
   return {
+    shell_bg_color: cs.shell_bg_color ?? "",
+    shell_text_color: cs.shell_text_color ?? "",
     sidebar_color: cs.sidebar_color ?? "",
     sidebar_text_color: cs.sidebar_text_color ?? "",
     button_color: cs.button_color ?? "",
@@ -132,6 +140,8 @@ export function ThemeAppearance({ companySettings }: ThemeAppearanceProps) {
 
   const resetAll = () =>
     setForm({
+      shell_bg_color: "",
+      shell_text_color: "",
       sidebar_color: "",
       sidebar_text_color: "",
       button_color: "",
@@ -151,6 +161,8 @@ export function ThemeAppearance({ companySettings }: ThemeAppearanceProps) {
     setError(null);
     try {
       await updateThemeColors({
+        shell_bg_color: form.shell_bg_color || null,
+        shell_text_color: form.shell_text_color || null,
         sidebar_color: form.sidebar_color || null,
         sidebar_text_color: form.sidebar_text_color || null,
         button_color: form.button_color || null,
@@ -188,6 +200,29 @@ export function ThemeAppearance({ companySettings }: ThemeAppearanceProps) {
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
           {/* Left: Controls */}
           <div className="space-y-5">
+            {/* Sidebar Active Item */}
+            <ColorSection
+              icon={<PanelLeft className="h-4 w-4" />}
+              title="Sidebar + Header Surface"
+              description="Background and base text color shared by sidebar and top header"
+              onReset={() => resetSection(["shell_bg_color", "shell_text_color"])}
+            >
+              <ColorField
+                id="shell_bg_color"
+                label="Background"
+                value={form.shell_bg_color}
+                fallback={DEFAULTS.shell_bg_color}
+                onChange={(v) => set("shell_bg_color", v)}
+              />
+              <ColorField
+                id="shell_text_color"
+                label="Text"
+                value={form.shell_text_color}
+                fallback={DEFAULTS.shell_text_color}
+                onChange={(v) => set("shell_text_color", v)}
+              />
+            </ColorSection>
+
             {/* Sidebar Active Item */}
             <ColorSection
               icon={<PanelLeft className="h-4 w-4" />}
@@ -320,8 +355,21 @@ export function ThemeAppearance({ companySettings }: ThemeAppearanceProps) {
             </div>
 
             <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-              {/* Sidebar preview */}
-              <div className="border-b border-border bg-muted/30 p-3">
+              {/* Header + Sidebar surface preview */}
+              <div
+                className="border-b border-border p-3"
+                style={{
+                  backgroundColor: resolve("shell_bg_color"),
+                  color: resolve("shell_text_color"),
+                }}
+              >
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest opacity-70">
+                  Header + Sidebar Surface
+                </p>
+                <div className="mb-3 flex items-center justify-between rounded-lg border border-border/50 bg-black/[0.02] px-3 py-2 text-xs">
+                  <span className="font-semibold">Top Header</span>
+                  <span className="opacity-70">Notifications • Profile</span>
+                </div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   Sidebar
                 </p>
@@ -341,7 +389,7 @@ export function ThemeAppearance({ companySettings }: ThemeAppearanceProps) {
                               backgroundColor: resolve("sidebar_color"),
                               color: resolve("sidebar_text_color"),
                             }
-                          : { color: "hsl(var(--muted-foreground))" }
+                          : { color: resolve("shell_text_color") }
                       }
                     >
                       {item.icon}

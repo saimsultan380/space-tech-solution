@@ -152,7 +152,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500/[0.12] to-indigo-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Filtered records</p>
@@ -163,7 +163,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             <p className="text-2xl font-semibold">{stats.totalRecords}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-500/[0.12] to-teal-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Total charged</p>
@@ -185,7 +185,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-500/[0.12] to-yellow-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Avg charged</p>
@@ -196,7 +196,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             <p className="text-2xl font-semibold">{formatCurrency(stats.avgChargedAmount, currency)}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-orange-500/[0.12] to-amber-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Utility sales</p>
@@ -207,7 +207,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
             <p className="text-2xl font-semibold">{stats.utilityCount}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-sky-500/[0.12] to-blue-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Insurance sales</p>

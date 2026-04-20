@@ -230,7 +230,13 @@ export function Header({
 
   return (
     <>
-    <header className="sticky top-0 z-30 flex h-16 min-h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3 sm:px-4 lg:px-6">
+    <header
+      style={{
+        backgroundColor: "var(--theme-shell-bg-color, hsl(var(--background)))",
+        color: "var(--theme-shell-text-color, hsl(var(--foreground)))",
+      }}
+      className="sticky top-0 z-30 flex h-16 min-h-16 shrink-0 items-center justify-between gap-3 border-b border-border px-3 sm:px-4 lg:px-6"
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
         <button
           type="button"

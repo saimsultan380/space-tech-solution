@@ -14,6 +14,8 @@ export default async function ChatLayout({
 
   return (
     <ThemeColorsProvider
+      shell_bg_color={settings.shell_bg_color}
+      shell_text_color={settings.shell_text_color}
       sidebar_color={settings.sidebar_color}
       sidebar_text_color={settings.sidebar_text_color}
       button_color={settings.button_color}

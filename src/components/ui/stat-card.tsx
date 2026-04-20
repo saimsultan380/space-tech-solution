@@ -20,16 +20,27 @@ const defaultColors = [
   "bg-cyan-500",
 ];
 
+const cardTintByColor: Record<string, string> = {
+  "bg-blue-500": "from-blue-500/[0.14] to-indigo-500/[0.06]",
+  "bg-emerald-500": "from-emerald-500/[0.14] to-teal-500/[0.06]",
+  "bg-violet-500": "from-violet-500/[0.14] to-fuchsia-500/[0.06]",
+  "bg-amber-500": "from-amber-500/[0.14] to-yellow-500/[0.06]",
+  "bg-rose-500": "from-rose-500/[0.14] to-red-500/[0.06]",
+  "bg-cyan-500": "from-cyan-500/[0.14] to-sky-500/[0.06]",
+};
+
 let colorIndex = 0;
 
 export function StatCard({ title, value, description, icon, trend, className, colorClass }: StatCardProps) {
   const color = colorClass || defaultColors[colorIndex++ % defaultColors.length];
+  const tint = cardTintByColor[color] ?? "from-primary/[0.12] to-card";
 
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-md border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5",
-        className
+        "group relative overflow-hidden rounded-md border border-border bg-gradient-to-br p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md",
+        tint,
+        className,
       )}
     >
       <div className="flex items-start justify-between">

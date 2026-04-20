@@ -256,7 +256,7 @@ export function PayslipsAdminClient({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
+        <Card className="border-border bg-gradient-to-br from-blue-500/[0.12] to-indigo-500/[0.06] shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Total Payslips
@@ -266,7 +266,7 @@ export function PayslipsAdminClient({
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
+        <Card className="border-border bg-gradient-to-br from-emerald-500/[0.12] to-teal-500/[0.06] shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Paid
@@ -276,7 +276,7 @@ export function PayslipsAdminClient({
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card shadow-sm transition-all hover:shadow-md">
+        <Card className="border-border bg-gradient-to-br from-amber-500/[0.12] to-yellow-500/[0.06] shadow-sm transition-all hover:shadow-md">
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Processed
@@ -288,7 +288,7 @@ export function PayslipsAdminClient({
         </Card>
       </div>
 
-      <Card className="border-border shadow-sm overflow-hidden">
+      <Card className="border-border bg-gradient-to-br from-violet-500/[0.06] via-card to-card shadow-sm overflow-hidden">
         <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="text-lg font-bold text-foreground">

@@ -132,6 +132,7 @@ export function ProcessingAccountsClient({
       icon: CheckCircle,
       color: "text-success",
       bgColor: "bg-success/10",
+      cardTint: "from-emerald-500/[0.12] to-teal-500/[0.06]",
       filterValue: "active",
     },
     {
@@ -140,6 +141,7 @@ export function ProcessingAccountsClient({
       icon: AlertTriangle,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
+      cardTint: "from-rose-500/[0.12] to-red-500/[0.06]",
       filterValue: "not_working",
     },
     {
@@ -148,6 +150,7 @@ export function ProcessingAccountsClient({
       icon: XCircle,
       color: "text-muted-foreground",
       bgColor: "bg-muted",
+      cardTint: "from-slate-500/[0.12] to-zinc-500/[0.06]",
       filterValue: "closed",
     },
     {
@@ -156,6 +159,7 @@ export function ProcessingAccountsClient({
       icon: AlertOctagon,
       color: "text-warning",
       bgColor: "bg-warning/10",
+      cardTint: "from-amber-500/[0.12] to-orange-500/[0.06]",
       filterValue: "reversal_issue",
     },
     {
@@ -164,6 +168,7 @@ export function ProcessingAccountsClient({
       icon: Clock,
       color: "text-primary",
       bgColor: "bg-primary/10",
+      cardTint: "from-violet-500/[0.12] to-indigo-500/[0.06]",
       filterValue: "under_review",
     },
   ];
@@ -196,8 +201,8 @@ export function ProcessingAccountsClient({
           return (
             <Card
               key={stat.label}
-              className={`cursor-pointer transition-all hover:shadow-md ${
-                isActive ? "ring-2 ring-primary" : ""
+              className={`cursor-pointer bg-gradient-to-br transition-all hover:shadow-md ${stat.cardTint} ${
+                isActive ? "ring-2 ring-primary/60" : ""
               }`}
               onClick={() =>
                 updateFilters({

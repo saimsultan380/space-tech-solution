@@ -52,6 +52,8 @@ export function DashboardShell({
   return (
     <CurrencyProvider currency={currency}>
       <ThemeColorsProvider
+        shell_bg_color={themeColors?.shell_bg_color ?? null}
+        shell_text_color={themeColors?.shell_text_color ?? null}
         sidebar_color={themeColors?.sidebar_color ?? null}
         sidebar_text_color={themeColors?.sidebar_text_color ?? null}
         button_color={themeColors?.button_color ?? null}

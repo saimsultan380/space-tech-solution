@@ -21,6 +21,8 @@ export default async function DashboardLayout({
       userId={user.id}
       allowedModules={user.allowed_modules ?? null}
       themeColors={{
+        shell_bg_color: companySettings.shell_bg_color,
+        shell_text_color: companySettings.shell_text_color,
         sidebar_color: companySettings.sidebar_color,
         sidebar_text_color: companySettings.sidebar_text_color,
         button_color: companySettings.button_color,

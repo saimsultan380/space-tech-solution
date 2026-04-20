@@ -9,6 +9,8 @@ export type CompanySettings = {
   address_line: string;
   contact_email: string;
   logo_url: string | null;
+  shell_bg_color: string | null;
+  shell_text_color: string | null;
   sidebar_color: string | null;
   sidebar_text_color: string | null;
   button_color: string | null;
@@ -23,6 +25,8 @@ export type CompanySettings = {
 
 export type ThemeColors = Pick<
   CompanySettings,
+  | "shell_bg_color"
+  | "shell_text_color"
   | "sidebar_color"
   | "sidebar_text_color"
   | "button_color"
@@ -41,7 +45,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
   const { data, error } = await supabase
     .from("company_settings")
     .select(
-      "company_name, address_line, contact_email, logo_url, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color, chat_user_bubble_color, chat_user_bubble_text_color, chat_bot_bubble_color, chat_bot_bubble_text_color"
+      "company_name, address_line, contact_email, logo_url, shell_bg_color, shell_text_color, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color, chat_user_bubble_color, chat_user_bubble_text_color, chat_bot_bubble_color, chat_bot_bubble_text_color"
     )
     .eq("id", 1)
     .single();
@@ -52,6 +56,8 @@ export async function getCompanySettings(): Promise<CompanySettings> {
     address_line: data.address_line,
     contact_email: data.contact_email,
     logo_url: data.logo_url ?? null,
+    shell_bg_color: data.shell_bg_color ?? null,
+    shell_text_color: data.shell_text_color ?? null,
     sidebar_color: data.sidebar_color ?? null,
     sidebar_text_color: data.sidebar_text_color ?? null,
     button_color: data.button_color ?? null,
@@ -97,6 +103,8 @@ export async function updateThemeColors(input: ThemeColors) {
   const { error } = await supabase
     .from("company_settings")
     .update({
+      shell_bg_color: validHex(input.shell_bg_color),
+      shell_text_color: validHex(input.shell_text_color),
       sidebar_color: validHex(input.sidebar_color),
       sidebar_text_color: validHex(input.sidebar_text_color),
       button_color: validHex(input.button_color),

@@ -220,8 +220,12 @@ export function Sidebar({
       />
 
       <aside
+        style={{
+          backgroundColor: "var(--theme-shell-bg-color, hsl(var(--card)))",
+          color: "var(--theme-shell-text-color, hsl(var(--muted-foreground)))",
+        }}
         className={cn(
-          "flex h-full flex-col bg-card text-muted-foreground transition-all duration-300 ease-in-out border-r border-border",
+          "flex h-full flex-col text-muted-foreground transition-all duration-300 ease-in-out border-r border-border",
           "fixed inset-y-0 left-0 z-50 w-[17rem] lg:static lg:z-auto lg:shrink-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           collapsed ? "lg:w-[4.5rem]" : "lg:w-[17rem]",
@@ -234,8 +238,8 @@ export function Sidebar({
             className="flex min-w-0 items-center group"
             onClick={onCloseMobile}
           >
-            {(!collapsed || isMobileOpen) && (
-              <span className="text-lg font-semibold tracking-tight text-foreground whitespace-nowrap">
+            {!collapsed && (
+              <span className="text-lg font-semibold tracking-tight whitespace-nowrap">
                 Space Tech Solution
               </span>
             )}
@@ -251,35 +255,50 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-4 overflow-y-auto px-2.5 py-3">
+        <nav
+          className={cn(
+            "flex-1 space-y-5 overflow-y-auto px-4 py-5",
+            collapsed && "space-y-6 px-3 py-6",
+          )}
+        >
           {allSections.map((section) => (
             <div
               key={section.title}
               className={cn(
-                "space-y-1 rounded-md border border-primary/20 bg-card/40 px-2 py-2.5 shadow-sm ring-1 ring-primary/5",
-                collapsed && !isMobileOpen && "px-1.5",
+                "space-y-1.5 px-1",
+                collapsed && "px-0",
               )}
             >
-              {(!collapsed || isMobileOpen) && (
-                <div className="flex items-center gap-2 px-2 pb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
+              {!collapsed && (
+                <div className="flex items-center gap-2 px-2 pb-2">
+                  <span className="h-4 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                  <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
                     {section.title}
                   </span>
-                  <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+                  <span className="h-px flex-1 bg-emerald-300/70 dark:bg-emerald-500/40" />
                 </div>
               )}
-              <div className="space-y-0.5">
-                {section.items.map((item, idx) => {
+              <div
+                className={cn(
+                  "space-y-1.5 rounded-xl border border-border/80 p-1.5 dark:border-border/60",
+                  collapsed && "space-y-2 p-2",
+                )}
+              >
+                {section.items.map((item) => {
                   const Icon = iconMap[item.icon];
                   const isActive =
                     pathname === item.href ||
                     (item.href !== "/dashboard" &&
                       pathname.startsWith(item.href));
-                  const isCollapsedRail = collapsed && !isMobileOpen;
+                  const isCollapsedRail = collapsed;
                   const opensNewTab = "newTab" in item && item.newTab;
                   const LinkEl = opensNewTab ? "a" : Link;
                   const linkProps = opensNewTab
-                    ? { href: item.href, target: "_blank" as const, rel: "noopener noreferrer" }
+                    ? {
+                        href: item.href,
+                        target: "_blank" as const,
+                        rel: "noopener noreferrer",
+                      }
                     : { href: item.href };
                   return (
                     <div
@@ -290,29 +309,42 @@ export function Sidebar({
                         {...linkProps}
                         onClick={onCloseMobile}
                         className={cn(
-                          "group flex items-center rounded-lg text-[13px] font-medium transition-all duration-200",
+                          "group flex items-center rounded-xl border text-[14px] font-medium transition-all duration-200",
                           isCollapsedRail
-                            ? "aspect-square w-full justify-center gap-0 p-0"
-                            : "gap-3 px-3 py-2",
+                            ? "h-10 w-full justify-center gap-0 p-0"
+                            : "gap-3 px-3 py-2.5",
                           isActive
-                            ? "sidebar-active-item bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                            ? "sidebar-active-item border-primary/20 bg-primary text-primary-foreground shadow-sm"
+                            : "border-transparent bg-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground",
                         )}
                       >
                         {Icon &&
                           (isCollapsedRail ? (
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background shadow-sm transition-all duration-200 group-hover:shadow-md">
-                              <Icon className="h-[18px] w-[18px] text-primary transition-transform duration-200 group-hover:scale-110" />
-                            </div>
+                            <Icon
+                              className={cn(
+                                "h-[18px] w-[18px] shrink-0 transition-colors",
+                                isActive
+                                  ? "text-primary-foreground"
+                                  : "text-foreground/70 group-hover:text-foreground",
+                              )}
+                            />
                           ) : (
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background shadow-sm transition-all duration-200 group-hover:shadow-md">
-                              <Icon className="h-[15px] w-[15px] text-primary transition-transform duration-200 group-hover:scale-110" />
-                            </div>
+                            <Icon
+                              className={cn(
+                                "h-[15px] w-[15px] shrink-0 transition-colors",
+                                isActive
+                                  ? "text-primary-foreground"
+                                  : "text-primary group-hover:text-foreground",
+                              )}
+                            />
                           ))}
                         {!isCollapsedRail && (
                           <>
                             <span
-                              className={cn("truncate flex-1", isActive && "font-bold")}
+                              className={cn(
+                                "truncate flex-1",
+                                isActive && "font-bold",
+                              )}
                             >
                               {item.label}
                             </span>
@@ -322,11 +354,6 @@ export function Sidebar({
                           </>
                         )}
                       </LinkEl>
-                      {!isActive &&
-                        idx < section.items.length - 1 &&
-                        !collapsed && (
-                          <div className="mx-3 my-0.5 h-px bg-border/30" />
-                        )}
                     </div>
                   );
                 })}
@@ -336,11 +363,11 @@ export function Sidebar({
         </nav>
 
         {/* Bottom user info section */}
-        {(!collapsed || isMobileOpen) && (
-          <div className="p-4 border-t border-border/50">
-            <div className="rounded-xl border border-primary/20 bg-muted/30 px-3.5 py-3 ring-1 ring-primary/5">
+        {!collapsed && (
+          <div className="border-t border-border/50 px-4 py-3.5">
+            <div className="px-1 py-1">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-xs font-bold text-primary shadow-sm overflow-hidden">
+                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold text-primary">
                   {userAvatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

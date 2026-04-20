@@ -89,7 +89,7 @@ export function DashboardClient({
         </div>
         <button
           onClick={() => setShowCharts((v) => !v)}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.05] px-4 text-sm font-medium text-primary hover:bg-primary/[0.1]"
         >
           {showCharts ? (
             <><EyeOff className="h-4 w-4" /> Hide Charts</>
@@ -108,6 +108,7 @@ export function DashboardClient({
           Icon={DollarSign}
           iconBgClass="bg-primary/10"
           iconTextClass="text-primary"
+          cardTintClass="from-blue-500/[0.12] to-indigo-500/[0.06]"
         />
         <MetricCard
           title="Total Sales"
@@ -117,6 +118,7 @@ export function DashboardClient({
           Icon={ShoppingCart}
           iconBgClass="bg-success/10"
           iconTextClass="text-success"
+          cardTintClass="from-emerald-500/[0.12] to-teal-500/[0.06]"
         />
         <MetricCard
           title="Call Logs Responses"
@@ -126,6 +128,7 @@ export function DashboardClient({
           iconBgClass="bg-primary/10"
           iconTextClass="text-primary"
           description="In your database"
+          cardTintClass="from-violet-500/[0.12] to-blue-500/[0.06]"
         />
         <MetricCard
           title="Recorded share"
@@ -135,6 +138,7 @@ export function DashboardClient({
           iconBgClass="bg-success/10"
           iconTextClass="text-success"
           description={`${stats.approvedSales} recorded of ${stats.totalSales}`}
+          cardTintClass="from-cyan-500/[0.12] to-sky-500/[0.06]"
         />
       </div>
 
@@ -148,6 +152,7 @@ export function DashboardClient({
           iconTextClass="text-destructive"
           valueClassName="text-destructive"
           description={`${stats.totalChargebacks} total chargebacks`}
+          cardTintClass="from-rose-500/[0.1] to-red-500/[0.05]"
         />
         <MetricCard
           title="Pending Leave Requests"
@@ -158,6 +163,7 @@ export function DashboardClient({
           iconTextClass="text-warning"
           valueClassName="text-warning"
           description={`${stats.todayOnLeave} employees on leave today`}
+          cardTintClass="from-amber-500/[0.12] to-yellow-500/[0.06]"
         />
       </div>
 
@@ -179,7 +185,7 @@ export function DashboardClient({
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="rounded-xl border border-border bg-gradient-to-br from-primary/[0.08] via-card to-card p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Revenue Trend</h3>
@@ -192,7 +198,7 @@ export function DashboardClient({
               <RevenueChart data={revenueData} />
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="rounded-xl border border-border bg-gradient-to-br from-violet-500/[0.08] via-card to-card p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Sales outcomes</h3>
@@ -205,7 +211,7 @@ export function DashboardClient({
               <ConversionChart recorded={stats.approvedSales} rejected={stats.rejectedSales} />
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm lg:col-span-2">
+            <div className="rounded-xl border border-border bg-gradient-to-br from-sky-500/[0.08] via-card to-card p-6 shadow-sm lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Sales per Agent</h3>
@@ -248,6 +254,7 @@ interface MetricCardProps {
   iconBgClass: string;
   iconTextClass: string;
   valueClassName?: string;
+  cardTintClass?: string;
 }
 
 function MetricCard({
@@ -259,11 +266,14 @@ function MetricCard({
   iconBgClass,
   iconTextClass,
   valueClassName,
+  cardTintClass,
 }: MetricCardProps) {
   const trendPositive = trend >= 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card px-6 py-5 shadow-sm">
+    <div
+      className={`rounded-xl border border-border bg-gradient-to-br ${cardTintClass ?? "from-card to-card"} px-6 py-5 shadow-sm`}
+    >
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBgClass}`}>

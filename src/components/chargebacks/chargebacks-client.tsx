@@ -240,7 +240,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500/[0.12] to-indigo-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Total chargebacks</p>
@@ -251,7 +251,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{stats.total}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-500/[0.12] to-yellow-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Impacted amount</p>
@@ -262,7 +262,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{formatCurrency(stats.impactedAmount, currency)}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-orange-500/[0.12] to-amber-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Open</p>
@@ -273,7 +273,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{stats.open}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-500/[0.12] to-teal-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Resolved</p>
@@ -284,7 +284,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{stats.resolved}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-rose-500/[0.12] to-red-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Disputed</p>
@@ -295,7 +295,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{stats.disputed}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-violet-500/[0.12] to-indigo-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Assigned</p>
@@ -309,7 +309,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-500/[0.1] to-teal-500/[0.05]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Resolution rate</p>
@@ -320,7 +320,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{stats.resolutionRate}%</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500/[0.1] to-indigo-500/[0.05]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Avg resolution time</p>
@@ -331,7 +331,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             <p className="text-2xl font-semibold">{stats.avgResolutionDays} days</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-500/[0.1] to-yellow-500/[0.05]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Dispute success rate</p>
@@ -345,7 +345,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <Card>
+        <Card className="bg-gradient-to-br from-violet-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle className="text-sm">Monthly chargeback volume</CardTitle>
           </CardHeader>
@@ -372,7 +372,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-rose-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle className="text-sm">Top chargeback reasons</CardTitle>
           </CardHeader>

@@ -179,7 +179,7 @@ export function MarketingBudgetClient({
         </div>
       </div>
 
-      <Card>
+      <Card className="bg-gradient-to-br from-violet-500/[0.06] via-card to-card">
         <CardHeader>
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
@@ -243,7 +243,7 @@ export function MarketingBudgetClient({
         />
       </div>
 
-      <Card>
+      <Card className="bg-gradient-to-br from-sky-500/[0.06] via-card to-card">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex min-w-0 w-full flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
@@ -421,7 +421,7 @@ export function MarketingBudgetClient({
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4" />
@@ -433,7 +433,7 @@ export function MarketingBudgetClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-violet-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4" />
@@ -446,7 +446,7 @@ export function MarketingBudgetClient({
         </Card>
       </div>
 
-      <Card>
+      <Card className="bg-gradient-to-br from-rose-500/[0.08] via-card to-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="h-4 w-4" />
@@ -484,8 +484,17 @@ function StatCard({
   icon: React.ReactNode;
   color: string;
 }) {
+  const cardTint =
+    color.includes("text-primary")
+      ? "from-blue-500/[0.12] to-indigo-500/[0.06]"
+      : color.includes("text-emerald")
+        ? "from-emerald-500/[0.12] to-teal-500/[0.06]"
+        : color.includes("text-violet")
+          ? "from-violet-500/[0.12] to-fuchsia-500/[0.06]"
+          : "from-rose-500/[0.12] to-red-500/[0.06]";
+
   return (
-    <Card>
+    <Card className={`bg-gradient-to-br ${cardTint}`}>
       <CardContent className="p-5">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
