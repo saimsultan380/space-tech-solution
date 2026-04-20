@@ -114,31 +114,6 @@ function ChatClientContent({
   // ─── State ───
   const [channels, setChannels] = useState(initialChannels);
   const [activeChannelId, setActiveChannelId] = useState<string | null>((urlChannelId || initialChannels[0]?.id) ?? null);
-  
-  useEffect(() => {
-    if (urlChannelId && urlChannelId !== activeChannelId) {
-      setActiveChannelId(urlChannelId);
-      setMobileShowChat(true);
-      
-      // If the channel is not in our list, we might need to fetch it
-      if (!channels.some(c => c.id === urlChannelId)) {
-        const fetchNewChannel = async () => {
-          const supabase = createClient();
-          const { data } = await supabase
-            .from("chat_channels")
-            .select("*")
-            .eq("id", urlChannelId)
-            .single();
-          
-          if (data) {
-            // This is a bit simplified, but helps show the new DM immediately
-            setChannels(prev => [data as ChatChannel, ...prev]);
-          }
-        };
-        fetchNewChannel();
-      }
-    }
-  }, [urlChannelId, channels]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [members, setMembers] = useState<Member[]>([]);
@@ -214,16 +189,18 @@ function ChatClientContent({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
+  const fetchedUrlChannelRef = useRef<string | null>(null);
+  const hasLoadedInitialMessagesRef = useRef(false);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
   // ─── Derived ───
 
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const regularChannels = channels.filter((c) => !c.is_direct);
-  const dmChannels = channels.filter((c) => c.is_direct);
+  const dmChannels = channels.filter((c) => c.is_direct && (c.last_message || c.id === activeChannelId));
 
   const filteredRegularChannels = sidebarSearch
     ? regularChannels.filter((c) => c.name.toLowerCase().includes(sidebarSearch.toLowerCase()))
@@ -250,6 +227,31 @@ function ChatClientContent({
   // ─── Effects ───
 
   useEffect(() => {
+    if (!urlChannelId || urlChannelId === activeChannelId) return;
+    setActiveChannelId(urlChannelId);
+    setMobileShowChat(true);
+
+    // Only fetch once per URL channel id if it's not already present.
+    if (fetchedUrlChannelRef.current === urlChannelId) return;
+    fetchedUrlChannelRef.current = urlChannelId;
+
+    const fetchChannelFromUrl = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("chat_channels")
+        .select("*")
+        .eq("id", urlChannelId)
+        .single();
+      if (!data) return;
+      setChannels((prev) =>
+        prev.some((c) => c.id === urlChannelId) ? prev : [{ ...(data as ChatChannel), last_message: null, dm_partner: null }, ...prev]
+      );
+    };
+
+    void fetchChannelFromUrl();
+  }, [urlChannelId, activeChannelId]);
+
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmojiPicker(false);
       if (attachRef.current && !attachRef.current.contains(e.target as Node)) setShowAttachMenu(false);
@@ -265,6 +267,7 @@ function ChatClientContent({
     if (!activeChannelId) return;
     let cancelled = false;
     async function load() {
+      hasLoadedInitialMessagesRef.current = false;
       setLoadingMsgs(true);
       setActiveTab("chat");
       const [msgs, mems, pinned] = await Promise.all([
@@ -277,13 +280,20 @@ function ChatClientContent({
         setMembers(mems as Member[]);
         setPinnedMessages(pinned);
         setLoadingMsgs(false);
+        requestAnimationFrame(() => {
+          scrollToBottom("auto");
+          hasLoadedInitialMessagesRef.current = true;
+        });
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [activeChannelId]);
+  }, [activeChannelId, scrollToBottom]);
 
-  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+  useEffect(() => {
+    if (!hasLoadedInitialMessagesRef.current) return;
+    scrollToBottom("smooth");
+  }, [messages.length, scrollToBottom]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -549,7 +559,40 @@ function ChatClientContent({
       if (existing) {
         handleSelectChannel(result.channelId);
       } else {
-        window.location.reload();
+        const supabase = createClient();
+        const [{ data: ch }, { data: dmMembers }] = await Promise.all([
+          supabase
+            .from("chat_channels")
+            .select("*")
+            .eq("id", result.channelId)
+            .single(),
+          supabase
+            .from("chat_channel_members")
+            .select("user_id")
+            .eq("channel_id", result.channelId)
+            .neq("user_id", currentUserId),
+        ]);
+
+        let dmPartner: ChatChannel["dm_partner"] = null;
+        const otherUserId = dmMembers?.[0]?.user_id;
+        if (otherUserId) {
+          const { data: otherUser } = await supabase
+            .from("users")
+            .select("id, full_name, avatar_url")
+            .eq("id", otherUserId)
+            .single();
+          if (otherUser) dmPartner = otherUser;
+        }
+
+        if (ch) {
+          const hydratedChannel: ChatChannel = {
+            ...(ch as ChatChannel),
+            last_message: null,
+            dm_partner: dmPartner,
+          };
+          setChannels((prev) => [hydratedChannel, ...prev.filter((c) => c.id !== hydratedChannel.id)]);
+        }
+        handleSelectChannel(result.channelId);
       }
     }
   };
@@ -1201,6 +1244,11 @@ function ChatClientContent({
                           value={newMsg}
                           onChange={handleInputChange}
                           onKeyDown={handleKeyDown}
+                          onFocus={() => {
+                            setTimeout(() => {
+                              inputRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 120);
+                          }}
                           placeholder="Type a message"
                           className="flex-1 min-w-0 bg-transparent text-sm outline-none resize-none max-h-[120px] leading-relaxed placeholder:text-muted-foreground/50"
                           rows={1}
