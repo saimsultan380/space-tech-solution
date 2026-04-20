@@ -298,9 +298,7 @@ export default async function SaleDetailPage(props: {
 
       <SaleDetailNoteFields
         saleId={sale.id}
-        initialOtherSaleData={sale.other_sale_data}
-        initialSalesNotes={sale.sales_notes}
-        initialProcessingNotes={sale.processing_notes}
+        notes={notes}
       />
 
       <SaleAttachmentsSection

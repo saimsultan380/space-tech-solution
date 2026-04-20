@@ -33,14 +33,14 @@ export default async function ReportsPage(props: ReportsPageProps) {
     attendanceVsPerformance,
     employeeMonthlyStats,
   ] = await Promise.all([
-    getDashboardStats(),
-    getSalesPerAgent(),
-    getSalesPerProcessor(),
+    getDashboardStats(month),
+    getSalesPerAgent(month),
+    getSalesPerProcessor(month),
     getRevenueOverTime("day"),
     getRevenueOverTime("week"),
     getRevenueOverTime("month"),
-    getChargebacksPerEmployee(),
-    getAttendanceVsPerformance(),
+    getChargebacksPerEmployee(month),
+    getAttendanceVsPerformance(month),
     getEmployeeMonthlyStats(month),
   ]);
 

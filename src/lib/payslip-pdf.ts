@@ -43,17 +43,11 @@ async function buildPayslipPdfDoc(payslip: Payslip, branding?: Partial<PayslipBr
       doc.setDrawColor(23, 37, 84);
       doc.setLineWidth(0.5);
       doc.circle(22, 20.5, 8);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("ST", 22, 21.5, { align: "center" });
     }
   } else {
     doc.setDrawColor(23, 37, 84);
     doc.setLineWidth(0.5);
     doc.circle(22, 20.5, 8);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("ST", 22, 21.5, { align: "center" });
   }
 
   // Address under logo (with spacing)

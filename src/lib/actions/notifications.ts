@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 interface CreateNotificationInput {
   user_id: string;
@@ -109,6 +110,52 @@ export async function notifyLeaveApproved(leaveId: string) {
     });
   } catch (err) {
     console.error("Notification error:", err);
+  }
+}
+
+export async function getNotifications(type?: string) {
+  try {
+    const user = await requireAuth();
+    const supabase = await createClient();
+
+    let query = supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id);
+    
+    if (type) {
+      query = query.eq("type", type);
+    }
+
+    const { data, error } = await query
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  } catch (err) {
+    console.error("Failed to get notifications:", err);
+    return [];
+  }
+}
+
+export async function markNotificationsAsRead(ids: string[]) {
+  try {
+    const user = await requireAuth();
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .in("id", ids)
+      .eq("user_id", user.id);
+
+    if (error) throw new Error(error.message);
+    revalidatePath("/chat");
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to mark notifications as read:", err);
+    return { success: false, error: err };
   }
 }
 

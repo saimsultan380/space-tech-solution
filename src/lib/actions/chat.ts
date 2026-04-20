@@ -190,6 +190,39 @@ export async function sendMessage(
 
   if (error) return { error: error.message };
 
+  // Create notifications for other members
+  try {
+    const { data: members } = await supabase
+      .from("chat_channel_members")
+      .select("user_id")
+      .eq("channel_id", channelId)
+      .neq("user_id", user.id);
+
+    if (members && members.length > 0) {
+      const { data: channel } = await supabase
+        .from("chat_channels")
+        .select("name, is_direct")
+        .eq("id", channelId)
+        .single();
+
+      const notificationTitle = channel?.is_direct 
+        ? `New message from ${user.full_name}`
+        : `New message in #${channel?.name}`;
+
+      const notificationRows = members.map((m) => ({
+        user_id: m.user_id,
+        title: notificationTitle,
+        body: content.length > 100 ? content.substring(0, 97) + "..." : content,
+        type: "chat",
+        is_read: false,
+      }));
+
+      await supabase.from("notifications").insert(notificationRows);
+    }
+  } catch (err) {
+    console.error("Failed to create chat notifications:", err);
+  }
+
   revalidatePath("/chat");
   return { error: null, messageId: data?.id };
 }

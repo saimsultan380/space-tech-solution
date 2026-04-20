@@ -212,6 +212,7 @@ export interface Note {
   user_id: string;
   content: string;
   is_important: boolean;
+  type?: string | null;
   created_at: string;
   user?: AppUser;
 }

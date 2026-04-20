@@ -3,10 +3,36 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 
-export async function getDashboardStats() {
+export async function getDashboardStats(month?: string) {
   await requireAuth();
   const supabase = await createClient();
   const today = new Date().toISOString().split("T")[0];
+
+  let totalSalesQuery = supabase.from("sales").select("id", { count: "exact", head: true });
+  let rejectedSalesQuery = supabase.from("sales").select("id", { count: "exact", head: true }).eq("status", "rejected");
+  let revenueQuery = supabase.from("sales").select("charged_amount").neq("status", "rejected");
+  let customersQuery = supabase.from("customers").select("id", { count: "exact", head: true });
+  let totalChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true });
+  let openChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true }).eq("status", "open");
+  let pendingLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true }).eq("status", "pending");
+  let todayLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true })
+    .eq("status", "approved").lte("start_date", today).gte("end_date", today);
+
+  if (month) {
+    const monthStart = `${month}-01`;
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const monthEnd = nextMonth.toISOString().split("T")[0];
+
+    totalSalesQuery = totalSalesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    rejectedSalesQuery = rejectedSalesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    revenueQuery = revenueQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    customersQuery = customersQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    totalChargebacksQuery = totalChargebacksQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    openChargebacksQuery = openChargebacksQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    // Leaves might not need month filtering for dashboard overview, but for reports we can filter them
+    pendingLeavesQuery = pendingLeavesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+  }
 
   const [
     totalSalesRes,
@@ -18,15 +44,14 @@ export async function getDashboardStats() {
     pendingLeavesRes,
     todayLeavesRes,
   ] = await Promise.all([
-    supabase.from("sales").select("id", { count: "exact", head: true }),
-    supabase.from("sales").select("id", { count: "exact", head: true }).eq("status", "rejected"),
-    supabase.from("sales").select("charged_amount").neq("status", "rejected"),
-    supabase.from("customers").select("id", { count: "exact", head: true }),
-    supabase.from("chargebacks").select("id", { count: "exact", head: true }),
-    supabase.from("chargebacks").select("id", { count: "exact", head: true }).eq("status", "open"),
-    supabase.from("leaves").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("leaves").select("id", { count: "exact", head: true })
-      .eq("status", "approved").lte("start_date", today).gte("end_date", today),
+    totalSalesQuery,
+    rejectedSalesQuery,
+    revenueQuery,
+    customersQuery,
+    totalChargebacksQuery,
+    openChargebacksQuery,
+    pendingLeavesQuery,
+    todayLeavesQuery,
   ]);
 
   const totalSales = totalSalesRes.count || 0;
@@ -50,12 +75,22 @@ export async function getDashboardStats() {
   };
 }
 
-export async function getSalesPerAgent() {
+export async function getSalesPerAgent(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("sales")
-    .select("agent_id, status, charged_amount, agent:users!sales_agent_id_fkey(full_name)");
+    .select("agent_id, status, charged_amount, created_at, agent:users!sales_agent_id_fkey(full_name)");
+
+  if (month) {
+    const monthStart = `${month}-01`;
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const monthEnd = nextMonth.toISOString().split("T")[0];
+    query = query.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+  }
+
+  const { data } = await query;
 
   const agentMap = new Map<string, { name: string; total: number; approved: number; revenue: number }>();
 
@@ -79,13 +114,23 @@ export async function getSalesPerAgent() {
   return Array.from(agentMap.values());
 }
 
-export async function getSalesPerProcessor() {
+export async function getSalesPerProcessor(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("sales")
-    .select("processor_id, status, processor:users!sales_processor_id_fkey(full_name)")
+    .select("processor_id, status, created_at, processor:users!sales_processor_id_fkey(full_name)")
     .not("processor_id", "is", null);
+
+  if (month) {
+    const monthStart = `${month}-01`;
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const monthEnd = nextMonth.toISOString().split("T")[0];
+    query = query.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+  }
+
+  const { data } = await query;
 
   const procMap = new Map<string, { name: string; total: number; approved: number; rejected: number }>();
 
@@ -142,12 +187,22 @@ export async function getRevenueOverTime(period: "day" | "week" | "month" = "day
   }));
 }
 
-export async function getChargebacksPerEmployee() {
+export async function getChargebacksPerEmployee(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("chargebacks")
-    .select("sale:sales(agent_id, agent:users!sales_agent_id_fkey(full_name))");
+    .select("created_at, sale:sales(agent_id, agent:users!sales_agent_id_fkey(full_name))");
+
+  if (month) {
+    const monthStart = `${month}-01`;
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const monthEnd = nextMonth.toISOString().split("T")[0];
+    query = query.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+  }
+
+  const { data } = await query;
 
   const empMap = new Map<string, { name: string; count: number }>();
 
@@ -163,15 +218,27 @@ export async function getChargebacksPerEmployee() {
   return Array.from(empMap.values());
 }
 
-export async function getAttendanceVsPerformance() {
+export async function getAttendanceVsPerformance(month?: string) {
   await requireAuth();
   const supabase = await createClient();
 
+  const targetMonth = month || new Date().toISOString().substring(0, 7);
+  const monthStart = `${targetMonth}-01`;
+  const nextMonth = new Date(monthStart);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const monthEnd = nextMonth.toISOString().split("T")[0];
+
   const [attendanceRes, salesRes] = await Promise.all([
-    supabase.from("attendance").select("user_id, date"),
+    supabase
+      .from("attendance")
+      .select("user_id, date")
+      .gte("date", monthStart)
+      .lt("date", monthEnd),
     supabase
       .from("sales")
-      .select("agent_id, status, agent:users!sales_agent_id_fkey(full_name)")
+      .select("agent_id, status, created_at, agent:users!sales_agent_id_fkey(full_name)")
+      .gte("created_at", `${monthStart}T00:00:00.000Z`)
+      .lt("created_at", `${monthEnd}T00:00:00.000Z`)
       .neq("status", "rejected"),
   ]);
 

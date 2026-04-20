@@ -228,7 +228,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={inputRef}
-                placeholder="Search by customer name, email, phone, or company..."
+                placeholder="Search by name, email, phone, account, policy, or company..."
                 value={searchInput}
                 onChange={(e) => onInputChange(e.target.value)}
                 className="pl-10"

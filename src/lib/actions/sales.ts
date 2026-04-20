@@ -63,7 +63,7 @@ function applySalesFilters(
     const like = `%${safe}%`;
     const numericSearch = Number(searchTerm.replace(/[^0-9.-]/g, ""));
     const isNumericSearch = Number.isFinite(numericSearch) && searchTerm.replace(/[^0-9.-]/g, "").length > 0;
-    const textMatch = `customer_name.ilike.${like},customer_email.ilike.${like},customer_phone.ilike.${like},company_name.ilike.${like}`;
+    const textMatch = `customer_name.ilike.${like},customer_email.ilike.${like},customer_phone.ilike.${like},company_name.ilike.${like},utility_company_service_number.ilike.${like},policy_holder_name.ilike.${like},account_holder_name.ilike.${like}`;
     const amountMatch = isNumericSearch
       ? `amount.eq.${numericSearch},charged_amount.eq.${numericSearch}`
       : "";
@@ -358,6 +358,30 @@ export async function createSale(formData: CreateSaleInput) {
 
   if (saleError) throw new Error(saleError.message);
 
+  if (saleData?.id) {
+    const initialNotes = [];
+    if (formData.other_sale_data?.trim()) {
+      initialNotes.push({
+        sale_id: saleData.id,
+        user_id: user.id,
+        content: formData.other_sale_data.trim(),
+        type: "other",
+      });
+    }
+    if (formData.sales_notes?.trim()) {
+      initialNotes.push({
+        sale_id: saleData.id,
+        user_id: user.id,
+        content: formData.sales_notes.trim(),
+        type: "sales",
+      });
+    }
+
+    if (initialNotes.length > 0) {
+      await supabase.from("notes").insert(initialNotes);
+    }
+  }
+
   if (formData.payment_method && saleData) {
     const paymentInsert: Record<string, unknown> = {
       sale_id: saleData.id,
@@ -549,9 +573,51 @@ export async function updateSaleStatus(
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
+  if (processing_notes?.trim()) {
+    await supabase.from("notes").insert({
+      sale_id: id,
+      user_id: user.id,
+      content: processing_notes.trim(),
+      type: "processing",
+    });
+  }
+
   revalidatePath("/dashboard/sales");
   revalidatePath(`/dashboard/sales/${id}`);
   revalidatePath("/dashboard");
+}
+
+export async function updateSaleChargebackStatus(
+  id: string,
+  chargeback_status: string,
+  processing_notes: string
+) {
+  const user = await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("sales")
+    .update({
+      chargeback_status,
+      processing_notes,
+      processor_id: user.id,
+    })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  if (processing_notes?.trim()) {
+    await supabase.from("notes").insert({
+      sale_id: id,
+      user_id: user.id,
+      content: processing_notes.trim(),
+      type: "processing",
+    });
+  }
+
+  revalidatePath("/dashboard/sales");
+  revalidatePath(`/dashboard/sales/${id}`);
 }
 
 export async function bulkUpdateSaleStatus(

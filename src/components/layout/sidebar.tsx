@@ -22,6 +22,7 @@ import {
   Megaphone,
   MessageCircle,
   ExternalLink,
+  LogOut,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -41,6 +42,24 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Landmark: CreditCard,
 };
 
+const iconColors: Record<string, string> = {
+  "/dashboard": "bg-indigo-500",
+  "/dashboard/reports": "bg-cyan-500",
+  "/chat": "bg-blue-500",
+  "/dashboard/users": "bg-violet-500",
+  "/dashboard/attendance": "bg-emerald-500",
+  "/dashboard/leaves": "bg-orange-500",
+  "/dashboard/payslips": "bg-teal-500",
+  "/dashboard/sales": "bg-rose-500",
+  "/dashboard/processing-accounts": "bg-amber-500",
+  "/dashboard/call-logs-responses": "bg-sky-500",
+  "/dashboard/marketing-budget": "bg-pink-500",
+  "/dashboard/chargebacks": "bg-red-500",
+  "/dashboard/settings": "bg-slate-500",
+  "/dashboard/sales-performance": "bg-purple-500",
+  "/dashboard/customers": "bg-blue-400",
+};
+
 interface SidebarProps {
   role: UserRole;
   userName: string;
@@ -51,65 +70,56 @@ interface SidebarProps {
   onCloseMobile?: () => void;
 }
 
-const SECTION_CONFIG: Record<
-  UserRole,
-  Array<{ title: string; hrefs: string[] }>
-> = {
+const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   super_admin: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/chat", "/dashboard/reports"],
+      hrefs: ["/dashboard", "/dashboard/reports", "/chat"],
     },
     {
       title: "HR Services",
       hrefs: [
+        "/dashboard/users",
         "/dashboard/attendance",
-        "/dashboard/payslips",
         "/dashboard/leaves",
+        "/dashboard/payslips",
       ],
     },
     {
-      title: "Employee Management",
+      title: "Operations",
       hrefs: [
-        "/dashboard/users",
-        "/dashboard/call-logs-responses",
         "/dashboard/sales",
+        "/dashboard/processing-accounts",
+        "/dashboard/call-logs-responses",
+        "/dashboard/marketing-budget",
         "/dashboard/chargebacks",
       ],
     },
     {
-      title: "Processing Database",
-      hrefs: ["/dashboard/processing-accounts"],
-    },
-    {
-      title: "Finance & System",
-      hrefs: [
-        /* "/dashboard/payments", */ "/dashboard/marketing-budget",
-        "/dashboard/settings",
-      ],
+      title: "System",
+      hrefs: ["/dashboard/settings"],
     },
   ],
   sales_agent: [
     {
       title: "Main Menu",
-      hrefs: [
-        "/dashboard",
-        "/dashboard/sales-performance",
-        "/chat",
-        "/dashboard/call-logs-responses",
-        "/dashboard/sales",
-      ],
-    },
-    {
-      title: "Processing Database",
-      hrefs: ["/dashboard/processing-accounts"],
+      hrefs: ["/dashboard", "/dashboard/sales-performance", "/chat"],
     },
     {
       title: "HR Services",
       hrefs: [
-        "/dashboard/payslips",
         "/dashboard/attendance",
         "/dashboard/leaves",
+        "/dashboard/payslips",
+      ],
+    },
+    {
+      title: "Operations",
+      hrefs: [
+        "/dashboard/sales",
+        "/dashboard/processing-accounts",
+        "/dashboard/call-logs-responses",
+        "/dashboard/chargebacks",
       ],
     },
     {
@@ -120,32 +130,29 @@ const SECTION_CONFIG: Record<
   processor: [
     {
       title: "Main Menu",
-      hrefs: [
-        "/dashboard",
-        "/chat",
-        "/dashboard/call-logs-responses",
-        "/dashboard/sales",
-      ],
-    },
-    {
-      title: "Processing Database",
-      hrefs: ["/dashboard/processing-accounts"],
+      hrefs: ["/dashboard", "/chat"],
     },
     {
       title: "HR Services",
       hrefs: [
-        "/dashboard/payslips",
         "/dashboard/attendance",
         "/dashboard/leaves",
+        "/dashboard/payslips",
       ],
     },
     {
-      title: "Risk",
-      hrefs: ["/dashboard/chargebacks"],
+      title: "Operations",
+      hrefs: [
+        "/dashboard/sales",
+        "/dashboard/processing-accounts",
+        "/dashboard/call-logs-responses",
+        "/dashboard/marketing-budget",
+        "/dashboard/chargebacks",
+      ],
     },
     {
-      title: "Finance & System",
-      hrefs: ["/dashboard/marketing-budget", "/dashboard/settings"],
+      title: "System",
+      hrefs: ["/dashboard/settings"],
     },
   ],
 };
@@ -221,7 +228,7 @@ export function Sidebar({
 
       <aside
         style={{
-          backgroundColor: "var(--theme-shell-bg-color, hsl(var(--card)))",
+          backgroundColor: "var(--theme-shell-bg-color, hsl(var(--background)))",
           color: "var(--theme-shell-text-color, hsl(var(--foreground)))",
         }}
         className={cn(
@@ -232,16 +239,18 @@ export function Sidebar({
         )}
       >
         {/* Brand + mobile close */}
-        <div className="flex h-[4.5rem] items-center justify-between gap-2 px-6 border-b border-foreground/5">
+        <div className="flex h-[4.5rem] items-center justify-between gap-2 px-6 border-b border-current/5 bg-current/[0.02] backdrop-blur-sm">
           <Link
             href="/dashboard"
             className="flex min-w-0 items-center group"
             onClick={onCloseMobile}
           >
             {!collapsed && (
-              <span className="text-lg font-semibold tracking-tight whitespace-nowrap">
-                Space Tech Solution
-              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg font-bold tracking-tight whitespace-nowrap leading-none">
+                  Space Tech Solution
+                </span>
+              </div>
             )}
           </Link>
           <button
@@ -257,31 +266,30 @@ export function Sidebar({
         {/* Navigation */}
         <nav
           className={cn(
-            "flex-1 space-y-5 overflow-y-auto px-4 py-5",
-            collapsed && "space-y-6 px-3 py-6",
+            "flex-1 space-y-6 overflow-y-auto px-4 py-6 no-scrollbar",
+            collapsed && "space-y-8 px-3 py-8",
           )}
         >
-          {allSections.map((section) => (
+          {visibleSections.map((section) => (
             <div
               key={section.title}
               className={cn(
-                "space-y-1.5 px-1",
+                "space-y-2 px-1",
                 collapsed && "px-0",
               )}
             >
               {!collapsed && (
-                <div className="flex items-center gap-2 px-2 pb-2">
-                  <span className="h-4 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                  <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+                <div className="flex items-center gap-2 px-2 pb-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 border border-emerald-500/50 bg-emerald-500/10 px-2 py-0.5 rounded-md">
                     {section.title}
                   </span>
-                  <span className="h-px flex-1 bg-emerald-300/70 dark:bg-emerald-500/40" />
+                  <div className="h-px flex-1 bg-emerald-500/20" />
                 </div>
               )}
               <div
                 className={cn(
-                  "space-y-1.5 rounded-xl border border-foreground/10 p-1.5",
-                  collapsed && "space-y-2 p-2",
+                  "space-y-1 p-1.5 rounded-2xl border border-current/10 bg-current/[0.02]",
+                  collapsed && "space-y-3 p-1",
                 )}
               >
                 {section.items.map((item) => {
@@ -300,56 +308,59 @@ export function Sidebar({
                         rel: "noopener noreferrer",
                       }
                     : { href: item.href };
+                  
+                  const colorClass = iconColors[item.href] || "bg-primary";
+
                   return (
                     <div
                       key={item.href}
-                      className={cn(isCollapsedRail && "w-full")}
+                      className={cn(isCollapsedRail && "w-full flex justify-center")}
                     >
-                      <LinkEl
+                        <LinkEl
                         {...linkProps}
                         onClick={onCloseMobile}
                         className={cn(
-                          "group flex items-center rounded-xl border text-[14px] font-medium transition-all duration-200",
-                          isCollapsedRail
-                            ? "h-10 w-full justify-center gap-0 p-0"
-                            : "gap-3 px-3 py-2.5",
-                          isActive
-                            ? "sidebar-active-item border-primary/20 bg-primary text-primary-foreground shadow-sm"
-                            : "border-transparent bg-transparent text-[inherit] opacity-80 hover:opacity-100 hover:border-foreground/20 hover:bg-muted/70",
-                        )}
+                            "group flex items-center rounded-xl transition-all duration-200",
+                            isCollapsedRail
+                              ? "h-11 w-11 justify-center p-0"
+                              : "gap-3 px-3 py-2",
+                            isActive
+                              ? "sidebar-active-item shadow-lg shadow-primary/25"
+                              : "hover:bg-foreground/[0.05] text-[inherit] opacity-70 hover:opacity-100",
+                          )}
+                        style={isActive ? {
+                          backgroundColor: "var(--theme-sidebar-color, hsl(var(--primary)))",
+                          color: "var(--theme-sidebar-text-color, hsl(var(--primary-foreground)))"
+                        } : {}}
                       >
-                        {Icon &&
-                          (isCollapsedRail ? (
+                        <div className={cn(
+                          "flex shrink-0 items-center justify-center transition-all duration-200",
+                          isCollapsedRail ? "h-9 w-9" : "h-8 w-8",
+                        )}>
+                          {Icon && (
                             <Icon
                               className={cn(
-                                "h-[18px] w-[18px] shrink-0 transition-colors",
-                                isActive
-                                  ? "text-primary-foreground"
-                                  : "text-[inherit] opacity-70 group-hover:opacity-100",
+                                "transition-colors",
+                                isCollapsedRail ? "h-5 w-5" : "h-4 w-4",
+                                "text-[inherit]"
                               )}
                             />
-                          ) : (
-                            <Icon
-                              className={cn(
-                                "h-[15px] w-[15px] shrink-0 transition-colors",
-                                isActive
-                                  ? "text-primary-foreground"
-                                  : "text-[inherit] opacity-70 group-hover:opacity-100",
-                              )}
-                            />
-                          ))}
+                          )}
+                        </div>
                         {!isCollapsedRail && (
                           <>
                             <span
                               className={cn(
-                                "truncate flex-1",
-                                isActive && "font-bold",
+                                "truncate flex-1 text-sm font-semibold tracking-tight text-[inherit]",
                               )}
                             >
                               {item.label}
                             </span>
                             {opensNewTab && (
-                              <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                              <ExternalLink className={cn("h-3 w-3 shrink-0 text-[inherit] opacity-40")} />
+                            )}
+                            {isActive && (
+                              <div className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
                             )}
                           </>
                         )}
@@ -364,10 +375,10 @@ export function Sidebar({
 
         {/* Bottom user info section */}
         {!collapsed && (
-          <div className="border-t border-foreground/5 px-4 py-3.5">
-            <div className="px-1 py-1">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-muted/20 text-xs font-bold text-[inherit]">
+          <div className="border-t border-current/10 bg-current/[0.02] backdrop-blur-md px-4 py-4 mt-auto">
+            <div className="flex items-center gap-3 p-2 rounded-2xl bg-current/[0.03] border border-current/[0.05] shadow-sm group hover:bg-current/[0.05] transition-all">
+              <div className="relative shrink-0">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-primary shadow-lg shadow-primary/20 text-xs font-bold text-white group-hover:scale-105 transition-transform">
                   {userAvatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -379,15 +390,32 @@ export function Sidebar({
                     userName.charAt(0).toUpperCase()
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate text-[inherit]">
-                    {userName}
-                  </p>
-                  <p className="text-[11px] font-medium opacity-70">
-                    {ROLE_LABELS[role]}
-                  </p>
-                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
               </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-bold tracking-tight">
+                  {userName}
+                </span>
+                <span className="truncate text-[10px] font-semibold opacity-40 uppercase tracking-wider mt-0.5">
+                  {role.replace("_", " ")}
+                </span>
+              </div>
+              <button 
+                title="Log out"
+                onClick={() => { /* logout logic */ }}
+                className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Rail footer for collapsed state */}
+        {collapsed && (
+          <div className="border-t border-foreground/5 py-4 mt-auto flex flex-col items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shadow-sm">
+              {userName.charAt(0).toUpperCase()}
             </div>
           </div>
         )}

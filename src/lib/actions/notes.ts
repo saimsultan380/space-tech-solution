@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-export async function getNotes(params: { sale_id?: string; customer_id?: string }) {
+export async function getNotes(params: { sale_id?: string; customer_id?: string; type?: string }) {
   await requireAuth();
   const supabase = await createClient();
   let query = supabase
@@ -18,6 +18,9 @@ export async function getNotes(params: { sale_id?: string; customer_id?: string 
   if (params.customer_id) {
     query = query.eq("customer_id", params.customer_id);
   }
+  if (params.type) {
+    query = query.eq("type", params.type);
+  }
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -29,6 +32,7 @@ export async function createNote(formData: {
   sale_id?: string;
   customer_id?: string;
   is_important?: boolean;
+  type?: string;
 }) {
   const user = await requireAuth();
   const supabase = await createClient();
@@ -39,6 +43,7 @@ export async function createNote(formData: {
     customer_id: formData.customer_id || null,
     user_id: user.id,
     is_important: formData.is_important || false,
+    type: formData.type || null,
   });
 
   if (error) throw new Error(error.message);
@@ -67,5 +72,17 @@ export async function deleteNote(noteId: string) {
   const supabase = await createClient();
 
   const { error } = await supabase.from("notes").delete().eq("id", noteId);
+  if (error) throw new Error(error.message);
+}
+
+export async function updateNote(noteId: string, content: string) {
+  await requireAuth();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("notes")
+    .update({ content: content.trim() })
+    .eq("id", noteId);
+
   if (error) throw new Error(error.message);
 }

@@ -55,7 +55,7 @@ export async function getCustomers(filters?: {
     let next = query;
     if (filters?.search) {
       const safe = sanitizeFilterValue(filters.search);
-      next = next.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`);
+      next = next.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%,account_no.ilike.%${safe}%`);
     }
     if (filters?.createdFromDate?.trim() && filters?.createdToDate?.trim() && filters.createdFromDate === filters.createdToDate) {
       const dayBounds = createdAtDayBoundsUtc(filters.createdFromDate.trim());

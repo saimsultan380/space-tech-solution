@@ -109,6 +109,7 @@ export function Header({
           .from("notifications")
           .select("*")
           .eq("user_id", userId)
+          .neq("type", "chat")
           .order("created_at", { ascending: false })
           .limit(20);
         if (!error && data) setNotifications(data as Notification[]);

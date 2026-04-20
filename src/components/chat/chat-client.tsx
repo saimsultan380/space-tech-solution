@@ -22,6 +22,10 @@ import {
   type ChatChannel,
   type ChatMessage,
 } from "@/lib/actions/chat";
+import {
+  getNotifications,
+  markNotificationsAsRead,
+} from "@/lib/actions/notifications";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import {
@@ -64,7 +68,7 @@ import {
   MinusCircle,
   LayoutDashboard,
 } from "lucide-react";
-import type { UserRole } from "@/lib/types";
+import type { UserRole, Notification } from "@/lib/types";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
@@ -133,6 +137,13 @@ function ChatClientContent({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarSearch, setSidebarSearch] = useState("");
+
+  // Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const notificationsPanelRef = useRef<HTMLDivElement>(null);
+  const notificationsButtonRef = useRef<HTMLButtonElement>(null);
 
   // Create channel dialog
   const [showNewChannel, setShowNewChannel] = useState(false);
@@ -224,7 +235,75 @@ function ChatClientContent({
     .filter(([uid]) => uid !== currentUserId)
     .map(([, name]) => name);
 
+  // ─── Notification Handlers ───
+
+  const handleMarkAsRead = async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    );
+    await markNotificationsAsRead([id]);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    await markNotificationsAsRead(unreadIds);
+  };
+
   // ─── Effects ───
+
+  // Fetch notifications
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const fetchInitialNotifications = async () => {
+      setLoadingNotifications(true);
+      const data = await getNotifications("chat");
+      setNotifications(data);
+      setLoadingNotifications(false);
+    };
+
+    fetchInitialNotifications();
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`chat-notifications-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${currentUserId}` },
+        () => {
+          fetchInitialNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
+  // Close notifications on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        notificationsPanelRef.current &&
+        !notificationsPanelRef.current.contains(event.target as Node) &&
+        notificationsButtonRef.current &&
+        !notificationsButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showNotifications]);
 
   useEffect(() => {
     if (!urlChannelId || urlChannelId === activeChannelId) return;
@@ -755,12 +834,12 @@ function ChatClientContent({
   // ─── Render ───
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
       {/* ═══════════════════════════════ LEFT SIDEBAR ═══════════════════════════════ */}
-      <div className={cn("flex w-full flex-col border-r border-border bg-card md:w-[320px] md:shrink-0", mobileShowChat && "hidden md:flex")}>
+      <div className={cn("flex w-full flex-col border-r border-border bg-card md:w-[320px] md:shrink-0 md:pl-2", mobileShowChat && "hidden md:flex")}>
 
         {/* User header */}
-        <div className="flex items-center justify-between bg-muted/40 px-4 py-3 border-b border-border">
+        <div className="flex items-center justify-between bg-muted/40 pl-5 pr-4 py-3 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold overflow-hidden">
@@ -799,21 +878,109 @@ function ChatClientContent({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Link
-              href="/dashboard"
-              className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              title="Back to Dashboard"
-            >
-              <LayoutDashboard className="h-5 w-5" />
-            </Link>
-            <button className="relative rounded-full p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Notifications">
-              <Bell className="h-5 w-5" />
-              {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && (
-                <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card" />
+            <div className="flex items-center gap-1 relative">
+              <Link
+                href="/dashboard"
+                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title="Back to Dashboard"
+              >
+                <LayoutDashboard className="h-5 w-5" />
+              </Link>
+              <button
+                ref={notificationsButtonRef}
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={cn(
+                  "relative rounded-full p-2.5 transition-all hover:scale-105 active:scale-95",
+                  showNotifications ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                title="Notifications"
+              >
+                <Bell className="h-5 w-5" />
+                {notifications.filter((n) => !n.is_read).length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card animate-pulse" />
+                )}
+              </button>
+
+              {/* Notification Panel */}
+              {showNotifications && (
+                <div
+                  ref={notificationsPanelRef}
+                  className="fixed sm:absolute top-[72px] sm:top-[calc(100%+12px)] left-4 right-4 sm:left-auto sm:right-[-12px] sm:w-[320px] rounded-2xl bg-background border border-border shadow-2xl z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right"
+                >
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Bell className="h-4 w-4" />
+                      </div>
+                      <h3 className="text-sm font-bold tracking-tight">Activity</h3>
+                    </div>
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary-foreground hover:bg-primary transition-all px-2 py-1 rounded-md border border-primary/20"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="max-h-[60vh] sm:max-h-[380px] overflow-y-auto no-scrollbar">
+                    {loadingNotifications && notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin mb-3 text-primary/40" />
+                        <p className="text-xs font-medium">Updating...</p>
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                        <div className="h-14 w-14 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                          <Bell className="h-7 w-7 opacity-20" />
+                        </div>
+                        <p className="text-sm font-bold text-foreground">All caught up!</p>
+                        <p className="text-xs mt-1 opacity-60">No new chat activity</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/30">
+                        {notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={cn(
+                              "px-4 py-3.5 transition-all hover:bg-muted/30 cursor-pointer relative group",
+                              !n.is_read ? "bg-primary/[0.02]" : "opacity-60"
+                            )}
+                            onClick={() => handleMarkAsRead(n.id)}
+                          >
+                            {!n.is_read && (
+                              <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+                            )}
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <div className={cn("h-1.5 w-1.5 rounded-full", !n.is_read ? "bg-primary" : "bg-muted-foreground/30")} />
+                                  <p className={cn("text-[13px] leading-none", !n.is_read ? "font-bold text-foreground" : "font-medium text-muted-foreground")}>
+                                    {n.title}
+                                  </p>
+                                </div>
+                                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed ml-3">
+                                  {n.body}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 ml-3">
+                                  <Clock className="h-3 w-3 text-muted-foreground/40" />
+                                  <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-tight">
+                                    {formatRelativeTime(n.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-border bg-muted/5">
+                    <button className="w-full py-2 text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-all uppercase tracking-widest">
+                      Full History
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
-          </div>
+            </div>
         </div>
 
         {/* Search */}
@@ -910,9 +1077,9 @@ function ChatClientContent({
         {activeChannel ? (
           <>
             {/* Chat header */}
-            <div className="flex items-center gap-2 bg-muted/40 border-b border-border px-3 py-2.5 sm:px-4">
+            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border-b border-border px-3 py-2 sm:px-4 sticky top-0 z-20">
               <button onClick={handleMobileBack} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted md:hidden"><ChevronLeft className="h-5 w-5" /></button>
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
+              <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
                 {activeChannel.is_direct && activeChannel.dm_partner?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={activeChannel.dm_partner.avatar_url} alt="" className="h-full w-full object-cover" />
@@ -925,23 +1092,31 @@ function ChatClientContent({
                   <Hash className="h-5 w-5" />
                 )}
                 {activeChannel.is_direct && isDmOnline(activeChannel) && (
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-muted/40 presence-online" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-background presence-online" />
                 )}
               </div>
               <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { if (currentUserRole === "super_admin" && !activeChannel.is_direct) { setEditChName(activeChannel.name); setEditChDesc(activeChannel.description); setSettingsMembers(members.map((m) => m.id)); setShowChannelSettings(true); } }}>
-                <h3 className="text-sm font-bold text-foreground truncate">
+                <h3 className="text-sm font-bold text-foreground truncate leading-tight">
                   {activeChannel.is_direct ? getDmDisplayName(activeChannel) : activeChannel.name}
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  {activeChannel.is_direct
-                    ? (isDmOnline(activeChannel) ? "Online" : "Offline")
-                    : `${members.length} members`}
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground flex items-center gap-1 leading-none mt-0.5">
+                  {activeChannel.is_direct ? (
+                    <>
+                      <span className={cn("h-1.5 w-1.5 rounded-full", isDmOnline(activeChannel) ? "bg-emerald-500" : "bg-muted-foreground/30")} />
+                      {isDmOnline(activeChannel) ? "Online" : "Offline"}
+                    </>
+                  ) : (
+                    <>
+                      <Users className="h-2.5 w-2.5" />
+                      {members.length} members
+                    </>
+                  )}
                 </p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 sm:gap-1">
                 <Link
                   href="/dashboard"
-                  className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors"
+                  className="hidden sm:flex shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors"
                   title="Back to Dashboard"
                 >
                   <LayoutDashboard className="h-4 w-4" />
@@ -962,7 +1137,7 @@ function ChatClientContent({
 
             {/* Search bar */}
             {showSearch && (
-              <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-4 py-2 animate-slide-down">
+              <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-2 animate-slide-down sticky top-[53px] sm:top-[57px] z-20 shadow-sm">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search messages..." className="flex-1 bg-transparent text-sm outline-none" autoFocus />
                 <button onClick={() => { setShowSearch(false); setSearchQuery(""); }} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -970,7 +1145,7 @@ function ChatClientContent({
             )}
 
             {/* Tab bar */}
-            <div className="flex items-center gap-1 border-b border-border bg-muted/30 px-3 sm:px-4">
+            <div className="flex items-center gap-1 border-b border-border bg-background px-2 sm:px-4 overflow-x-auto no-scrollbar shrink-0 sticky top-[53px] sm:top-[57px] z-20">
               {(["chat", "files", "photos", "links"] as ActiveTab[]).map((tab) => {
                 const icons: Record<ActiveTab, React.ElementType> = { chat: MessageSquare, files: FileText, photos: ImageIcon, links: Link2 };
                 const Icon = icons[tab];
@@ -980,14 +1155,16 @@ function ChatClientContent({
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold capitalize transition-all rounded-t-lg",
-                      activeTab === tab ? "chat-tab-active shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                      "flex items-center gap-1.5 px-4 py-3 text-xs font-semibold capitalize transition-all border-b-2 shrink-0",
+                      activeTab === tab 
+                        ? "border-primary text-primary bg-primary/5" 
+                        : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
                     {tab}
                     {count > 0 && tab !== "chat" && (
-                      <span className={cn("ml-0.5 text-[10px] rounded-full px-1.5 py-0.5", activeTab === tab ? "bg-white/20" : "bg-muted")}>{count}</span>
+                      <span className={cn("ml-0.5 text-[10px] rounded-full px-1.5 py-0.5", activeTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{count}</span>
                     )}
                   </button>
                 );
@@ -1022,7 +1199,7 @@ function ChatClientContent({
                   )}
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-6 md:px-10 lg:px-16 sm:py-4">
+                  <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-6 md:px-8 lg:px-12 xl:px-16 sm:py-4 no-scrollbar bg-background/50">
                     {loadingMsgs ? (
                       <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
                     ) : filteredMessages.length === 0 ? (
@@ -1191,54 +1368,69 @@ function ChatClientContent({
 
                   {/* Reply banner */}
                   {replyTo && (
-                    <div className="flex items-center gap-3 border-t border-border bg-muted/50 px-4 py-2">
+                    <div className="flex items-center gap-3 border-t border-border bg-muted/80 backdrop-blur-sm px-4 py-2 sticky bottom-0 z-30 animate-in slide-in-from-bottom-2 duration-200">
                       <Reply className="h-4 w-4 text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold text-primary">{replyTo.sender?.full_name ?? "Unknown"}</p>
-                        <p className="text-xs text-muted-foreground truncate">{replyTo.content || "Attachment"}</p>
+                        <p className="text-[10px] font-bold text-primary leading-none uppercase tracking-wider">{replyTo.sender?.full_name ?? "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{replyTo.content || "Attachment"}</p>
                       </div>
-                      <button onClick={() => setReplyTo(null)} className="shrink-0 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                      <button onClick={() => setReplyTo(null)} className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                   )}
 
                   {/* Input bar */}
-                  <div className="bg-muted/40 border-t border-border px-3 py-2.5 sm:px-4 sm:py-3">
-                    <div className="flex items-end gap-1.5 sm:gap-2">
-                      {/* Emoji */}
-                      <div className="relative" ref={emojiRef}>
-                        <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={cn("shrink-0 rounded-full p-2 transition-colors", showEmojiPicker ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                          <Smile className="h-5 w-5" />
-                        </button>
-                        {showEmojiPicker && (
-                          <div className="absolute bottom-12 left-0 z-40 shadow-xl rounded-xl overflow-hidden">
-                            <EmojiPicker onEmojiClick={handleEmojiSelect} width={320} height={380} searchPlaceHolder="Search emoji..." previewConfig={{ showPreview: false }} />
-                          </div>
-                        )}
+                  <div className="bg-background/95 backdrop-blur-md border-t border-border/60 px-3 py-3 sm:px-6 sm:py-4 sticky bottom-0 z-20 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] transition-all">
+                  <div className="w-full flex items-end gap-2 sm:gap-3">
+                      {/* Emoji & Attachment */}
+                      <div className="flex items-center gap-0.5 sm:gap-1 mb-1 sm:mb-1.5 shrink-0">
+                        <div className="relative" ref={emojiRef}>
+                          <button 
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                            className={cn(
+                              "shrink-0 rounded-full p-2 transition-all hover:scale-105 active:scale-95", 
+                              showEmojiPicker ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                            )}
+                            title="Add Emoji"
+                          >
+                            <Smile className="h-5 w-5" />
+                          </button>
+                          {showEmojiPicker && (
+                            <div className="absolute bottom-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                              <EmojiPicker onEmojiClick={handleEmojiSelect} width={320} height={380} searchPlaceHolder="Search emoji..." previewConfig={{ showPreview: false }} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="relative" ref={attachRef}>
+                          <button 
+                            onClick={() => setShowAttachMenu(!showAttachMenu)} 
+                            className={cn(
+                              "shrink-0 rounded-full p-2 transition-all hover:scale-105 active:scale-95", 
+                              showAttachMenu ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                            )}
+                            title="Attach File"
+                          >
+                            <Paperclip className="h-5 w-5" />
+                          </button>
+                          {showAttachMenu && (
+                            <div className="absolute bottom-14 left-0 z-50 w-48 rounded-2xl bg-background border border-border shadow-2xl py-2 animate-in fade-in zoom-in-95 duration-200">
+                              <button onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-foreground font-medium">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/10"><ImageIcon className="h-4 w-4 text-violet-500" /></div>
+                                Photos
+                              </button>
+                              <button onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-foreground font-medium">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"><FileText className="h-4 w-4 text-primary" /></div>
+                                Document
+                              </button>
+                            </div>
+                          )}
+                          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileInputChange} />
+                          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" className="hidden" onChange={handleFileInputChange} />
+                        </div>
                       </div>
 
-                      {/* Attachment */}
-                      <div className="relative" ref={attachRef}>
-                        <button onClick={() => setShowAttachMenu(!showAttachMenu)} className={cn("shrink-0 rounded-full p-2 transition-colors", showAttachMenu ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                          <Paperclip className="h-5 w-5" />
-                        </button>
-                        {showAttachMenu && (
-                          <div className="absolute bottom-12 left-0 z-40 w-48 rounded-xl glass shadow-xl py-2">
-                            <button onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors text-foreground">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/10"><ImageIcon className="h-4 w-4 text-violet-500" /></div>
-                              Photos
-                            </button>
-                            <button onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors text-foreground">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"><FileText className="h-4 w-4 text-primary" /></div>
-                              Document
-                            </button>
-                          </div>
-                        )}
-                        <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileInputChange} />
-                        <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" className="hidden" onChange={handleFileInputChange} />
-                      </div>
-
-                      {/* Text input */}
-                      <div className="flex flex-1 items-end rounded-2xl border border-border bg-background px-4 py-2 focus-within:border-primary/50 focus-within:shadow-sm transition-all">
+                      {/* Text input area */}
+                      <div className="flex-1 relative flex items-end rounded-2xl border border-border/80 bg-muted/30 focus-within:border-primary/40 focus-within:bg-background focus-within:shadow-[0_0_0_4px_rgba(var(--primary-rgb),0.05)] transition-all overflow-hidden group">
                         <textarea
                           ref={inputRef}
                           value={newMsg}
@@ -1249,29 +1441,38 @@ function ChatClientContent({
                               inputRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
                             }, 120);
                           }}
-                          placeholder="Type a message"
-                          className="flex-1 min-w-0 bg-transparent text-sm outline-none resize-none max-h-[120px] leading-relaxed placeholder:text-muted-foreground/50"
+                          placeholder="Type a message..."
+                          className="w-full bg-transparent px-4 py-2.5 text-sm outline-none resize-none max-h-[120px] sm:max-h-[200px] leading-relaxed placeholder:text-muted-foreground/60"
                           rows={1}
                           disabled={sending || uploading}
                         />
                       </div>
 
-                      {/* Voice / Send */}
-                      {newMsg.trim() ? (
-                        <button onClick={handleSend} disabled={sending || uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all">
-                          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                        </button>
-                      ) : (
-                        <button
-                          onMouseDown={handleStartRecording}
-                          onMouseUp={handleStopRecording}
-                          onMouseLeave={handleStopRecording}
-                          className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all", isRecording ? "bg-red-500 text-white scale-110 shadow-lg" : "bg-muted text-muted-foreground hover:bg-muted/80")}
-                          title="Hold to record"
-                        >
-                          <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
-                        </button>
-                      )}
+                      {/* Voice / Send button */}
+                      <div className="mb-1 sm:mb-1.5 shrink-0">
+                        {newMsg.trim() ? (
+                          <button 
+                            onClick={handleSend} 
+                            disabled={sending || uploading} 
+                            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                          >
+                            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                          </button>
+                        ) : (
+                          <button
+                            onMouseDown={handleStartRecording}
+                            onMouseUp={handleStopRecording}
+                            onMouseLeave={handleStopRecording}
+                            className={cn(
+                              "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-95", 
+                              isRecording ? "bg-red-500 text-white scale-110 shadow-lg" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                            )}
+                            title="Hold to record"
+                          >
+                            <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
