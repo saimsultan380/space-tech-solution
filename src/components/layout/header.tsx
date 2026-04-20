@@ -235,12 +235,12 @@ export function Header({
         backgroundColor: "var(--theme-shell-bg-color, hsl(var(--background)))",
         color: "var(--theme-shell-text-color, hsl(var(--foreground)))",
       }}
-      className="sticky top-0 z-30 flex h-16 min-h-16 shrink-0 items-center justify-between gap-3 border-b border-border px-3 sm:px-4 lg:px-6"
+      className="sticky top-0 z-30 flex h-16 min-h-16 shrink-0 items-center justify-between gap-3 border-b border-foreground/10 px-3 sm:px-4 lg:px-6"
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
         <button
           type="button"
-          className="flex shrink-0 items-center gap-1 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex shrink-0 items-center gap-1 rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20"
           onClick={onToggleSidebar}
           aria-label={isMobile ? "Open menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -252,7 +252,7 @@ export function Header({
             <ChevronLeft className="h-5 w-5" />
           )}
           {!isMobile && (
-            <span className="hidden text-xs font-medium text-muted-foreground sm:inline">
+            <span className="hidden text-xs font-medium text-[inherit] sm:inline">
               {collapsed ? "Expand" : "Collapse"}
             </span>
           )}
@@ -263,15 +263,15 @@ export function Header({
           onSubmit={handleSearchSubmit}
         >
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[inherit] opacity-60" />
             <input
               ref={searchRef}
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 w-full rounded-md border border-border bg-muted/30 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-10 w-full rounded-md border border-foreground/20 bg-muted/20 pl-9 pr-3 text-sm text-[inherit] placeholder:text-[inherit] placeholder:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground lg:inline-block">
+            <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-foreground/10 bg-background/20 px-1.5 py-0.5 text-[10px] font-medium text-[inherit] opacity-60 lg:inline-block">
               /
             </kbd>
           </div>
@@ -283,21 +283,9 @@ export function Header({
           type="button"
           onClick={() => {
             startLoading();
-            router.push("/dashboard");
-          }}
-          className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:p-2.5"
-          aria-label="Go to dashboard"
-        >
-          <LayoutDashboard className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            startLoading();
             router.push("/chat");
           }}
-          className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:p-2.5"
+          className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
           aria-label="Open chat"
         >
           <MessageSquare className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -307,7 +295,7 @@ export function Header({
         <button
           type="button"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:p-2.5"
+          className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
           aria-label="Toggle theme"
         >
           {mounted && (theme === "dark" ? (
@@ -323,7 +311,7 @@ export function Header({
             ref={notificationsTriggerRef}
             type="button"
             onClick={toggleNotifications}
-            className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:p-2.5"
+            className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
             aria-label="Notifications"
           >
             <Bell className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -340,10 +328,10 @@ export function Header({
                   <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                   <div
                     ref={notificationsPanelRef}
-                    className="absolute left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card shadow-xl"
+                    className="absolute left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-foreground/10 bg-card shadow-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                    <div className="flex items-center justify-between border-b border-foreground/5 px-3 py-2">
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Notifications
                       </span>
@@ -379,7 +367,7 @@ export function Header({
                             key={n.id}
                             type="button"
                             onClick={() => markAsRead(n.id)}
-                            className={`w-full border-b border-border/50 px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-muted/30 ${
+                            className={`w-full border-b border-foreground/5 px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-muted/30 ${
                               !n.is_read ? "bg-primary/5" : ""
                             }`}
                           >
@@ -395,8 +383,8 @@ export function Header({
                   </div>
                 </div>
               ) : (
-                <div ref={notificationsPanelRef} className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-border bg-card shadow-lg">
-                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <div ref={notificationsPanelRef} className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-foreground/10 bg-card shadow-lg">
+                  <div className="flex items-center justify-between border-b border-foreground/5 px-3 py-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Notifications
                     </span>
@@ -428,11 +416,11 @@ export function Header({
                       <p className="py-4 text-center text-xs text-muted-foreground">No notifications yet.</p>
                     ) : (
                       notifications.map((n) => (
-                        <button
-                          key={n.id}
-                          type="button"
+                          <button
+                            key={n.id}
+                            type="button"
                           onClick={() => markAsRead(n.id)}
-                          className={`w-full border-b border-border/50 px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-muted/30 ${
+                          className={`w-full border-b border-foreground/5 px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-muted/30 ${
                             !n.is_read ? "bg-primary/5" : ""
                           }`}
                         >
@@ -451,11 +439,11 @@ export function Header({
           )}
         </div>
 
-        <div className="mx-0.5 h-7 w-px bg-border sm:mx-1 sm:h-9" />
+        <div className="mx-0.5 h-7 w-px bg-foreground/10 sm:mx-1 sm:h-9" />
 
-        <div className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-muted/50 sm:gap-3 sm:px-2 sm:py-1.5" onClick={openProfile}>
+        <div className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-muted/20 sm:gap-3 sm:px-2 sm:py-1.5" onClick={openProfile}>
           <div className="relative">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-bold text-foreground sm:h-9 sm:w-9">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/20 text-xs font-bold text-[inherit] sm:h-9 sm:w-9">
               {userAvatarUrl ? (
                 <img
                   src={userAvatarUrl}
@@ -469,8 +457,8 @@ export function Header({
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
           </div>
           <div className="hidden min-w-0 sm:block">
-            <p className="truncate text-sm font-semibold leading-none text-foreground">{userName}</p>
-            <p className="mt-1 text-[11px] font-medium text-muted-foreground">{ROLE_LABELS[role]}</p>
+            <p className="truncate text-sm font-semibold leading-none text-[inherit]">{userName}</p>
+            <p className="mt-1 text-[11px] font-medium text-[inherit] opacity-70">{ROLE_LABELS[role]}</p>
           </div>
         </div>
 
@@ -479,7 +467,7 @@ export function Header({
           size="icon"
           onClick={handleSignOut}
           title="Sign out"
-          className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:h-9 sm:w-9"
+          className="h-8 w-8 shrink-0 rounded-lg text-[inherit] opacity-70 hover:bg-destructive/10 hover:text-destructive hover:opacity-100 sm:h-9 sm:w-9"
         >
           <LogOut className="h-4 w-4" />
         </Button>
