@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type ChangeEvent, Suspense } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   sendMessage,
@@ -22,6 +23,7 @@ import {
   type ChatMessage,
 } from "@/lib/actions/chat";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import {
   Hash,
   Send,
@@ -60,6 +62,7 @@ import {
   Clock,
   EyeOff,
   MinusCircle,
+  LayoutDashboard,
 } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 
@@ -89,7 +92,15 @@ const PRESENCE_META: Record<PresenceStatus, { label: string; color: string; icon
 
 /* ─── Component ─── */
 
-export function ChatClient({
+export function ChatClient(props: ChatClientProps) {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <ChatClientContent {...props} />
+    </Suspense>
+  );
+}
+
+function ChatClientContent({
   channels: initialChannels,
   currentUserId,
   currentUserName,
@@ -97,9 +108,37 @@ export function ChatClient({
   currentUserAvatar,
   allUsers = [],
 }: ChatClientProps) {
+  const searchParams = useSearchParams();
+  const urlChannelId = searchParams.get("channelId");
+
   // ─── State ───
   const [channels, setChannels] = useState(initialChannels);
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(initialChannels[0]?.id ?? null);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>((urlChannelId || initialChannels[0]?.id) ?? null);
+  
+  useEffect(() => {
+    if (urlChannelId && urlChannelId !== activeChannelId) {
+      setActiveChannelId(urlChannelId);
+      setMobileShowChat(true);
+      
+      // If the channel is not in our list, we might need to fetch it
+      if (!channels.some(c => c.id === urlChannelId)) {
+        const fetchNewChannel = async () => {
+          const supabase = createClient();
+          const { data } = await supabase
+            .from("chat_channels")
+            .select("*")
+            .eq("id", urlChannelId)
+            .single();
+          
+          if (data) {
+            // This is a bit simplified, but helps show the new DM immediately
+            setChannels(prev => [data as ChatChannel, ...prev]);
+          }
+        };
+        fetchNewChannel();
+      }
+    }
+  }, [urlChannelId, channels]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [members, setMembers] = useState<Member[]>([]);
@@ -717,12 +756,21 @@ export function ChatClient({
               )}
             </div>
           </div>
-          <button className="relative rounded-full p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Notifications">
-            <Bell className="h-5 w-5" />
-            {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && (
-              <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card" />
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/dashboard"
+              className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              title="Back to Dashboard"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+            </Link>
+            <button className="relative rounded-full p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Notifications">
+              <Bell className="h-5 w-5" />
+              {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && (
+                <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -848,6 +896,13 @@ export function ChatClient({
                 </p>
               </div>
               <div className="flex items-center gap-1">
+                <Link
+                  href="/dashboard"
+                  className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors"
+                  title="Back to Dashboard"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                </Link>
                 <button onClick={() => setShowSearch(!showSearch)} className={cn("shrink-0 rounded-full p-2 transition-colors", showSearch ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
                   <Search className="h-4 w-4" />
                 </button>
@@ -1354,6 +1409,15 @@ export function ChatClient({
               </div>
               <p className="text-xl font-bold text-foreground">Team Chat</p>
               <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a channel or start a direct message to begin chatting with your team.</p>
+              <div className="mt-6">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Back to Dashboard
+                </Link>
+              </div>
             </div>
           </div>
         )}

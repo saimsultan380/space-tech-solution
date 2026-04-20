@@ -222,17 +222,17 @@ export function Sidebar({
       <aside
         style={{
           backgroundColor: "var(--theme-shell-bg-color, hsl(var(--card)))",
-          color: "var(--theme-shell-text-color, hsl(var(--muted-foreground)))",
+          color: "var(--theme-shell-text-color, hsl(var(--foreground)))",
         }}
         className={cn(
-          "flex h-full flex-col text-muted-foreground transition-all duration-300 ease-in-out border-r border-border",
+          "flex h-full flex-col transition-all duration-300 ease-in-out border-r border-border/50",
           "fixed inset-y-0 left-0 z-50 w-[17rem] lg:static lg:z-auto lg:shrink-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           collapsed ? "lg:w-[4.5rem]" : "lg:w-[17rem]",
         )}
       >
         {/* Brand + mobile close */}
-        <div className="flex h-[4.5rem] items-center justify-between gap-2 px-6 border-b border-border">
+        <div className="flex h-[4.5rem] items-center justify-between gap-2 px-6 border-b border-border/20">
           <Link
             href="/dashboard"
             className="flex min-w-0 items-center group"
@@ -246,7 +246,7 @@ export function Sidebar({
           </Link>
           <button
             type="button"
-            className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors lg:hidden"
+            className="shrink-0 rounded-lg p-1.5 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 transition-colors lg:hidden"
             onClick={onCloseMobile}
             aria-label="Close menu"
           >
@@ -280,7 +280,7 @@ export function Sidebar({
               )}
               <div
                 className={cn(
-                  "space-y-1.5 rounded-xl border border-border/80 p-1.5 dark:border-border/60",
+                  "space-y-1.5 rounded-xl border border-border/10 p-1.5",
                   collapsed && "space-y-2 p-2",
                 )}
               >
@@ -315,7 +315,7 @@ export function Sidebar({
                             : "gap-3 px-3 py-2.5",
                           isActive
                             ? "sidebar-active-item border-primary/20 bg-primary text-primary-foreground shadow-sm"
-                            : "border-transparent bg-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground",
+                            : "border-transparent bg-transparent text-[inherit] opacity-80 hover:opacity-100 hover:border-border/60 hover:bg-muted/70",
                         )}
                       >
                         {Icon &&
@@ -325,7 +325,7 @@ export function Sidebar({
                                 "h-[18px] w-[18px] shrink-0 transition-colors",
                                 isActive
                                   ? "text-primary-foreground"
-                                  : "text-foreground/70 group-hover:text-foreground",
+                                  : "text-[inherit] opacity-70 group-hover:opacity-100",
                               )}
                             />
                           ) : (
@@ -334,7 +334,7 @@ export function Sidebar({
                                 "h-[15px] w-[15px] shrink-0 transition-colors",
                                 isActive
                                   ? "text-primary-foreground"
-                                  : "text-primary group-hover:text-foreground",
+                                  : "text-[inherit] opacity-70 group-hover:opacity-100",
                               )}
                             />
                           ))}
@@ -364,10 +364,10 @@ export function Sidebar({
 
         {/* Bottom user info section */}
         {!collapsed && (
-          <div className="border-t border-border/50 px-4 py-3.5">
+          <div className="border-t border-border/20 px-4 py-3.5">
             <div className="px-1 py-1">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-bold text-primary">
+                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-muted/20 text-xs font-bold text-[inherit]">
                   {userAvatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -380,10 +380,10 @@ export function Sidebar({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate text-foreground">
+                  <p className="text-sm font-semibold truncate text-[inherit]">
                     {userName}
                   </p>
-                  <p className="text-[11px] font-medium text-muted-foreground">
+                  <p className="text-[11px] font-medium opacity-70">
                     {ROLE_LABELS[role]}
                   </p>
                 </div>

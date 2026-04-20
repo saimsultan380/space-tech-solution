@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { MessageButton } from "@/components/chat/message-button";
 
 interface SearchPageProps {
   searchParams?: Promise<{ q?: string }>;
@@ -20,17 +21,19 @@ export default async function SearchPage(props: SearchPageProps) {
     results = await globalSearch(query);
   }
 
-  return <SearchResults query={query} results={results} currency={currency} />;
+  return <SearchResults query={query} results={results} currency={currency} currentUserId={user.id} />;
 }
 
 function SearchResults({
   query,
   results,
   currency,
+  currentUserId,
 }: {
   query: string;
   results: Awaited<ReturnType<typeof globalSearch>> | null;
   currency: string;
+  currentUserId: string;
 }) {
   if (!query) {
     return (
@@ -188,9 +191,20 @@ function SearchResults({
                     {u.email} · {u.role}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(u.created_at)}
-                </span>
+                <div className="flex items-center gap-3">
+                  {u.id !== currentUserId && (
+                    <MessageButton
+                      userId={u.id}
+                      userName={u.full_name}
+                      variant="outline"
+                      size="sm"
+                      showLabel
+                    />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(u.created_at)}
+                  </span>
+                </div>
               </div>
             ))}
           </CardContent>

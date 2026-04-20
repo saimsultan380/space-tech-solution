@@ -24,6 +24,7 @@ import type { UserRole } from "@/lib/types";
 import { Plus, Search, Eye, Pencil, Trash2, Database, Wallet, Target, Zap, Shield } from "lucide-react";
 import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 import Link from "next/link";
+import { MessageButton } from "@/components/chat/message-button";
 import {
   Dialog,
   DialogHeader,
@@ -323,7 +324,18 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
                         {formatCurrency(sale.charged_amount, currency)}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">{sale.agent?.full_name || "N/A"}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{sale.agent?.full_name || "N/A"}</span>
+                          {sale.agent_id && sale.agent_id !== userId && (
+                            <MessageButton
+                              userId={sale.agent_id}
+                              userName={sale.agent?.full_name || "Agent"}
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-primary"
+                            />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">

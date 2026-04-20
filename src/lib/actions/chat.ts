@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
@@ -271,6 +272,16 @@ export async function createDirectMessage(otherUserId: string) {
   const user = await requireAuth();
   const supabase = await createClient();
 
+  // First, check if a DM channel already exists between these two users
+  const { data: existingChannel } = await supabase.rpc("get_direct_message_channel", {
+    other_user_id: otherUserId
+  });
+
+  if (existingChannel) {
+    return { error: null, channelId: existingChannel };
+  }
+
+  // If not found via RPC or if RPC doesn't exist, fallback to manual check
   const { data: myMemberships } = await supabase
     .from("chat_channel_members")
     .select("channel_id")
@@ -307,7 +318,11 @@ export async function createDirectMessage(otherUserId: string) {
 
   const dmName = `${user.full_name}, ${otherUser?.full_name ?? "Unknown"}`;
 
-  const { data: channel, error } = await supabase
+  // Use admin client to bypass RLS for channel creation and member addition
+  // since non-admins currently don't have 'insert' permission on these tables.
+  const adminSupabase = createAdminClient();
+
+  const { data: channel, error } = await adminSupabase
     .from("chat_channels")
     .insert({
       name: dmName,
@@ -321,7 +336,7 @@ export async function createDirectMessage(otherUserId: string) {
   if (error) return { error: error.message };
   if (!channel) return { error: "Failed to create DM" };
 
-  await supabase.from("chat_channel_members").insert([
+  await adminSupabase.from("chat_channel_members").insert([
     { channel_id: channel.id, user_id: user.id },
     { channel_id: channel.id, user_id: otherUserId },
   ]);

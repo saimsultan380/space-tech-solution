@@ -44,9 +44,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("company_settings")
-    .select(
-      "company_name, address_line, contact_email, logo_url, shell_bg_color, shell_text_color, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color, chat_user_bubble_color, chat_user_bubble_text_color, chat_bot_bubble_color, chat_bot_bubble_text_color"
-    )
+    .select("*")
     .eq("id", 1)
     .single();
 
