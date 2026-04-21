@@ -29,7 +29,7 @@ export default async function ProcessingAccountsPage(props: {
       from_date,
       to_date,
     }),
-    getProcessingAccountStats(),
+    getProcessingAccountStats({ search, from_date, to_date }),
   ]);
 
   return (

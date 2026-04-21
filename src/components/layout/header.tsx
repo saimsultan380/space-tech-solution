@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouteLoading } from "@/components/providers/route-loading-provider";
 import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
-import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, LayoutDashboard } from "lucide-react";
+import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, LayoutDashboard, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Notification, UserRole } from "@/lib/types";
 
@@ -48,6 +48,14 @@ function ProfileField({ label, value, badge }: { label: string; value: string | 
     </div>
   );
 }
+
+const NOTIFICATION_STYLES = {
+  sale: { icon: ShoppingCart, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  chargeback: { icon: AlertTriangle, color: "text-rose-500", bg: "bg-rose-500/10" },
+  customer: { icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+  leave: { icon: CalendarDays, color: "text-amber-500", bg: "bg-amber-500/10" },
+  info: { icon: Info, color: "text-slate-500", bg: "bg-slate-500/10" },
+};
 
 interface HeaderProps {
   userName: string;
@@ -363,22 +371,40 @@ export function Header({
                       ) : notifications.length === 0 ? (
                         <p className="py-4 text-center text-xs text-muted-foreground">No notifications yet.</p>
                       ) : (
-                        notifications.map((n) => (
-                          <button
-                            key={n.id}
-                            type="button"
-                            onClick={() => markAsRead(n.id)}
-                            className={`w-full border-b border-foreground/5 px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-muted/30 ${
-                              !n.is_read ? "bg-primary/5" : ""
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="truncate text-[12px] font-semibold text-foreground">{n.title}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatDateTime(n.created_at)}</span>
-                            </div>
-                            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{n.body}</p>
-                          </button>
-                        ))
+                        notifications.map((n) => {
+                          const style = (NOTIFICATION_STYLES as any)[n.type] || NOTIFICATION_STYLES.info;
+                          const Icon = style.icon;
+                          return (
+                            <button
+                              key={n.id}
+                              type="button"
+                              onClick={() => markAsRead(n.id)}
+                              className={cn(
+                                "w-full border-b border-foreground/5 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/30",
+                                !n.is_read && "bg-primary/[0.03]"
+                              )}
+                            >
+                              <div className="flex gap-3">
+                                <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", style.bg, style.color)}>
+                                  <Icon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="truncate text-[13px] font-semibold text-foreground">
+                                      {n.title}
+                                    </span>
+                                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                                      {formatDateTime(n.created_at)}
+                                    </span>
+                                  </div>
+                                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                                    {n.body}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -416,22 +442,40 @@ export function Header({
                     ) : notifications.length === 0 ? (
                       <p className="py-4 text-center text-xs text-muted-foreground">No notifications yet.</p>
                     ) : (
-                      notifications.map((n) => (
+                      notifications.map((n) => {
+                        const style = (NOTIFICATION_STYLES as any)[n.type] || NOTIFICATION_STYLES.info;
+                        const Icon = style.icon;
+                        return (
                           <button
                             key={n.id}
                             type="button"
-                          onClick={() => markAsRead(n.id)}
-                          className={`w-full border-b border-foreground/5 px-3 py-2.5 text-left text-xs last:border-b-0 hover:bg-muted/30 ${
-                            !n.is_read ? "bg-primary/5" : ""
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-[12px] font-semibold text-foreground">{n.title}</span>
-                            <span className="text-[10px] text-muted-foreground">{formatDateTime(n.created_at)}</span>
-                          </div>
-                          <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{n.body}</p>
-                        </button>
-                      ))
+                            onClick={() => markAsRead(n.id)}
+                            className={cn(
+                              "w-full border-b border-foreground/5 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/30",
+                              !n.is_read && "bg-primary/[0.03]"
+                            )}
+                          >
+                            <div className="flex gap-3">
+                              <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", style.bg, style.color)}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="truncate text-[13px] font-semibold text-foreground">
+                                    {n.title}
+                                  </span>
+                                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                                    {formatDateTime(n.created_at)}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                                  {n.body}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 </div>

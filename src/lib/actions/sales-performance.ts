@@ -252,6 +252,22 @@ export async function getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
   await requireAuth();
   const supabase = await createClient();
 
+  const { data: rpcRows, error: rpcError } = await supabase.rpc("get_sales_leaderboard");
+  if (!rpcError && Array.isArray(rpcRows)) {
+    return (rpcRows as Array<Record<string, unknown>>).map((r) => ({
+      agent_id: String(r.agent_id),
+      agent_name: String(r.agent_name ?? "Unknown"),
+      avatar_url: (r.avatar_url as string | null) ?? null,
+      total_sales: Number(r.total_sales ?? 0),
+      approved_sales: Number(r.approved_sales ?? 0),
+      rejected_sales: Number(r.rejected_sales ?? 0),
+      revenue: Number(r.revenue ?? 0),
+      chargebacks: Number(r.chargebacks ?? 0),
+      conversion_rate: Number(r.conversion_rate ?? 0),
+      rank: Number(r.rank ?? 0),
+    }));
+  }
+
   const [salesRes, usersRes, chargebackRes] = await Promise.all([
     supabase.from("sales").select("agent_id, status, charged_amount"),
     supabase.from("users").select("id, full_name, avatar_url, role").eq("role", "sales_agent").eq("is_active", true),
@@ -289,7 +305,12 @@ export async function getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
     };
   });
 
-  entries.sort((a, b) => b.revenue - a.revenue || b.approved_sales - a.approved_sales);
+  entries.sort(
+    (a, b) =>
+      b.revenue - a.revenue ||
+      b.approved_sales - a.approved_sales ||
+      a.agent_name.localeCompare(b.agent_name),
+  );
   entries.forEach((e, i) => (e.rank = i + 1));
 
   return entries;

@@ -135,7 +135,7 @@ export async function getChannelMessages(
   if (!data) return [];
 
   const replyIds = data.filter((m) => m.reply_to_id).map((m) => m.reply_to_id!);
-  let replyMap: Record<string, { id: string; content: string; sender_id: string; sender?: { full_name: string } | null }> = {};
+  const replyMap: Record<string, { id: string; content: string; sender_id: string; sender?: { full_name: string } | null }> = {};
 
   if (replyIds.length > 0) {
     const { data: replies } = await supabase

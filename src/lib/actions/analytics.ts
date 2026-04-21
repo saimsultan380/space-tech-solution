@@ -15,7 +15,7 @@ export async function getDashboardStats(month?: string) {
   let totalChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true });
   let openChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true }).eq("status", "open");
   let pendingLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true }).eq("status", "pending");
-  let todayLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true })
+  const todayLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true })
     .eq("status", "approved").lte("start_date", today).gte("end_date", today);
 
   if (month) {

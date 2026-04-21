@@ -5,7 +5,8 @@ import { requireAuth, requireRole } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
-import { sanitizeFilterValue } from "@/lib/utils";
+import { sanitizeFilterValue, formatCurrency } from "@/lib/utils";
+import { notifySuperAdmins } from "./notifications";
 
 function isMissingSourceColumnError(error: { message?: string } | null) {
   const message = error?.message?.toLowerCase() || "";
@@ -422,6 +423,13 @@ export async function createSale(formData: CreateSaleInput) {
       await supabase.from("payments").insert(paymentInsert);
     }
   }
+
+  // Notify admins about new sale
+  await notifySuperAdmins({
+    title: "New Sale recorded",
+    body: `${user.full_name} recorded a new ${formData.sale_type} sale for ${formData.company_name} (${formatCurrency(chargedAmount, "USD")})`,
+    type: "sale",
+  });
 
   revalidatePath("/dashboard/sales");
   return saleData?.id as string;

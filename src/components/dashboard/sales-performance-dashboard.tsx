@@ -127,41 +127,56 @@ export function SalesPerformanceDashboard({
         { event: "INSERT", schema: "public", table: "sales" },
         async (payload) => {
           const newSale = payload.new as { id: string; agent_id: string; charged_amount: number; company_name: string; status: string; created_at: string };
-          if (newSale.status === "rejected") return;
           if (lastProcessedRef.current === newSale.id) return;
           lastProcessedRef.current = newSale.id;
 
-          const { data: agentData } = await supabase
-            .from("users")
-            .select("full_name")
-            .eq("id", newSale.agent_id)
-            .single();
-
-          const agentName = agentData?.full_name || "Unknown";
+          const isRejected = newSale.status === "rejected";
           const amount = Number(newSale.charged_amount);
 
-          addToast({
-            id: newSale.id,
-            type: amount >= 5000 ? "milestone" : "deal_closed",
-            agent_name: agentName,
-            message:
-              amount >= 5000
-                ? `${agentName} closed a high-value deal worth ${formatCurrency(amount, currency)} with ${newSale.company_name}!`
-                : `${agentName} closed a deal with ${newSale.company_name} for ${formatCurrency(amount, currency)}`,
-            created_at: newSale.created_at,
-          });
+          if (!isRejected) {
+            const { data: agentData } = await supabase
+              .from("users")
+              .select("full_name")
+              .eq("id", newSale.agent_id)
+              .single();
+
+            const agentName = agentData?.full_name || "Unknown";
+
+            addToast({
+              id: newSale.id,
+              type: amount >= 5000 ? "milestone" : "deal_closed",
+              agent_name: agentName,
+              message:
+                amount >= 5000
+                  ? `${agentName} closed a high-value deal worth ${formatCurrency(amount, currency)} with ${newSale.company_name}!`
+                  : `${agentName} closed a deal with ${newSale.company_name} for ${formatCurrency(amount, currency)}`,
+              created_at: newSale.created_at,
+            });
+          }
 
           setLeaderboard((prev) => {
             const updated = prev.map((e) => {
               if (e.agent_id !== newSale.agent_id) return e;
+              const isApproved = !isRejected;
+              const nextTotalSales = e.total_sales + 1;
+              const nextApprovedSales = e.approved_sales + (isApproved ? 1 : 0);
+              const nextRejectedSales = e.rejected_sales + (isRejected ? 1 : 0);
+              const nextRevenue = e.revenue + (isApproved ? amount : 0);
               return {
                 ...e,
-                total_sales: e.total_sales + 1,
-                approved_sales: e.approved_sales + 1,
-                revenue: e.revenue + amount,
+                total_sales: nextTotalSales,
+                approved_sales: nextApprovedSales,
+                rejected_sales: nextRejectedSales,
+                revenue: nextRevenue,
+                conversion_rate: nextTotalSales > 0 ? Math.round((nextApprovedSales / nextTotalSales) * 100) : 0,
               };
             });
-            updated.sort((a, b) => b.revenue - a.revenue || b.approved_sales - a.approved_sales);
+            updated.sort(
+              (a, b) =>
+                b.revenue - a.revenue ||
+                b.approved_sales - a.approved_sales ||
+                a.agent_name.localeCompare(b.agent_name),
+            );
             updated.forEach((e, i) => (e.rank = i + 1));
 
             const currentIdx = updated.findIndex((e) => e.agent_id === currentUserId);
@@ -203,22 +218,17 @@ export function SalesPerformanceDashboard({
   const nextRank = currentUser && currentUser.rank > 1
     ? leaderboard.find((e) => e.rank === currentUser.rank - 1)
     : null;
-  const gapToNext = nextRank ? nextRank.revenue - (currentUser?.revenue || 0) : 0;
-  const salesGapToNext = nextRank ? nextRank.approved_sales - (currentUser?.approved_sales || 0) : 0;
+  const salesGapToNext = nextRank ? Math.max(0, nextRank.approved_sales - (currentUser?.approved_sales || 0)) : 0;
+  const hasMonthlyData = monthlyTrends.some((m) => m.sales > 0 || m.revenue > 0);
 
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg">
-              <BarChart3 className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Sales Performance</h1>
-              <p className="text-sm text-muted-foreground">Track your progress and compete with your team</p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+            <p className="text-sm text-muted-foreground">Track your progress and compare with your team</p>
           </div>
         </div>
         <button
@@ -293,7 +303,7 @@ export function SalesPerformanceDashboard({
               <CardTitle className="text-base">Monthly Sales Trends</CardTitle>
             </CardHeader>
             <CardContent>
-              {monthlyTrends.length === 0 ? (
+              {!hasMonthlyData ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">No data yet</p>
               ) : (
                 <ResponsiveContainer width="100%" height={320}>
@@ -431,7 +441,7 @@ export function SalesPerformanceDashboard({
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="h-4 w-4 text-amber-500" /> Sales Leaderboard
             </CardTitle>
-            {nextRank && currentUser && (
+            {nextRank && currentUser && salesGapToNext > 0 && (
               <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
                 <Zap className="h-3.5 w-3.5" />
                 <span>{salesGapToNext} more sale{salesGapToNext !== 1 ? "s" : ""} to beat {nextRank.agent_name}</span>

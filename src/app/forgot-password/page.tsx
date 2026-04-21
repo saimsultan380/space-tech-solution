@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
       <div className="relative z-10 w-full max-w-[440px] animate-[fade-in_0.6s_ease-out]">
         <div className="mb-10 text-center">
           <h2 className="text-3xl font-bold tracking-tight lg:text-4xl">Forgot password?</h2>
-          <p className="mt-3 text-[15px] text-muted-foreground">No worries, we'll send you reset instructions.</p>
+          <p className="mt-3 text-[15px] text-muted-foreground">No worries, we&apos;ll send you reset instructions.</p>
         </div>
 
         <div className="relative rounded-md border border-border bg-card/50 p-8 shadow-2xl backdrop-blur-xl">
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Check your email</h3>
                 <p className="text-sm text-muted-foreground">
-                  We've sent a password reset link to <span className="font-medium text-foreground">{email}</span>
+                  We&apos;ve sent a password reset link to <span className="font-medium text-foreground">{email}</span>
                 </p>
               </div>
               <Link href="/login" className="block">

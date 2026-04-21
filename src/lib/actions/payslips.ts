@@ -87,7 +87,7 @@ export async function getPayslips(filters?: {
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
-  let query = supabase
+  const query = supabase
     .from("payslips")
     .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
     .order("pay_date", { ascending: false });

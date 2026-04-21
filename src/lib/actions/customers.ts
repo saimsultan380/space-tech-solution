@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "@/lib/auth";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import { sanitizeFilterValue } from "@/lib/utils";
+import { notifySuperAdmins } from "./notifications";
 
 function revalidateCallLogsResponsesPaths() {
   revalidatePath("/dashboard/call-logs-responses");
@@ -75,7 +76,7 @@ export async function getCustomers(filters?: {
     return next;
   };
 
-  let query = applySharedFilters(
+  const query = applySharedFilters(
     supabase
       .from("customers")
       .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
@@ -114,7 +115,7 @@ export async function getCustomers(filters?: {
   const customers = (data || []) as Array<{ id: string } & Record<string, unknown>>;
   const ids = customers.map((c) => c.id).filter(Boolean);
 
-  let recentNoteByCustomerId = new Map<string, { content: string; created_at: string }>();
+  const recentNoteByCustomerId = new Map<string, { content: string; created_at: string }>();
   if (ids.length > 0) {
     const { data: notesData, error: notesError } = await supabase
       .from("notes")
@@ -223,6 +224,13 @@ export async function createCustomer(formData: {
 
   if (error) throw new Error(error.message);
   if (!data?.id) throw new Error("Failed to create customer");
+
+  await notifySuperAdmins({
+    title: "New Call Log Response",
+    body: `${user.full_name} added a new call log response for ${formData.name}`,
+    type: "customer",
+  });
+
   revalidateCallLogsResponsesPaths();
   return data.id as string;
 }

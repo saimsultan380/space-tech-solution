@@ -167,6 +167,7 @@ export function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const pathname = usePathname();
+  const isActiveHref = (href: string) => pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
   const fullRoleItems = NAV_ITEMS[role] || [];
   const legacyModuleAliases: Record<string, string[]> = {
     "/dashboard/call-logs-responses": ["/dashboard/customers"],
@@ -294,10 +295,7 @@ export function Sidebar({
               >
                 {section.items.map((item) => {
                   const Icon = iconMap[item.icon];
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== "/dashboard" &&
-                      pathname.startsWith(item.href));
+                  const isActive = isActiveHref(item.href);
                   const isCollapsedRail = collapsed;
                   const opensNewTab = "newTab" in item && item.newTab;
                   const LinkEl = opensNewTab ? "a" : Link;

@@ -124,7 +124,7 @@ export const NAV_ITEMS = {
   ],
   sales_agent: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
-    { href: "/dashboard/sales-performance", label: "Sales Performance", icon: "BarChart3" },
+    { href: "/dashboard/sales-performance", label: "Reports", icon: "BarChart3" },
     { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },

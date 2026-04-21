@@ -29,15 +29,35 @@ export interface ProcessingAccountStats {
   under_review: number;
 }
 
-export async function getProcessingAccountStats(): Promise<ProcessingAccountStats> {
+export async function getProcessingAccountStats(filters?: {
+  search?: string;
+  from_date?: string;
+  to_date?: string;
+}): Promise<ProcessingAccountStats> {
   await requireAuth();
   const supabase = await createClient();
 
   const statuses = ["active", "not_working", "closed", "reversal_issue", "under_review"] as const;
+  
+  const applyFilters = (query: any) => {
+    let next = query;
+    if (filters?.search) {
+      const safe = sanitizeFilterValue(filters.search);
+      next = next.or(`account_holder_name.ilike.%${safe}%,billing_address.ilike.%${safe}%,notes.ilike.%${safe}%`);
+    }
+    if (filters?.from_date) {
+      next = next.gte("created_at", `${filters.from_date}T00:00:00.000Z`);
+    }
+    if (filters?.to_date) {
+      next = next.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
+    }
+    return next;
+  };
+
   const [totalRes, ...statusRes] = await Promise.all([
-    supabase.from("processing_accounts").select("id", { count: "exact", head: true }),
+    applyFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true })),
     ...statuses.map((s) =>
-      supabase.from("processing_accounts").select("id", { count: "exact", head: true }).eq("status", s)
+      applyFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true }).eq("status", s))
     ),
   ]);
 
