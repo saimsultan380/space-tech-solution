@@ -271,18 +271,24 @@ export async function getAttendanceVsPerformance(month?: string) {
   return result;
 }
 
-export async function getAgentDashboardStats() {
+export async function getAgentDashboardStats(month?: string) {
   const user = await requireAuth();
   const supabase = await createClient();
 
   const today = new Date().toISOString().split("T")[0];
-  const monthStart = today.substring(0, 7) + "-01";
+  const filterMonth = month || today.substring(0, 7);
+  const monthStart = filterMonth + "-01";
+  const monthEnd = filterMonth === today.substring(0, 7)
+    ? today + "T23:59:59"
+    : new Date(new Date(filterMonth + "-01").getFullYear(), new Date(filterMonth + "-01").getMonth() + 1, 0).toISOString().split("T")[0] + "T23:59:59";
 
   const [allSalesRes, todaySalesRes, customersRes] = await Promise.all([
     supabase
       .from("sales")
       .select("id, status, charged_amount, created_at")
-      .eq("agent_id", user.id),
+      .eq("agent_id", user.id)
+      .gte("created_at", monthStart)
+      .lte("created_at", monthEnd),
     supabase
       .from("sales")
       .select("id, status, charged_amount")
@@ -296,7 +302,7 @@ export async function getAgentDashboardStats() {
 
   const allSales = allSalesRes.data || [];
   const todaySales = todaySalesRes.data || [];
-  const monthlySales = allSales.filter((s) => s.created_at >= monthStart);
+  const monthlySales = allSales;
 
   const nonRejected = <T extends { status: string; charged_amount: unknown }>(rows: T[]) =>
     rows.filter((s) => s.status !== "rejected");
@@ -324,14 +330,23 @@ export async function getAgentDashboardStats() {
   };
 }
 
-export async function getAgentRecentSales() {
+export async function getAgentRecentSales(month?: string) {
   const user = await requireAuth();
   const supabase = await createClient();
+
+  const today = new Date().toISOString().split("T")[0];
+  const filterMonth = month || today.substring(0, 7);
+  const monthStart = filterMonth + "-01";
+  const monthEnd = filterMonth === today.substring(0, 7)
+    ? today + "T23:59:59"
+    : new Date(new Date(filterMonth + "-01").getFullYear(), new Date(filterMonth + "-01").getMonth() + 1, 0).toISOString().split("T")[0] + "T23:59:59";
 
   const { data } = await supabase
     .from("sales")
     .select("id, company_name, charged_amount, created_at, customer:customers(name)")
     .eq("agent_id", user.id)
+    .gte("created_at", monthStart)
+    .lte("created_at", monthEnd)
     .order("created_at", { ascending: false })
     .limit(10);
 

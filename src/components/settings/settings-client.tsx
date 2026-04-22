@@ -16,6 +16,7 @@ import { updateUserAllowedModules } from "@/lib/actions/users";
 import { updateAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { updateCompanySettings, type CompanySettings } from "@/lib/actions/company-settings";
 import { ThemeAppearance } from "@/components/settings/theme-appearance";
+import { useCurrency } from "@/components/providers/currency-provider";
 import {
   User,
   Image as ImageIcon,
@@ -72,6 +73,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
   const [currency, setCurrency] = useState(user.preferred_currency || "PKR");
+  const { setCurrency: setGlobalCurrency } = useCurrency();
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [prefsMessage, setPrefsMessage] = useState<string | null>(null);
 
@@ -253,6 +255,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
     setPrefsMessage(null);
     try {
       await updatePreferences({ preferred_currency: currency });
+      setGlobalCurrency(currency);
       setPrefsMessage("Preferences saved.");
     } catch (err) {
       setPrefsMessage(

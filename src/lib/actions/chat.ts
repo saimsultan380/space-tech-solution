@@ -469,9 +469,22 @@ export async function updateChannel(channelId: string, updates: { name?: string;
 
 export async function clearChannelMessages(channelId: string) {
   const user = await requireAuth();
-  if (user.role !== "super_admin") return { error: "Only admins can clear chat" };
-
   const supabase = await createClient();
+
+  // Allow super_admin or the channel creator
+  if (user.role !== "super_admin") {
+    const { data: channel } = await supabase
+      .from("chat_channels")
+      .select("created_by, is_direct")
+      .eq("id", channelId)
+      .single();
+
+    const isMember = channel?.is_direct
+      ? (await supabase.from("chat_channel_members").select("user_id").eq("channel_id", channelId).eq("user_id", user.id).maybeSingle()).data !== null
+      : channel?.created_by === user.id;
+
+    if (!isMember) return { error: "You don't have permission to clear this chat" };
+  }
 
   const { error } = await supabase
     .from("chat_messages")
@@ -485,9 +498,30 @@ export async function clearChannelMessages(channelId: string) {
 
 export async function deleteChannel(channelId: string) {
   const user = await requireAuth();
-  if (user.role !== "super_admin") return { error: "Only admins can delete channels" };
-
   const supabase = await createClient();
+
+  // Allow super_admin or the channel creator (for groups) or any member (for DMs)
+  if (user.role !== "super_admin") {
+    const { data: channel } = await supabase
+      .from("chat_channels")
+      .select("created_by, is_direct")
+      .eq("id", channelId)
+      .single();
+
+    if (channel?.is_direct) {
+      // For DMs, any participant can delete
+      const { data: membership } = await supabase
+        .from("chat_channel_members")
+        .select("user_id")
+        .eq("channel_id", channelId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!membership) return { error: "You are not a participant of this chat" };
+    } else {
+      // For group channels, only the creator can delete
+      if (channel?.created_by !== user.id) return { error: "Only the channel creator or an admin can delete this channel" };
+    }
+  }
 
   const { error } = await supabase
     .from("chat_channels")

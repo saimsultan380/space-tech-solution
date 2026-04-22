@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useMemo, useTransition, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceWidget } from "./attendance-widget";
@@ -51,6 +53,7 @@ interface AgentDashboardProps {
     early_checkout_minutes: number;
   };
   companySettings: CompanySettings;
+  month: string;
 }
 
 export function AgentDashboard({
@@ -61,16 +64,84 @@ export function AgentDashboard({
   recentPayslips,
   attendanceSettings,
   companySettings,
+  month,
 }: AgentDashboardProps) {
   const { currency } = useCurrency();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const [selectedMonth, setSelectedMonth] = useState(month);
+
+  useEffect(() => {
+    setSelectedMonth(month);
+  }, [month]);
+
+  const monthOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    const current = new Date();
+
+    for (let i = 0; i < 6; i += 1) {
+      const d = new Date(current);
+      d.setMonth(current.getMonth() - i);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      });
+      options.push({ value, label });
+    }
+
+    return options;
+  }, []);
+
+  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
+
+  const handleMonthChange = (value: string) => {
+    setSelectedMonth(value);
+    updateFilters({ month: value });
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Good {getGreeting()}</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">
-          Welcome, {user.full_name}
-        </h1>
-        <p className="mt-1 text-muted-foreground">Here&apos;s your performance overview.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-primary">Good {getGreeting()}</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            Welcome, {user.full_name}
+          </h1>
+          <p className="mt-1 text-muted-foreground">Here&apos;s your performance overview.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="month-filter" className="text-sm font-medium text-muted-foreground">
+            Month:
+          </label>
+          <select
+            id="month-filter"
+            value={selectedMonth}
+            onChange={(e) => handleMonthChange(e.target.value)}
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Today's stats */}
@@ -107,17 +178,17 @@ export function AgentDashboard({
       {/* Monthly stats */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <TrendingUp className="h-4 w-4" /> This Month
+          <TrendingUp className="h-4 w-4" /> {monthOptions.find((m) => m.value === selectedMonth)?.label || "This Month"}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
-            title="Month Sales"
+            title={`${monthOptions.find((m) => m.value === selectedMonth)?.label || "This Month"} Sales`}
             value={stats.monthSales}
             icon={<ShoppingCart className="h-5 w-5" />}
             colorClass="bg-violet-500"
           />
           <StatCard
-            title="Month Revenue"
+            title={`${monthOptions.find((m) => m.value === selectedMonth)?.label || "This Month"} Revenue`}
             value={formatCurrency(stats.monthRevenue, currency)}
             icon={<DollarSign className="h-5 w-5" />}
             colorClass="bg-sky-500"
@@ -136,7 +207,7 @@ export function AgentDashboard({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <ShoppingCart className="h-4 w-4" /> Recent Sales
+              <ShoppingCart className="h-4 w-4" /> Recent Sales ({monthOptions.find((m) => m.value === selectedMonth)?.label || "This Month"})
             </CardTitle>
             <Link
               href="/dashboard/sales"

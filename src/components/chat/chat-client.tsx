@@ -172,6 +172,12 @@ function ChatClientContent({
   const [settingsMembers, setSettingsMembers] = useState<string[]>([]);
   const [channelActionError, setChannelActionError] = useState<string | null>(null);
 
+  // Header options menu
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  const headerMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const [headerMenuPos, setHeaderMenuPos] = useState<{ top: number; right: number } | null>(null);
+
   // Pinned
   const [pinnedMessages, setPinnedMessages] = useState<ChatMessage[]>([]);
   const [showAllPinned, setShowAllPinned] = useState(false);
@@ -336,10 +342,15 @@ function ChatClientContent({
       if (attachRef.current && !attachRef.current.contains(e.target as Node)) setShowAttachMenu(false);
       setMenuMsgId(null);
       setShowPresenceMenu(false);
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+        setShowHeaderMenu(false);
+        setHeaderMenuPos(null);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
 
   // Load messages + members + pinned when channel changes
   useEffect(() => {
@@ -731,20 +742,35 @@ function ChatClientContent({
   const handleClearChat = async () => {
     if (!activeChannelId) return;
     if (!confirm("Are you sure you want to clear all messages in this channel? This cannot be undone.")) return;
-    await clearChannelMessages(activeChannelId);
+    const result = await clearChannelMessages(activeChannelId);
+    if (result?.error) {
+      alert(result.error);
+      return;
+    }
     setMessages([]);
     setPinnedMessages([]);
   };
 
   const handleDeleteChannel = async () => {
     if (!activeChannelId || !activeChannel) return;
-    if (!confirm(`Delete channel "${activeChannel.name}" and all its messages for everyone? This cannot be undone.`)) return;
+    const label = activeChannel.is_direct ? "this conversation" : `channel "${activeChannel.name}"`;
+    if (!confirm(`Delete ${label} and all its messages for everyone? This cannot be undone.`)) return;
     setSavingChannel(true); setChannelActionError(null);
     const result = await deleteChannel(activeChannelId);
     setSavingChannel(false);
-    if (result.error) { setChannelActionError(result.error); return; }
+    if (result.error) { setChannelActionError(result.error); alert(result.error); return; }
     setChannels((prev) => prev.filter((c) => c.id !== activeChannelId));
     setActiveChannelId(null); setMessages([]); setMembers([]); setShowChannelSettings(false);
+  };
+
+  const handleDeleteChannelFromSidebar = async (channelId: string, channelName: string) => {
+    if (!confirm(`Delete channel "${channelName}" and all its messages for everyone? This cannot be undone.`)) return;
+    const result = await deleteChannel(channelId);
+    if (result.error) { alert(result.error); return; }
+    setChannels((prev) => prev.filter((c) => c.id !== channelId));
+    if (activeChannelId === channelId) {
+      setActiveChannelId(null); setMessages([]); setMembers([]);
+    }
   };
 
   const handleChannelAvatarUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -1028,6 +1054,8 @@ function ChatClientContent({
               subtitle={ch.last_message ? `${ch.last_message.sender_name}: ${ch.last_message.content || "Attachment"}` : "No messages yet"}
               time={ch.last_message ? formatRelativeTime(ch.last_message.created_at) : undefined}
               isSubtitleItalic={!ch.last_message}
+              showDelete={currentUserRole === "super_admin" || ch.created_by === currentUserId}
+              onDelete={() => handleDeleteChannelFromSidebar(ch.id, ch.name)}
             />
           ))}
 
@@ -1095,7 +1123,7 @@ function ChatClientContent({
                   <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-background presence-online" />
                 )}
               </div>
-              <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { if (currentUserRole === "super_admin" && !activeChannel.is_direct) { setEditChName(activeChannel.name); setEditChDesc(activeChannel.description); setSettingsMembers(members.map((m) => m.id)); setShowChannelSettings(true); } }}>
+              <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { setShowHeaderMenu(true); }}>
                 <h3 className="text-sm font-bold text-foreground truncate leading-tight">
                   {activeChannel.is_direct ? getDmDisplayName(activeChannel) : activeChannel.name}
                 </h3>
@@ -1113,7 +1141,7 @@ function ChatClientContent({
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-0.5 sm:gap-1">
+              <div className="flex items-center gap-0.5 sm:gap-1 overflow-visible">
                 <Link
                   href="/dashboard"
                   className="hidden sm:flex shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors"
@@ -1127,11 +1155,27 @@ function ChatClientContent({
                 <button onClick={() => setShowMemberPanel(!showMemberPanel)} className={cn("shrink-0 rounded-full p-2 transition-colors", showMemberPanel ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
                   {showMemberPanel ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
                 </button>
-                {currentUserRole === "super_admin" && !activeChannel.is_direct && (
-                  <button onClick={() => { setEditChName(activeChannel.name); setEditChDesc(activeChannel.description); setSettingsMembers(members.map((m) => m.id)); setShowChannelSettings(true); }} className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors">
+                <div ref={headerMenuRef}>
+                  <button
+                    ref={headerMenuBtnRef}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (showHeaderMenu) {
+                        setShowHeaderMenu(false);
+                        setHeaderMenuPos(null);
+                      } else {
+                        const rect = headerMenuBtnRef.current?.getBoundingClientRect();
+                        if (rect) {
+                          setHeaderMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                        }
+                        setShowHeaderMenu(true);
+                      }
+                    }}
+                    className={cn("shrink-0 rounded-full p-2 transition-colors", showHeaderMenu ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+                  >
                     <Settings className="h-4 w-4" />
                   </button>
-                )}
+                </div>
               </div>
             </div>
 
@@ -1871,6 +1915,7 @@ function ChatClientContent({
 
 function SidebarItem({
   isActive, unread, onClick, avatar, name, subtitle, time, isSubtitleItalic, presenceDot,
+  showDelete, onDelete,
 }: {
   isActive: boolean;
   unread: number;
@@ -1881,10 +1926,11 @@ function SidebarItem({
   time?: string;
   isSubtitleItalic?: boolean;
   presenceDot?: "online" | "offline";
+  showDelete?: boolean;
+  onDelete?: (e: React.MouseEvent) => void;
 }) {
   return (
     <div
-      onClick={onClick}
       role="button"
       tabIndex={0}
       className={cn(
@@ -1892,28 +1938,39 @@ function SidebarItem({
         isActive && "chat-sidebar-active border-l-2",
       )}
     >
-      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
-        {avatar}
-        {presenceDot && (
-          <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card", presenceDot === "online" ? "bg-emerald-500" : "bg-gray-400")} />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className={cn("text-sm font-semibold text-foreground truncate", unread > 0 && "font-bold")}>{name}</p>
-          <div className="flex flex-col items-end gap-0.5 shrink-0">
-            {time && <span suppressHydrationWarning className={cn("text-[10px]", unread > 0 ? "text-primary font-semibold" : "text-muted-foreground")}>{time}</span>}
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <p className={cn("text-[11px] text-muted-foreground truncate", isSubtitleItalic && "italic opacity-50")}>{subtitle}</p>
-          {unread > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 shrink-0">
-              {unread > 99 ? "99+" : unread}
-            </span>
+      <div onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
+          {avatar}
+          {presenceDot && (
+            <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card", presenceDot === "online" ? "bg-emerald-500" : "bg-gray-400")} />
           )}
         </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className={cn("text-sm font-semibold text-foreground truncate", unread > 0 && "font-bold")}>{name}</p>
+            <div className="flex flex-col items-end gap-0.5 shrink-0">
+              {time && <span suppressHydrationWarning className={cn("text-[10px]", unread > 0 ? "text-primary font-semibold" : "text-muted-foreground")}>{time}</span>}
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p className={cn("text-[11px] text-muted-foreground truncate", isSubtitleItalic && "italic opacity-50")}>{subtitle}</p>
+            {unread > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 shrink-0">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
+      {showDelete && onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(e); }}
+          className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
+          title="Delete channel"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

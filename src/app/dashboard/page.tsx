@@ -30,11 +30,17 @@ const defaultStats = {
   conversionRate: "0",
 };
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams?: Promise<{
+    month?: string;
+  }>;
+}
+
+export default async function DashboardPage(props: DashboardPageProps) {
   const user = await requireAuth();
 
   if (user.role === "sales_agent") {
-    return <AgentDashboardPage user={user} />;
+    return <AgentDashboardPage user={user} searchParams={props.searchParams} />;
   }
 
   if (user.role === "processor") {
@@ -80,7 +86,10 @@ export default async function DashboardPage() {
   );
 }
 
-async function AgentDashboardPage({ user }: { user: Awaited<ReturnType<typeof requireAuth>> }) {
+async function AgentDashboardPage({ user, searchParams }: { user: Awaited<ReturnType<typeof requireAuth>>; searchParams?: Promise<{ month?: string }> }) {
+  const params = searchParams ? await searchParams : undefined;
+  const month = (params?.month as string | undefined) || new Date().toISOString().substring(0, 7);
+
   const defaultAgentStats = {
     totalSales: 0,
     todaySales: 0,
@@ -109,8 +118,8 @@ async function AgentDashboardPage({ user }: { user: Awaited<ReturnType<typeof re
 
   try {
     [agentStats, recentSales, todayAttendance, recentPayslips, attendanceSettings, companySettings] = await Promise.all([
-      getAgentDashboardStats(),
-      getAgentRecentSales(),
+      getAgentDashboardStats(month),
+      getAgentRecentSales(month),
       getTodayAttendance(),
       getRecentPayslips(5),
       getAttendanceSettings(),
@@ -132,6 +141,7 @@ async function AgentDashboardPage({ user }: { user: Awaited<ReturnType<typeof re
       recentPayslips={recentPayslips}
       attendanceSettings={attendanceSettings!}
       companySettings={companySettings!}
+      month={month}
     />
   );
 }

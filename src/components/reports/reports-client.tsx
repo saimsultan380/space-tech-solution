@@ -158,9 +158,28 @@ export function ReportsClient({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-        <p className="text-muted-foreground">Comprehensive performance insights</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Reports & Analytics</h1>
+          <p className="text-muted-foreground">Comprehensive performance insights</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="month-filter" className="text-sm font-medium text-muted-foreground">
+            Month:
+          </label>
+          <select
+            id="month-filter"
+            value={selectedMonth}
+            onChange={(e) => handleMonthChange(e.target.value)}
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -199,17 +218,6 @@ export function ReportsClient({
               Employee Monthly Performance
             </CardTitle>
             <div className="flex items-center gap-2">
-              <select
-                value={selectedMonth}
-                onChange={(e) => handleMonthChange(e.target.value)}
-                className="rounded-[4px] border border-border bg-background px-2 py-1 text-xs text-foreground shadow-sm"
-              >
-                {monthOptions.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
               {topPerformer && (
                 <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                   <Award className="mr-1 h-3 w-3" /> Top: {topPerformer.name} (
