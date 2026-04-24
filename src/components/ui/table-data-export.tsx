@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   downloadTableCsv,
-  downloadTableXlsx,
   type TableExportCell,
 } from "@/lib/table-export";
 
@@ -40,16 +39,6 @@ export function TableDataExport({
         <FileDown className="h-4 w-4 shrink-0" />
         CSV
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={empty}
-        onClick={() => downloadTableXlsx(headers, rows, filenameBase)}
-      >
-        <FileSpreadsheet className="h-4 w-4 shrink-0" />
-        Excel
-      </Button>
     </div>
   );
 }
@@ -67,16 +56,15 @@ export function TableDataExportAsync({
   className,
   fetchRows,
 }: TableDataExportAsyncProps) {
-  const [loading, setLoading] = useState<"csv" | "xlsx" | null>(null);
+  const [loading, setLoading] = useState<"csv" | null>(null);
 
-  const run = async (kind: "csv" | "xlsx") => {
+  const run = async (kind: "csv") => {
     if (disabled || loading) return;
     setLoading(kind);
     try {
       const { headers, rows } = await fetchRows();
       if (rows.length === 0) return;
-      if (kind === "csv") downloadTableCsv(headers, rows, filenameBase);
-      else downloadTableXlsx(headers, rows, filenameBase);
+      downloadTableCsv(headers, rows, filenameBase);
     } finally {
       setLoading(null);
     }
@@ -97,20 +85,6 @@ export function TableDataExportAsync({
           <FileDown className="h-4 w-4 shrink-0" />
         )}
         CSV
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={disabled || loading !== null}
-        onClick={() => void run("xlsx")}
-      >
-        {loading === "xlsx" ? (
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-        ) : (
-          <FileSpreadsheet className="h-4 w-4 shrink-0" />
-        )}
-        Excel
       </Button>
     </div>
   );

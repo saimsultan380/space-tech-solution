@@ -78,4 +78,3 @@ export function StatCard({ title, value, description, icon, trend, className, co
     </div>
   );
 }
-

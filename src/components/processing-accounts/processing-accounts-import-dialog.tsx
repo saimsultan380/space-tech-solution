@@ -230,9 +230,11 @@ export function ProcessingAccountsImportDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Type</TableHead>
                     <TableHead>Account holder</TableHead>
-                    <TableHead>Routing</TableHead>
-                    <TableHead>Account #</TableHead>
+                    <TableHead>Routing / Card No.</TableHead>
+                    <TableHead>Account No. / Expiry</TableHead>
+                    <TableHead>CVV</TableHead>
                     <TableHead>Address</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -240,16 +242,34 @@ export function ProcessingAccountsImportDialog({
                 <TableBody>
                   {previewRows.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell className="max-w-[140px] truncate font-medium">
+                      <TableCell className="text-xs">
+                        {r.account_type === "card" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+                            Card
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                            CheckIn
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[120px] truncate font-medium">
                         {r.account_holder_name}
                       </TableCell>
                       <TableCell className="max-w-[100px] truncate font-mono text-xs">
-                        {r.routing_number || "—"}
+                        {r.account_type === "card"
+                          ? r.card_number || "—"
+                          : r.routing_number || "—"}
                       </TableCell>
                       <TableCell className="max-w-[100px] truncate font-mono text-xs">
-                        {r.account_number || "—"}
+                        {r.account_type === "card"
+                          ? r.expiration_date || "—"
+                          : r.account_number || "—"}
                       </TableCell>
-                      <TableCell className="max-w-[160px] truncate text-xs">
+                      <TableCell className="font-mono text-xs">
+                        {r.account_type === "card" ? r.cvv || "—" : "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[140px] truncate text-xs">
                         {r.billing_address || "—"}
                       </TableCell>
                       <TableCell className="text-xs">{r.status}</TableCell>

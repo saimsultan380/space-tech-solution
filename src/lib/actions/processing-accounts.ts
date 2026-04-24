@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
-import type { ProcessingAccountImportPayload, ProcessingAccountStatus } from "@/lib/types";
+import type { ProcessingAccountImportPayload, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
 import { sanitizeFilterValue } from "@/lib/utils";
 
 function safeDecrypt(ciphertext: string | null | undefined): string {
@@ -117,6 +117,10 @@ export async function getProcessingAccounts(filters?: {
     ...account,
     routing_number: safeDecrypt(account.routing_number_encrypted as string),
     account_number: safeDecrypt(account.account_number_encrypted as string),
+    card_number: safeDecrypt(account.card_number_encrypted as string),
+    cvv: safeDecrypt(account.cvv_encrypted as string),
+    expiration_date: account.expiration_date || "",
+    account_type: (account.account_type as ProcessingAccountType) || "checkin",
   }));
 
   return {
@@ -143,13 +147,21 @@ export async function getProcessingAccount(id: string) {
     ...data,
     routing_number: safeDecrypt(data.routing_number_encrypted),
     account_number: safeDecrypt(data.account_number_encrypted),
+    card_number: safeDecrypt(data.card_number_encrypted),
+    cvv: safeDecrypt(data.cvv_encrypted),
+    expiration_date: data.expiration_date || "",
+    account_type: (data.account_type as ProcessingAccountType) || "checkin",
   };
 }
 
 export async function createProcessingAccount(formData: {
+  account_type: ProcessingAccountType | "";
   account_holder_name: string;
-  routing_number: string;
-  account_number: string;
+  routing_number?: string;
+  account_number?: string;
+  card_number?: string;
+  expiration_date?: string;
+  cvv?: string;
   billing_address: string;
   status: ProcessingAccountStatus | "";
   notes?: string;
@@ -157,12 +169,18 @@ export async function createProcessingAccount(formData: {
   const user = await requireAuth();
   const supabase = await createClient();
 
+  const isCard = formData.account_type === "card";
+
   const { data, error } = await supabase
     .from("processing_accounts")
     .insert({
+      account_type: formData.account_type || "checkin",
       account_holder_name: formData.account_holder_name.trim() || "",
-      routing_number_encrypted: encrypt(formData.routing_number.trim()),
-      account_number_encrypted: encrypt(formData.account_number.trim()),
+      routing_number_encrypted: isCard ? encrypt("") : encrypt((formData.routing_number || "").trim()),
+      account_number_encrypted: isCard ? encrypt("") : encrypt((formData.account_number || "").trim()),
+      card_number_encrypted: isCard ? encrypt((formData.card_number || "").trim()) : null,
+      expiration_date: isCard ? (formData.expiration_date || null) : null,
+      cvv_encrypted: isCard ? encrypt((formData.cvv || "").trim()) : null,
       billing_address: formData.billing_address.trim() || "",
       status: formData.status || null,
       notes: formData.notes || null,
@@ -207,10 +225,15 @@ export async function bulkImportProcessingAccounts(
       r.status && IMPORT_STATUS_SET.has(r.status as ProcessingAccountStatus)
         ? r.status
         : null;
+    const isCard = r.account_type === "card";
     return {
+      account_type: r.account_type || "checkin",
       account_holder_name: (r.account_holder_name || "").trim(),
-      routing_number_encrypted: encrypt((r.routing_number || "").trim()),
-      account_number_encrypted: encrypt((r.account_number || "").trim()),
+      routing_number_encrypted: isCard ? encrypt("") : encrypt((r.routing_number || "").trim()),
+      account_number_encrypted: isCard ? encrypt("") : encrypt((r.account_number || "").trim()),
+      card_number_encrypted: isCard ? encrypt((r.card_number || "").trim()) : null,
+      expiration_date: isCard ? (r.expiration_date || null) : null,
+      cvv_encrypted: isCard ? encrypt((r.cvv || "").trim()) : null,
       billing_address: (r.billing_address || "").trim(),
       status,
       notes: r.notes?.trim() ? r.notes.trim() : null,
@@ -242,9 +265,13 @@ export async function bulkImportProcessingAccounts(
 export async function updateProcessingAccount(
   id: string,
   formData: {
+    account_type: ProcessingAccountType | "";
     account_holder_name: string;
-    routing_number: string;
-    account_number: string;
+    routing_number?: string;
+    account_number?: string;
+    card_number?: string;
+    expiration_date?: string;
+    cvv?: string;
     billing_address: string;
     status: ProcessingAccountStatus | "";
     notes?: string;
@@ -253,10 +280,16 @@ export async function updateProcessingAccount(
   await requireAuth();
   const supabase = await createClient();
 
+  const isCard = formData.account_type === "card";
+
   const updateData: Record<string, unknown> = {
+    account_type: formData.account_type || "checkin",
     account_holder_name: formData.account_holder_name.trim(),
-    routing_number_encrypted: encrypt(formData.routing_number.trim()),
-    account_number_encrypted: encrypt(formData.account_number.trim()),
+    routing_number_encrypted: isCard ? encrypt("") : encrypt((formData.routing_number || "").trim()),
+    account_number_encrypted: isCard ? encrypt("") : encrypt((formData.account_number || "").trim()),
+    card_number_encrypted: isCard ? encrypt((formData.card_number || "").trim()) : null,
+    expiration_date: isCard ? (formData.expiration_date || null) : null,
+    cvv_encrypted: isCard ? encrypt((formData.cvv || "").trim()) : null,
     billing_address: formData.billing_address.trim(),
     status: formData.status || null,
     notes: formData.notes?.trim() ? formData.notes.trim() : null,

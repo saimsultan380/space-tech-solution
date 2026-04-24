@@ -14,6 +14,8 @@ export async function getDashboardStats(month?: string) {
   let customersQuery = supabase.from("customers").select("id", { count: "exact", head: true });
   let totalChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true });
   let openChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true }).eq("status", "open");
+  let callLogsQuery = supabase.from("customers").select("id", { count: "exact", head: true }).eq("source", "call_log");
+  let processingAccountsQuery = supabase.from("processing_accounts").select("id", { count: "exact", head: true });
   let pendingLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true }).eq("status", "pending");
   const todayLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true })
     .eq("status", "approved").lte("start_date", today).gte("end_date", today);
@@ -30,6 +32,8 @@ export async function getDashboardStats(month?: string) {
     customersQuery = customersQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
     totalChargebacksQuery = totalChargebacksQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
     openChargebacksQuery = openChargebacksQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    callLogsQuery = callLogsQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+    processingAccountsQuery = processingAccountsQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
     // Leaves might not need month filtering for dashboard overview, but for reports we can filter them
     pendingLeavesQuery = pendingLeavesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
   }
@@ -41,6 +45,8 @@ export async function getDashboardStats(month?: string) {
     customersRes,
     totalChargebacksRes,
     openChargebacksRes,
+    callLogsRes,
+    processingAccountsRes,
     pendingLeavesRes,
     todayLeavesRes,
   ] = await Promise.all([
@@ -50,6 +56,8 @@ export async function getDashboardStats(month?: string) {
     customersQuery,
     totalChargebacksQuery,
     openChargebacksQuery,
+    callLogsQuery,
+    processingAccountsQuery,
     pendingLeavesQuery,
     todayLeavesQuery,
   ]);
@@ -68,6 +76,8 @@ export async function getDashboardStats(month?: string) {
     rejectedSales,
     totalChargebacks: totalChargebacksRes.count || 0,
     openChargebacks: openChargebacksRes.count || 0,
+    totalCallLogs: callLogsRes.count || 0,
+    totalProcessingAccounts: processingAccountsRes.count || 0,
     pendingLeaves: pendingLeavesRes.count || 0,
     todayOnLeave: todayLeavesRes.count || 0,
     conversionRate:

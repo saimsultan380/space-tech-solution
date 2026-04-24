@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,8 @@ import {
   AlertOctagon,
   Clock,
   Pencil,
+  Building2,
+  CreditCard,
 } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
@@ -43,9 +46,13 @@ import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "
 
 interface ProcessingAccountRow {
   id: string;
+  account_type: string;
   account_holder_name: string;
   routing_number: string;
   account_number: string;
+  card_number: string;
+  expiration_date: string;
+  cvv: string;
   billing_address: string;
   status: ProcessingAccountStatus | null;
   notes: string | null;
@@ -201,9 +208,11 @@ export function ProcessingAccountsClient({
           return (
             <Card
               key={stat.label}
-              className={`cursor-pointer bg-gradient-to-br transition-all hover:shadow-md ${stat.cardTint} ${
+              className={cn(
+                "cursor-pointer bg-gradient-to-br transition-all hover:shadow-md",
+                stat.cardTint,
                 isActive ? "ring-2 ring-primary/60" : ""
-              }`}
+              )}
               onClick={() =>
                 updateFilters({
                   status: isActive ? "all" : stat.filterValue,
@@ -216,12 +225,12 @@ export function ProcessingAccountsClient({
                     <p className="text-sm font-medium text-muted-foreground">
                       {stat.label}
                     </p>
-                    <p className={`mt-2 text-3xl font-semibold ${stat.color}`}>
+                    <p className={cn("mt-2 text-3xl font-semibold", stat.color)}>
                       {stat.value}
                     </p>
                   </div>
-                  <div className={`rounded-full p-3 ${stat.bgColor}`}>
-                    <Icon className={`h-6 w-6 ${stat.color}`} />
+                  <div className={cn("rounded-full p-3", stat.bgColor)}>
+                    <Icon className={cn("h-6 w-6", stat.color)} />
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground hover:text-primary">
@@ -270,18 +279,26 @@ export function ProcessingAccountsClient({
             <TableDataExport
               filenameBase="processing-accounts"
               headers={[
+                "Account Type",
                 "Account Holder Name",
                 "Routing Number",
                 "Account Number",
+                "Card Number",
+                "Expiration Date",
+                "CVV",
                 "Billing Address",
                 "Status",
                 "Notes",
                 "Date",
               ]}
               rows={accounts.map((a) => [
+                a.account_type === "card" ? "Credit/Debit Card" : "CheckIn Account",
                 a.account_holder_name,
                 a.routing_number,
                 a.account_number,
+                a.card_number,
+                a.expiration_date,
+                a.cvv,
                 a.billing_address,
                 a.status ? statusConfig[a.status].label : "",
                 a.notes || "",
@@ -315,8 +332,10 @@ export function ProcessingAccountsClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Account Holder Name</TableHead>
-                    <TableHead>Routing Number</TableHead>
-                    <TableHead>Account Number</TableHead>
+                    <TableHead className="min-w-[90px]">Type</TableHead>
+                    <TableHead className="min-w-[160px]">Routing / Card No.</TableHead>
+                    <TableHead className="min-w-[160px]">Account No. / Expiry</TableHead>
+                    <TableHead className="min-w-[60px]">CVV</TableHead>
                     <TableHead>Billing Address</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Notes</TableHead>
@@ -348,11 +367,33 @@ export function ProcessingAccountsClient({
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="align-middle font-mono text-sm break-all max-w-[200px]">
-                          {account.routing_number?.trim() || "—"}
+                        <TableCell className="align-middle">
+                          {account.account_type === "card" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                              <CreditCard className="h-3 w-3" />
+                              Card
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                              <Building2 className="h-3 w-3" />
+                              CheckIn
+                            </span>
+                          )}
                         </TableCell>
-                        <TableCell className="align-middle font-mono text-sm break-all max-w-[200px]">
-                          {account.account_number?.trim() || "—"}
+                        <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
+                          {account.account_type === "card"
+                            ? account.card_number?.trim() || "—"
+                            : account.routing_number?.trim() || "—"}
+                        </TableCell>
+                        <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
+                          {account.account_type === "card"
+                            ? account.expiration_date?.trim() || "—"
+                            : account.account_number?.trim() || "—"}
+                        </TableCell>
+                        <TableCell className="align-middle font-mono text-sm whitespace-nowrap">
+                          {account.account_type === "card"
+                            ? account.cvv?.trim() || "—"
+                            : "—"}
                         </TableCell>
                         <TableCell className="align-middle">
                           <span

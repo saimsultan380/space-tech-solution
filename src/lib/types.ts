@@ -14,11 +14,17 @@ export type MarketingCampaignStatus = "active" | "paused" | "completed";
 export type MarketingTransactionType = "allocation" | "deduction" | "adjustment";
 export type ProcessingAccountStatus = "active" | "not_working" | "closed" | "reversal_issue" | "under_review";
 
+export type ProcessingAccountType = "checkin" | "card";
+
 /** One row from CSV/Excel import (before insert). */
 export type ProcessingAccountImportPayload = {
+  account_type: ProcessingAccountType | "";
   account_holder_name: string;
   routing_number: string;
   account_number: string;
+  card_number: string;
+  expiration_date: string;
+  cvv: string;
   billing_address: string;
   status: ProcessingAccountStatus | "";
   notes: string;
@@ -350,9 +356,13 @@ export interface MarketingEntry {
 
 export interface ProcessingAccount {
   id: string;
+  account_type: ProcessingAccountType | null;
   account_holder_name: string;
   routing_number_encrypted: string;
   account_number_encrypted: string;
+  card_number_encrypted: string | null;
+  expiration_date: string | null;
+  cvv_encrypted: string | null;
   billing_address: string;
   status: ProcessingAccountStatus | null;
   notes: string | null;

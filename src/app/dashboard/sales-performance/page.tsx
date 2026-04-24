@@ -25,7 +25,7 @@ export default async function SalesPerformancePage() {
   return (
     <SalesPerformanceDashboard
       currentUserId={user.id}
-      currentUserName={user.full_name}
+
       stats={stats}
       monthlyTrends={monthlyTrends}
       dealCategories={dealCategories}

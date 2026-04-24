@@ -4,8 +4,8 @@ import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, cn, formatCnic } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
-import { downloadPayslipPdf } from "@/lib/payslip-pdf";
-import { Download, FileText, User, Briefcase, Calendar, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
+
+import { FileText, User, Briefcase, Calendar, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface PayslipDetailDialogProps {

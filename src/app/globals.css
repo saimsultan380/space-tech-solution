@@ -30,6 +30,24 @@
   --sidebar-width: 17rem;
 }
 
+@media (max-width: 1440px) {
+  :root {
+    --sidebar-width: 15rem;
+  }
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 1280px) {
+  :root {
+    --sidebar-width: 14rem;
+  }
+  html {
+    font-size: 14px;
+  }
+}
+
 .dark {
   --background: 0 0% 7%;
   --foreground: 210 20% 98%;

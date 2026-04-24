@@ -69,8 +69,6 @@ export function DashboardShell({
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar
           role={role}
-          userName={userName}
-          userAvatarUrl={userAvatarUrl}
           allowedModules={allowedModules}
           collapsed={effectiveSidebarCollapsed}
           mobileOpen={mobileMenuOpen}
@@ -86,7 +84,7 @@ export function DashboardShell({
             onToggleSidebar={handleToggleSidebar}
             isMobile={isMobile}
           />
-          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 lg:p-6">
+          <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 xl:p-6">
             <div className="mx-auto w-full max-w-7xl animate-[fade-in_0.3s_ease-out]">
               {children}
             </div>

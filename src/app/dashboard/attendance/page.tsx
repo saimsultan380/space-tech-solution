@@ -12,7 +12,6 @@ export default async function AttendancePage(props: {
   const searchParams = await props.searchParams;
   const currentMonth = new Date().toISOString().slice(0, 7);
   const month = searchParams.month ?? currentMonth;
-  const page = Number(searchParams.page) || 1;
   const user_id = searchParams.user_id || (user.role === "super_admin" ? "all" : user.id);
 
   const isSuperAdmin = user.role === "super_admin";
@@ -51,7 +50,6 @@ export default async function AttendancePage(props: {
       monthlySummary={monthlySummary}
       leaves={leaves.data}
       attendanceSettings={attendanceSettings}
-      initialMonth={month}
     />
   );
 }

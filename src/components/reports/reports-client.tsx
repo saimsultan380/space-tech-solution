@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -35,6 +35,7 @@ import {
   Users,
   BarChart3,
   Award,
+  MessageSquare,
 } from "lucide-react";
 import { useCurrency } from "@/components/providers/currency-provider";
 
@@ -59,6 +60,9 @@ interface ReportsClientProps {
     rejectedSales: number;
     totalChargebacks: number;
     openChargebacks: number;
+    totalCallLogs: number;
+    totalProcessingAccounts: number;
+    totalCustomers: number;
     conversionRate: string;
   };
   salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }>;
@@ -158,10 +162,10 @@ export function ReportsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-          <p className="text-muted-foreground">Comprehensive performance insights</p>
+          <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold">Reports & Analytics</h1>
+          <p className="text-sm text-muted-foreground">Comprehensive performance insights</p>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="month-filter" className="text-sm font-medium text-muted-foreground">
@@ -171,7 +175,7 @@ export function ReportsClient({
             id="month-filter"
             value={selectedMonth}
             onChange={(e) => handleMonthChange(e.target.value)}
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
           >
             {monthOptions.map((m) => (
               <option key={m.value} value={m.value}>
@@ -182,7 +186,7 @@ export function ReportsClient({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
         <StatCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue, currency)}
@@ -207,17 +211,41 @@ export function ReportsClient({
           icon={<AlertTriangle className="h-4 w-4" />}
           colorClass="bg-rose-500"
         />
+        <StatCard
+          title="Total Chargebacks"
+          value={stats.totalChargebacks}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          colorClass="bg-red-600"
+        />
+        <StatCard
+          title="Call Log Responses"
+          value={stats.totalCallLogs}
+          icon={<MessageSquare className="h-4 w-4" />}
+          colorClass="bg-sky-500"
+        />
+        <StatCard
+          title="Processing Accounts"
+          value={stats.totalProcessingAccounts}
+          icon={<Users className="h-4 w-4" />}
+          colorClass="bg-amber-500"
+        />
+        <StatCard
+          title="Total Customers"
+          value={stats.totalCustomers}
+          icon={<Users className="h-4 w-4" />}
+          colorClass="bg-indigo-500"
+        />
       </div>
 
       {/* Employee Performance Table */}
       <Card className="bg-gradient-to-br from-violet-500/[0.06] via-card to-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Employee Monthly Performance
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {topPerformer && (
                 <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                   <Award className="mr-1 h-3 w-3" /> Top: {topPerformer.name} (
@@ -250,40 +278,42 @@ export function ReportsClient({
               No employee data for this period.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Total Sales</TableHead>
-                  <TableHead>Recorded</TableHead>
-                  <TableHead>Rejected</TableHead>
-                  <TableHead>Revenue</TableHead>
-                  <TableHead>Days Present</TableHead>
-                  <TableHead>Hours Worked</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedEmployees.map((emp) => (
-                  <TableRow key={emp.id}>
-                    <TableCell className="font-medium">{emp.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{ROLE_LABELS[emp.role] || emp.role}</Badge>
-                    </TableCell>
-                    <TableCell>{emp.totalSales}</TableCell>
-                    <TableCell>
-                      <span className="text-green-600">{emp.approvedSales}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-red-600">{emp.rejectedSales}</span>
-                    </TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(emp.revenue, currency)}</TableCell>
-                    <TableCell>{emp.daysPresent}</TableCell>
-                    <TableCell>{emp.totalHours}h</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Total Sales</TableHead>
+                    <TableHead>Recorded</TableHead>
+                    <TableHead>Rejected</TableHead>
+                    <TableHead>Revenue</TableHead>
+                    <TableHead>Days Present</TableHead>
+                    <TableHead>Hours Worked</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedEmployees.map((emp) => (
+                    <TableRow key={emp.id}>
+                      <TableCell className="font-medium">{emp.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{ROLE_LABELS[emp.role] || emp.role}</Badge>
+                      </TableCell>
+                      <TableCell>{emp.totalSales}</TableCell>
+                      <TableCell>
+                        <span className="text-green-600">{emp.approvedSales}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-red-600">{emp.rejectedSales}</span>
+                      </TableCell>
+                      <TableCell className="font-semibold">{formatCurrency(emp.revenue, currency)}</TableCell>
+                      <TableCell>{emp.daysPresent}</TableCell>
+                      <TableCell>{emp.totalHours}h</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
           <Pagination
             currentPage={empCurrentPage}

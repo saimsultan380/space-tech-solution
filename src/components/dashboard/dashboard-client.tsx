@@ -8,7 +8,6 @@ import { ConversionChart } from "@/components/reports/charts/conversion-chart";
 import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
-import { useTheme } from "next-themes";
 import type { AppUser, Payslip } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 import {

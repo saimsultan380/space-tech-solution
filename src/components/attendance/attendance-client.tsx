@@ -67,7 +67,6 @@ interface AttendanceClientProps {
     AttendanceSettings,
     "shift_end_time" | "checkout_latest_time" | "checkout_grace_minutes" | "allow_early_checkout" | "early_checkout_minutes"
   >;
-  initialMonth?: string | null;
 }
 
 export function AttendanceClient({
@@ -77,7 +76,6 @@ export function AttendanceClient({
   monthlySummary,
   leaves,
   attendanceSettings,
-  initialMonth,
 }: AttendanceClientProps) {
   const router = useRouter();
   const pathname = usePathname();

@@ -161,7 +161,6 @@ function ChatClientContent({
   // Message actions
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
-  const [menuMsgId, setMenuMsgId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
   // Channel settings
@@ -176,7 +175,6 @@ function ChatClientContent({
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuBtnRef = useRef<HTMLButtonElement>(null);
-  const [headerMenuPos, setHeaderMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   // Pinned
   const [pinnedMessages, setPinnedMessages] = useState<ChatMessage[]>([]);
@@ -340,11 +338,11 @@ function ChatClientContent({
     const handler = (e: MouseEvent) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmojiPicker(false);
       if (attachRef.current && !attachRef.current.contains(e.target as Node)) setShowAttachMenu(false);
-      setMenuMsgId(null);
+
       setShowPresenceMenu(false);
       if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
         setShowHeaderMenu(false);
-        setHeaderMenuPos(null);
+
       }
     };
     document.addEventListener("mousedown", handler);
@@ -614,7 +612,7 @@ function ChatClientContent({
     setUnreadCounts((prev) => ({ ...prev, [channelId]: 0 }));
     setMobileShowChat(true);
     setShowMemberPanel(false);
-    setMenuMsgId(null);
+
     setShowSearch(false);
     setReplyTo(null);
     setActiveTab("chat");
@@ -688,7 +686,8 @@ function ChatClientContent({
   };
 
   const handleStartEdit = (msg: ChatMessage) => {
-    setEditingMsgId(msg.id); setEditContent(msg.content); setMenuMsgId(null);
+    setEditingMsgId(msg.id);
+    setEditContent(msg.content);
     setTimeout(() => editInputRef.current?.focus(), 50);
   };
 
@@ -701,13 +700,11 @@ function ChatClientContent({
   };
 
   const handleDelete = async (msgId: string) => {
-    setMenuMsgId(null);
     setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, is_deleted: true, content: "" } : m));
     await deleteMessage(msgId);
   };
 
   const handlePin = async (msg: ChatMessage) => {
-    setMenuMsgId(null);
     if (msg.is_pinned) {
       setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, is_pinned: false } : m));
       setPinnedMessages((prev) => prev.filter((p) => p.id !== msg.id));
@@ -1160,14 +1157,9 @@ function ChatClientContent({
                     ref={headerMenuBtnRef}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (showHeaderMenu) {
-                        setShowHeaderMenu(false);
-                        setHeaderMenuPos(null);
-                      } else {
-                        const rect = headerMenuBtnRef.current?.getBoundingClientRect();
-                        if (rect) {
-                          setHeaderMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-                        }
+                        if (showHeaderMenu) {
+                          setShowHeaderMenu(false);
+                        } else {
                         setShowHeaderMenu(true);
                       }
                     }}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { MarketingTransactionType, MarketingEntryCampaign, MarketingEntry } from "@/lib/types";
+import type { MarketingTransactionType, MarketingEntryCampaign } from "@/lib/types";
 
 interface CampaignInput {
   name: string;

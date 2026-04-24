@@ -51,7 +51,6 @@ import type {
 
 interface SalesPerformanceDashboardProps {
   currentUserId: string;
-  currentUserName: string;
   stats: {
     totalSales: number;
     approvedSales: number;
@@ -83,7 +82,6 @@ const RANK_COLORS = ["text-amber-400", "text-slate-400", "text-amber-600"];
 
 export function SalesPerformanceDashboard({
   currentUserId,
-  currentUserName,
   stats,
   monthlyTrends,
   dealCategories,

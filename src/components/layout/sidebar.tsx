@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, ROLE_LABELS } from "@/lib/constants";
+import { NAV_ITEMS } from "@/lib/constants";
 import type { UserRole } from "@/lib/types";
 import {
   LayoutDashboard,
@@ -16,13 +16,11 @@ import {
   BarChart3,
   Settings,
   X,
-  Zap,
   CalendarDays,
   ReceiptText,
   Megaphone,
   MessageCircle,
   ExternalLink,
-  LogOut,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -39,31 +37,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ReceiptText,
   Megaphone,
   MessageCircle,
-  Landmark: CreditCard,
 };
 
-const iconColors: Record<string, string> = {
-  "/dashboard": "bg-indigo-500",
-  "/dashboard/reports": "bg-cyan-500",
-  "/chat": "bg-blue-500",
-  "/dashboard/users": "bg-violet-500",
-  "/dashboard/attendance": "bg-emerald-500",
-  "/dashboard/leaves": "bg-orange-500",
-  "/dashboard/payslips": "bg-teal-500",
-  "/dashboard/sales": "bg-rose-500",
-  "/dashboard/processing-accounts": "bg-amber-500",
-  "/dashboard/call-logs-responses": "bg-sky-500",
-  "/dashboard/marketing-budget": "bg-pink-500",
-  "/dashboard/chargebacks": "bg-red-500",
-  "/dashboard/settings": "bg-slate-500",
-  "/dashboard/sales-performance": "bg-purple-500",
-  "/dashboard/customers": "bg-blue-400",
-};
+
 
 interface SidebarProps {
   role: UserRole;
-  userName: string;
-  userAvatarUrl?: string | null;
   allowedModules?: string[] | null;
   collapsed: boolean;
   mobileOpen?: boolean;
@@ -159,8 +138,6 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
 
 export function Sidebar({
   role,
-  userName,
-  userAvatarUrl,
   allowedModules,
   collapsed,
   mobileOpen = false,
@@ -199,20 +176,8 @@ export function Sidebar({
         .filter((item): item is (typeof navItems)[number] => Boolean(item)),
     }))
     .filter((section) => section.items.length > 0);
-  const sectionedHrefs = new Set(
-    visibleSections.flatMap((section) =>
-      section.items.map((item) => item.href),
-    ),
-  );
-  const ungroupedItems = navItems.filter(
-    (item) => !sectionedHrefs.has(item.href),
-  );
-  const allSections = [
-    ...visibleSections,
-    ...(ungroupedItems.length > 0
-      ? [{ title: "More", items: ungroupedItems }]
-      : []),
-  ];
+
+
   const isMobileOpen = mobileOpen ?? false;
 
   return (
@@ -234,13 +199,13 @@ export function Sidebar({
         }}
         className={cn(
           "flex h-full flex-col transition-all duration-300 ease-in-out border-r border-foreground/10",
-          "fixed inset-y-0 left-0 z-50 w-[17rem] lg:static lg:z-auto lg:shrink-0",
+          "fixed inset-y-0 left-0 z-50 lg:static lg:z-auto lg:shrink-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          collapsed ? "lg:w-[4.5rem]" : "lg:w-[17rem]",
+          collapsed ? "lg:w-[4.5rem]" : "w-[17rem] lg:w-[14rem] xl:w-[15rem] 2xl:w-[17rem]",
         )}
       >
         {/* Brand + mobile close */}
-        <div className="flex h-[4.5rem] items-center justify-between gap-2 px-6 border-b border-current/5 bg-current/[0.02] backdrop-blur-sm">
+        <div className="flex h-14 xl:h-16 items-center justify-between gap-2 px-4 xl:px-6 border-b border-current/5 bg-current/[0.02] backdrop-blur-sm">
           <Link
             href="/dashboard"
             className="flex min-w-0 items-center group"
@@ -307,7 +272,7 @@ export function Sidebar({
                       }
                     : { href: item.href };
                   
-                  const colorClass = iconColors[item.href] || "bg-primary";
+
 
                   return (
                     <div
@@ -323,7 +288,7 @@ export function Sidebar({
                               ? "h-11 w-11 justify-center p-0"
                               : "gap-3 px-3 py-2",
                             isActive
-                              ? "sidebar-active-item shadow-lg shadow-primary/25"
+                              ? "sidebar-active-item"
                               : "hover:bg-foreground/[0.05] text-[inherit] opacity-70 hover:opacity-100",
                           )}
                         style={isActive ? {
@@ -371,52 +336,7 @@ export function Sidebar({
           ))}
         </nav>
 
-        {/* Bottom user info section */}
-        {!collapsed && (
-          <div className="border-t border-current/10 bg-current/[0.02] backdrop-blur-md px-4 py-4 mt-auto">
-            <div className="flex items-center gap-3 p-2 rounded-2xl bg-current/[0.03] border border-current/[0.05] shadow-sm group hover:bg-current/[0.05] transition-all">
-              <div className="relative shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-primary shadow-lg shadow-primary/20 text-xs font-bold text-white group-hover:scale-105 transition-transform">
-                  {userAvatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={userAvatarUrl}
-                      alt={userName}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    userName.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-bold tracking-tight">
-                  {userName}
-                </span>
-                <span className="truncate text-[10px] font-semibold opacity-40 uppercase tracking-wider mt-0.5">
-                  {role.replace("_", " ")}
-                </span>
-              </div>
-              <button 
-                title="Log out"
-                onClick={() => { /* logout logic */ }}
-                className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Rail footer for collapsed state */}
-        {collapsed && (
-          <div className="border-t border-foreground/5 py-4 mt-auto flex flex-col items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shadow-sm">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-          </div>
-        )}
+
       </aside>
     </>
   );

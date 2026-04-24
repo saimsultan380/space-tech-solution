@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth, requireRole } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import { sanitizeFilterValue } from "@/lib/utils";

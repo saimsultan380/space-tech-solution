@@ -4,7 +4,7 @@ import { getCustomer } from "@/lib/actions/customers";
 import { redirect } from "next/navigation";
 import { getNotes } from "@/lib/actions/notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { formatDate } from "@/lib/utils";
 import { decrypt } from "@/lib/encryption";
 import { NotesSection } from "@/components/shared/notes-section";

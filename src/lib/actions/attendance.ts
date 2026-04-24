@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { notifySuperAdmins, createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+
 
 function toMinutesFromTimeString(time: string) {
   const [h = "0", m = "0"] = time.split(":");

@@ -70,6 +70,7 @@ export function ThemeColorsProvider({
     colors.chat_user_bubble_text_color,
     colors.chat_bot_bubble_color,
     colors.chat_bot_bubble_text_color,
+    colors
   ]);
 
   return (

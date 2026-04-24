@@ -544,12 +544,12 @@ export function ThemeAppearance({ companySettings }: ThemeAppearanceProps) {
         )}
 
         {/* Action row */}
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
-          <Button type="submit" disabled={loading} className="gap-2">
+        <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
+          <Button type="submit" disabled={loading} className="w-full sm:w-auto gap-2">
             {loading ? <Spinner /> : <Save className="h-4 w-4" />}
             Save Theme Colors
           </Button>
-          <Button type="button" variant="outline" className="gap-2" onClick={resetAll}>
+          <Button type="button" variant="outline" className="w-full sm:w-auto gap-2" onClick={resetAll}>
             <RotateCcw className="h-4 w-4" />
             Reset All to Defaults
           </Button>

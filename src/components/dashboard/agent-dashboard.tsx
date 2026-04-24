@@ -70,7 +70,7 @@ export function AgentDashboard({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const [selectedMonth, setSelectedMonth] = useState(month);
 

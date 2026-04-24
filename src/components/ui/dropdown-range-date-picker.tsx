@@ -130,7 +130,12 @@ export function toDateRangeFromFilters(fromDate?: string, toDate?: string): Date
 }
 
 export function toFilterDates(range: DateRange | undefined): { from_date?: string; to_date?: string } {
-  if (!range?.from && !range?.to) return {};
+  if (!range?.from && !range?.to) {
+    return {
+      from_date: undefined,
+      to_date: undefined,
+    };
+  }
   return {
     from_date: range?.from ? toInputDate(range.from) : undefined,
     to_date: range?.to ? toInputDate(range.to) : undefined,

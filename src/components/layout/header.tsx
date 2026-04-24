@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouteLoading } from "@/components/providers/route-loading-provider";
 import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
-import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, LayoutDashboard, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "lucide-react";
+import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "lucide-react";
+import Image from "next/image";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Notification, UserRole } from "@/lib/types";
 
@@ -490,9 +491,11 @@ export function Header({
           <div className="relative">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/20 text-xs font-bold text-[inherit] sm:h-9 sm:w-9">
               {userAvatarUrl ? (
-                <img
+                <Image
                   src={userAvatarUrl}
                   alt={userName}
+                  width={36}
+                  height={36}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -533,7 +536,7 @@ export function Header({
               <div className="relative">
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold">
                   {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile?.full_name || userName} className="h-full w-full object-cover" />
+                    <Image src={profile.avatar_url} alt={profile?.full_name || userName} width={48} height={48} className="h-full w-full object-cover" />
                   ) : (
                     getInitials(profile?.full_name || userName)
                   )}

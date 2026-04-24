@@ -3,7 +3,6 @@
 import {
   ComposedChart,
   Bar,
-  LabelList,
   Line,
   ReferenceLine,
   XAxis,
@@ -13,8 +12,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { formatCurrency } from "@/lib/utils";
-import { useCurrency } from "@/components/providers/currency-provider";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -22,24 +19,7 @@ interface SalesPerAgentChartProps {
   data: Array<{ name: string; total: number; approved: number; revenue: number }>;
 }
 
-interface AgentRow {
-  name: string;
-  total: number;
-  approved: number;
-  notApproved: number;
-  revenue: number;
-  conversion: number;
-}
 
-interface TooltipPayloadItem {
-  payload: AgentRow;
-}
-
-interface SalesPerAgentTooltipProps {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-  label?: string;
-}
 
 export function SalesPerAgentChart({ data }: SalesPerAgentChartProps) {
   const { theme } = useTheme();
@@ -191,38 +171,4 @@ export function SalesPerAgentChart({ data }: SalesPerAgentChartProps) {
   );
 }
 
-function SalesPerAgentTooltip(props: SalesPerAgentTooltipProps) {
-  const { currency } = useCurrency();
-  const { active, payload, label } = props;
-  if (!active || !payload?.length) return null;
 
-  const row = payload[0].payload;
-
-  return (
-    <div className="min-w-[210px] rounded-xl border border-[#E2E8F0] bg-white px-3 py-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
-      <div className="mb-2 text-sm font-semibold text-[#0F172A]">{label}</div>
-      <div className="space-y-1 text-xs text-[#64748B]">
-        <div className="flex justify-between gap-6">
-          <span>Total sales</span>
-          <span className="font-semibold text-[#0F172A]">{row.total}</span>
-        </div>
-        <div className="flex justify-between gap-6">
-          <span>Recorded</span>
-          <span className="font-semibold text-[#2563EB]">{row.approved}</span>
-        </div>
-        <div className="flex justify-between gap-6">
-          <span>Rejected</span>
-          <span className="font-semibold text-[#64748B]">{row.notApproved}</span>
-        </div>
-        <div className="flex justify-between gap-6">
-          <span>Recorded share</span>
-          <span className="font-semibold text-[#14B8A6]">{row.conversion}%</span>
-        </div>
-        <div className="flex justify-between gap-6">
-          <span>Revenue (recorded)</span>
-          <span className="font-semibold text-[#0F172A]">{formatCurrency(row.revenue, currency)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
