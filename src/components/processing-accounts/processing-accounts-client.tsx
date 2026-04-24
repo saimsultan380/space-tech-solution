@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
+import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProcessingAccountFormDialog } from "./processing-account-form-dialog";
 import { ProcessingAccountsImportDialog } from "./processing-accounts-import-dialog";
 import { DeleteProcessingAccountButton } from "./delete-processing-account-button";
@@ -26,6 +27,7 @@ import { NotifyAdminDialog } from "./notify-admin-dialog";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
 import type { UserRole, ProcessingAccountStatus } from "@/lib/types";
 import type { ProcessingAccountStats } from "@/lib/actions/processing-accounts";
+import { updateProcessingAccountNotes } from "@/lib/actions/processing-accounts";
 import {
   Plus,
   FileUp,
@@ -38,6 +40,10 @@ import {
   Pencil,
   Building2,
   CreditCard,
+  Eye,
+  StickyNote,
+  Save,
+  ChevronDown,
 } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
@@ -82,6 +88,212 @@ const statusConfig: Record<
   under_review: { label: "Under Review", variant: "default", icon: Clock },
 };
 
+// ─── View Account Dialog ──────────────────────────────────────────────────────
+function ViewAccountDialog({
+  account,
+  onClose,
+}: {
+  account: ProcessingAccountRow | null;
+  onClose: () => void;
+}) {
+  if (!account) return null;
+  const isCard = account.account_type === "card";
+  const status = account.status ? statusConfig[account.status] : null;
+  const StatusIcon = status?.icon;
+
+  const DetailRow = ({
+    label,
+    value,
+    mono = false,
+  }: {
+    label: string;
+    value: React.ReactNode;
+    mono?: boolean;
+  }) => (
+    <div className="flex flex-col gap-0.5 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span className={cn("text-sm font-medium text-foreground break-all", mono && "font-mono")}>
+        {value || <span className="text-muted-foreground">—</span>}
+      </span>
+    </div>
+  );
+
+  return (
+    <Dialog open onClose={onClose} className="max-w-xl">
+      <DialogHeader className="mb-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+            {(account.account_holder_name?.trim() || "?")
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase() || "?"}
+          </div>
+          <div>
+            <DialogTitle>{account.account_holder_name || "Account Details"}</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {isCard ? "Credit / Debit Card" : "CheckIn Account"} ·{" "}
+              {formatDate(account.created_at)}
+            </p>
+          </div>
+        </div>
+      </DialogHeader>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <DetailRow label="Account Type" value={isCard ? "Credit / Debit Card" : "CheckIn Account"} />
+        <DetailRow
+          label="Status"
+          value={
+            status && StatusIcon ? (
+              <Badge variant={status.variant} className="gap-1 text-xs">
+                <StatusIcon className="h-3 w-3" />
+                {status.label}
+              </Badge>
+            ) : null
+          }
+        />
+        {isCard ? (
+          <>
+            <DetailRow label="Card Number" value={account.card_number} mono />
+            <DetailRow label="Expiry Date" value={account.expiration_date} mono />
+            <DetailRow label="CVV" value={account.cvv} mono />
+          </>
+        ) : (
+          <>
+            <DetailRow label="Routing Number" value={account.routing_number} mono />
+            <DetailRow label="Account Number" value={account.account_number} mono />
+          </>
+        )}
+        <div className="sm:col-span-2">
+          <DetailRow label="Billing Address" value={account.billing_address} />
+        </div>
+        <div className="sm:col-span-2">
+          <DetailRow
+            label="Notes"
+            value={account.notes || <span className="text-muted-foreground italic">No notes added</span>}
+          />
+        </div>
+        <DetailRow label="Created On" value={formatDate(account.created_at)} />
+      </div>
+    </Dialog>
+  );
+}
+
+// ─── Notes Popover ────────────────────────────────────────────────────────────
+function NotesPopover({
+  accountId,
+  initialNotes,
+}: {
+  accountId: string;
+  initialNotes: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState(initialNotes || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateProcessingAccountNotes(accountId, notes);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        setOpen(false);
+      }, 800);
+    } catch {
+      // silently fail – server will show error on refresh
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasNotes = (initialNotes || "").trim().length > 0;
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "inline-flex h-8 min-w-[88px] items-center justify-between gap-1 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap",
+          hasNotes
+            ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
+            : "border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+        title={hasNotes ? "View / Edit Notes" : "Add Notes"}
+      >
+        <StickyNote className="h-3.5 w-3.5 shrink-0" />
+        <span>{hasNotes ? "Notes" : "Add Note"}</span>
+        <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-border bg-popover p-3 shadow-xl animate-in fade-in-0 zoom-in-95"
+        >
+          <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Notes
+          </p>
+          <textarea
+            className="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            rows={4}
+            placeholder="Add notes here…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            autoFocus
+          />
+          <div className="mt-2 flex justify-end gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="h-7 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving || saved}
+              className="h-7 text-xs gap-1"
+            >
+              <Save className="h-3 w-3" />
+              {saved ? "Saved!" : saving ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export function ProcessingAccountsClient({
   accountsResponse,
   stats,
@@ -95,6 +307,7 @@ export function ProcessingAccountsClient({
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editingAccount, setEditingAccount] = useState<ProcessingAccountRow | null>(null);
+  const [viewingAccount, setViewingAccount] = useState<ProcessingAccountRow | null>(null);
   const [notifyAccountId, setNotifyAccountId] = useState<string | null>(null);
 
   const {
@@ -127,6 +340,7 @@ export function ProcessingAccountsClient({
   const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
     useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
+  const accountTypeFilter = searchParams.get("account_type") || "all";
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
 
@@ -251,12 +465,23 @@ export function ProcessingAccountsClient({
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={inputRef}
-                  placeholder="Search by account holder name or notes..."
+                  placeholder="Search by name, address, notes..."
                   value={searchInput}
                   onChange={(e) => onInputChange(e.target.value)}
                   className="pl-10"
                 />
               </div>
+              <Select
+                id="account_type_filter"
+                value={accountTypeFilter}
+                onChange={(e) => updateFilters({ account_type: e.target.value })}
+                options={[
+                  { value: "all", label: "All Types" },
+                  { value: "checkin", label: "CheckIn" },
+                  { value: "card", label: "Credit / Debit Card" },
+                ]}
+                containerClassName="sm:w-[190px]"
+              />
               <Select
                 id="status_filter"
                 value={statusFilter}
@@ -314,12 +539,12 @@ export function ProcessingAccountsClient({
             <EmptyState
               title="No processing accounts found"
               description={
-                urlSearch || statusFilter !== "all" || fromDateFilter || toDateFilter
+                urlSearch || statusFilter !== "all" || accountTypeFilter !== "all" || fromDateFilter || toDateFilter
                   ? "Try adjusting your search or filters"
                   : "Add your first processing account to get started"
               }
               action={
-                canManage && !urlSearch && statusFilter === "all" && !fromDateFilter && !toDateFilter ? (
+                canManage && !urlSearch && statusFilter === "all" && accountTypeFilter === "all" && !fromDateFilter && !toDateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Processing Account
                   </Button>
@@ -338,11 +563,8 @@ export function ProcessingAccountsClient({
                     <TableHead className="min-w-[60px]">CVV</TableHead>
                     <TableHead>Billing Address</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
                     <TableHead>Date</TableHead>
-                    {canManage && (
-                      <TableHead className="text-right">Actions</TableHead>
-                    )}
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -413,49 +635,54 @@ export function ProcessingAccountsClient({
                             <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="align-middle">
-                          {account.notes ? (
-                            <span
-                              className="block max-w-[180px] truncate text-sm text-muted-foreground"
-                              title={account.notes}
-                            >
-                              {account.notes}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              -
-                            </span>
-                          )}
-                        </TableCell>
                         <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                           {formatDate(account.created_at)}
                         </TableCell>
-                        {canManage && (
-                          <TableCell className="align-middle text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setNotifyAccountId(account.id)}
-                                title="Notify Admin"
-                              >
-                                Notify
-                              </Button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingAccount(account)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                title="Edit account"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <DeleteProcessingAccountButton
-                                id={account.id}
-                                name={account.account_holder_name}
-                              />
-                            </div>
-                          </TableCell>
-                        )}
+                        <TableCell className="align-middle text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Eye — view details */}
+                            <button
+                              type="button"
+                              onClick={() => setViewingAccount(account)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+
+                            {/* Notes dropdown */}
+                            <NotesPopover
+                              accountId={account.id}
+                              initialNotes={account.notes}
+                            />
+
+                            {canManage && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setNotifyAccountId(account.id)}
+                                  title="Notify Admin"
+                                  className="h-8 px-2 text-xs"
+                                >
+                                  Notify
+                                </Button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingAccount(account)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                  title="Edit account"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <DeleteProcessingAccountButton
+                                  id={account.id}
+                                  name={account.account_holder_name}
+                                />
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -473,6 +700,14 @@ export function ProcessingAccountsClient({
           />
         </CardContent>
       </Card>
+
+      {/* View Account Dialog */}
+      {viewingAccount && (
+        <ViewAccountDialog
+          account={viewingAccount}
+          onClose={() => setViewingAccount(null)}
+        />
+      )}
 
       {showImport && (
         <ProcessingAccountsImportDialog

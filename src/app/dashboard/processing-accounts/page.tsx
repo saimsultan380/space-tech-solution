@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import type { ProcessingAccountStatus } from "@/lib/types";
 
 export default async function ProcessingAccountsPage(props: {
-  searchParams: Promise<{ page?: string; q?: string; status?: string; from_date?: string; to_date?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; status?: string; from_date?: string; to_date?: string; account_type?: string }>;
 }) {
   const user = await requireAuth();
   if (!canAccessProcessingAccounts(user.role, user.allowed_modules)) {
@@ -19,6 +19,7 @@ export default async function ProcessingAccountsPage(props: {
   const status = (searchParams.status || "all") as ProcessingAccountStatus | "all";
   const from_date = searchParams.from_date || "";
   const to_date = searchParams.to_date || "";
+  const account_type = searchParams.account_type || "all";
 
   const [accountsResponse, stats] = await Promise.all([
     getProcessingAccounts({
@@ -28,8 +29,9 @@ export default async function ProcessingAccountsPage(props: {
       status,
       from_date,
       to_date,
+      account_type,
     }),
-    getProcessingAccountStats({ search, from_date, to_date }),
+    getProcessingAccountStats({ search, from_date, to_date, account_type }),
   ]);
 
   return (

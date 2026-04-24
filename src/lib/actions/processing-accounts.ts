@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { ProcessingAccountImportPayload, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
-import { sanitizeFilterValue } from "@/lib/utils";
+
 
 function safeDecrypt(ciphertext: string | null | undefined): string {
   if (!ciphertext?.trim()) return "";
@@ -33,17 +33,18 @@ export async function getProcessingAccountStats(filters?: {
   search?: string;
   from_date?: string;
   to_date?: string;
+  account_type?: string;
 }): Promise<ProcessingAccountStats> {
   await requireAuth();
   const supabase = await createClient();
 
   const statuses = ["active", "not_working", "closed", "reversal_issue", "under_review"] as const;
-  
-  const applyFilters = (query: any) => {
+
+  // Helper: apply structural (non-text) filters
+  const applyStructuralFilters = (query: any) => {
     let next = query;
-    if (filters?.search) {
-      const safe = sanitizeFilterValue(filters.search);
-      next = next.or(`account_holder_name.ilike.%${safe}%,billing_address.ilike.%${safe}%,notes.ilike.%${safe}%`);
+    if (filters?.account_type && filters.account_type !== "all") {
+      next = next.eq("account_type", filters.account_type);
     }
     if (filters?.from_date) {
       next = next.gte("created_at", `${filters.from_date}T00:00:00.000Z`);
@@ -54,22 +55,62 @@ export async function getProcessingAccountStats(filters?: {
     return next;
   };
 
+  // When search is present we must decrypt encrypted fields, so fetch all & filter in memory
+  if (filters?.search) {
+    const searchLower = filters.search.toLowerCase().trim();
+    let q = supabase
+      .from("processing_accounts")
+      .select("id, status, account_holder_name, billing_address, notes, expiration_date, account_type, routing_number_encrypted, account_number_encrypted, card_number_encrypted, cvv_encrypted");
+    q = applyStructuralFilters(q);
+    const { data } = await q;
+
+    const filtered = (data || []).filter((a) => {
+      const routing   = safeDecrypt(a.routing_number_encrypted);
+      const accountNo = safeDecrypt(a.account_number_encrypted);
+      const cardNo    = safeDecrypt(a.card_number_encrypted);
+      const cvv       = safeDecrypt(a.cvv_encrypted);
+      return (
+        (a.account_holder_name || "").toLowerCase().includes(searchLower) ||
+        (a.billing_address     || "").toLowerCase().includes(searchLower) ||
+        (a.notes               || "").toLowerCase().includes(searchLower) ||
+        (a.expiration_date     || "").toLowerCase().includes(searchLower) ||
+        routing.toLowerCase().includes(searchLower)   ||
+        accountNo.toLowerCase().includes(searchLower) ||
+        cardNo.toLowerCase().includes(searchLower)    ||
+        cvv.toLowerCase().includes(searchLower)
+      );
+    });
+
+    const countByStatus = (s: string) => filtered.filter((a) => a.status === s).length;
+    return {
+      total:          filtered.length,
+      active:         countByStatus("active"),
+      not_working:    countByStatus("not_working"),
+      closed:         countByStatus("closed"),
+      reversal_issue: countByStatus("reversal_issue"),
+      under_review:   countByStatus("under_review"),
+    };
+  }
+
+  // No search – fast SQL count queries
   const [totalRes, ...statusRes] = await Promise.all([
-    applyFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true })),
+    applyStructuralFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true })),
     ...statuses.map((s) =>
-      applyFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true }).eq("status", s))
+      applyStructuralFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true }).eq("status", s))
     ),
   ]);
 
   return {
-    total: totalRes.count || 0,
-    active: statusRes[0].count || 0,
-    not_working: statusRes[1].count || 0,
-    closed: statusRes[2].count || 0,
+    total:          totalRes.count    || 0,
+    active:         statusRes[0].count || 0,
+    not_working:    statusRes[1].count || 0,
+    closed:         statusRes[2].count || 0,
     reversal_issue: statusRes[3].count || 0,
-    under_review: statusRes[4].count || 0,
+    under_review:   statusRes[4].count || 0,
   };
 }
+
+const FULL_SELECT = "*, creator:users!processing_accounts_created_by_fkey(id, full_name)";
 
 export async function getProcessingAccounts(filters?: {
   page?: number;
@@ -78,6 +119,7 @@ export async function getProcessingAccounts(filters?: {
   status?: ProcessingAccountStatus | "all";
   from_date?: string;
   to_date?: string;
+  account_type?: string;
 }) {
   await requireAuth();
   const supabase = await createClient();
@@ -85,43 +127,82 @@ export async function getProcessingAccounts(filters?: {
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
+  // Helper: decrypt & normalize a raw DB row
+  const normalizeRow = (account: any) => ({
+    ...account,
+    routing_number:  safeDecrypt(account.routing_number_encrypted  as string),
+    account_number:  safeDecrypt(account.account_number_encrypted  as string),
+    card_number:     safeDecrypt(account.card_number_encrypted     as string),
+    cvv:             safeDecrypt(account.cvv_encrypted             as string),
+    expiration_date: account.expiration_date || "",
+    account_type:    (account.account_type as ProcessingAccountType) || "checkin",
+  });
+
+  // Helper: apply structural (non-text) filters in SQL
+  const applyStructural = (q: any) => {
+    if (filters?.account_type && filters.account_type !== "all") {
+      q = q.eq("account_type", filters.account_type);
+    }
+    if (filters?.status && filters.status !== "all") {
+      q = q.eq("status", filters.status);
+    }
+    if (filters?.from_date) {
+      q = q.gte("created_at", `${filters.from_date}T00:00:00.000Z`);
+    }
+    if (filters?.to_date) {
+      q = q.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
+    }
+    return q;
+  };
+
+  // ── With search: fetch all matching structural filters, decrypt, filter in memory ──
+  if (filters?.search) {
+    const searchLower = filters.search.toLowerCase().trim();
+
+    let q = supabase
+      .from("processing_accounts")
+      .select(FULL_SELECT)
+      .order("created_at", { ascending: false });
+    q = applyStructural(q);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const all = (data || []).map(normalizeRow);
+
+    const filtered = all.filter((a) =>
+      (a.account_holder_name || "").toLowerCase().includes(searchLower) ||
+      (a.billing_address     || "").toLowerCase().includes(searchLower) ||
+      (a.notes               || "").toLowerCase().includes(searchLower) ||
+      (a.expiration_date     || "").toLowerCase().includes(searchLower) ||
+      (a.routing_number      || "").toLowerCase().includes(searchLower) ||
+      (a.account_number      || "").toLowerCase().includes(searchLower) ||
+      (a.card_number         || "").toLowerCase().includes(searchLower) ||
+      (a.cvv                 || "").toLowerCase().includes(searchLower)
+    );
+
+    const count = filtered.length;
+    const paginated = filtered.slice(offset, offset + pageSize);
+    return {
+      data: paginated,
+      count,
+      page,
+      pageSize,
+      totalPages: Math.ceil(count / pageSize),
+    };
+  }
+
+  // ── No search: efficient SQL pagination ──
   let query = supabase
     .from("processing_accounts")
-    .select("*, creator:users!processing_accounts_created_by_fkey(id, full_name)", { count: "exact" })
+    .select(FULL_SELECT, { count: "exact" })
     .order("created_at", { ascending: false });
-
-  if (filters?.search) {
-    const safe = sanitizeFilterValue(filters.search);
-    query = query.or(
-      `account_holder_name.ilike.%${safe}%,billing_address.ilike.%${safe}%,notes.ilike.%${safe}%`
-    );
-  }
-
-  if (filters?.status && filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-  if (filters?.from_date) {
-    query = query
-      .gte("created_at", `${filters.from_date}T00:00:00.000Z`);
-  }
-  if (filters?.to_date) {
-    query = query
-      .lte("created_at", `${filters.to_date}T23:59:59.999Z`);
-  }
+  query = applyStructural(query);
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
-
   if (error) throw new Error(error.message);
 
-  const accounts = (data || []).map((account) => ({
-    ...account,
-    routing_number: safeDecrypt(account.routing_number_encrypted as string),
-    account_number: safeDecrypt(account.account_number_encrypted as string),
-    card_number: safeDecrypt(account.card_number_encrypted as string),
-    cvv: safeDecrypt(account.cvv_encrypted as string),
-    expiration_date: account.expiration_date || "",
-    account_type: (account.account_type as ProcessingAccountType) || "checkin",
-  }));
+  const accounts = (data || []).map(normalizeRow);
 
   return {
     data: accounts,
@@ -353,6 +434,21 @@ export async function notifyAdminAboutAccount(
     if (notifError) throw new Error(notifError.message);
   }
 
+  revalidateProcessingAccountsPaths();
+  return { success: true };
+}
+
+export async function updateProcessingAccountNotes(
+  id: string,
+  notes: string
+): Promise<{ success: boolean }> {
+  await requireAuth();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("processing_accounts")
+    .update({ notes: notes.trim() || null, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
   revalidateProcessingAccountsPaths();
   return { success: true };
 }
