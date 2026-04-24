@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { BouncingDots } from "@/components/ui/bouncing-dots";
+import { Spinner } from "@/components/ui/loading";
 import { cn } from "@/lib/utils";
 
 type RouteLoadingContextValue = {
@@ -28,8 +28,8 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const [locationKey, setLocationKey] = useState(pathname);
   const startedAtRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const MIN_VISIBLE_MS = 1000;
-  const ROUTE_SETTLE_BUFFER_MS = 300;
+  const MIN_VISIBLE_MS = 800; // Faster transition
+  const ROUTE_SETTLE_BUFFER_MS = 200;
 
   const clearPendingTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -160,12 +160,15 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         className={cn(
-          "pointer-events-none fixed inset-0 z-[70] flex items-center justify-center bg-background/55 backdrop-blur-[1px] transition-opacity duration-200",
+          "pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300",
           isLoading ? "opacity-100" : "opacity-0"
         )}
         aria-hidden={!isLoading}
       >
-        <BouncingDots message="Loading..." />
+        <div className="flex flex-col items-center gap-4">
+          <Spinner className="h-10 w-10" />
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40">Syncing</p>
+        </div>
       </div>
     </RouteLoadingContext.Provider>
   );

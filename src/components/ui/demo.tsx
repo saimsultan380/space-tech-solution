@@ -1,5 +1,5 @@
-import { BouncingDots } from "@/components/ui/bouncing-dots";
+import { Spinner } from "@/components/ui/loading";
 
-export default function DemoOne() {
-  return <BouncingDots />;
+export function LoadingDemo() {
+  return <Spinner />;
 }
