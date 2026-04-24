@@ -8,19 +8,19 @@
     --bg-card: #FFFFFF;
     --bg-overlay: #F1F5F9;
 
-    /* Accent Colors (Vibrant Orange) */
-    --accent-cyan: #00911f;
-    --accent-white: #2c2b7c;
-    --accent-dim: #64748B;
-    --accent-border: #D1D5DB;
+    /* Accent Colors (Sleek Black & Gold) */
+    --accent-cyan: #ca8f00;
+    --accent-white: #000000;
+    --accent-dim: #475569;
+    --accent-border: #E2E8F0;
     --accent-red: #EF4444;
-    --accent-green: #00911f;
+    --accent-green: #ca8f00;
     --accent-yellow: #F59E0B;
 
     /* 3D / Depth Effects */
-    --shadow-deep: 0 24px 80px rgba(44, 43, 124, 0.12);
-    --glow-cyan: 0 0 30px rgba(0, 145, 31, 0.25);
-    --glow-subtle: 0 0 15px rgba(0, 145, 31, 0.10);
+    --shadow-deep: 0 24px 80px rgba(0, 0, 0, 0.1);
+    --glow-cyan: 0 0 30px rgba(202, 143, 0, 0.25);
+    --glow-subtle: 0 0 15px rgba(202, 143, 0, 0.10);
 
     background-color: var(--bg-primary);
     color: var(--accent-white);
@@ -60,7 +60,7 @@
   .landing-page h1 {
     font-family: var(--font-poppins), sans-serif;
     font-size: clamp(40px, 5vw, 72px);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.05;
     letter-spacing: -1px;
   }
@@ -68,7 +68,7 @@
   .landing-page h2 {
     font-family: var(--font-poppins), sans-serif;
     font-size: clamp(30px, 4vw, 48px);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.1;
     letter-spacing: -0.5px;
   }
