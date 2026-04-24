@@ -42,6 +42,7 @@ import {
   Smile,
   Pencil,
   Trash2,
+  Eraser,
   MessageSquare,
   Paperclip,
   Image as ImageIcon,
@@ -859,19 +860,19 @@ function ChatClientContent({
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
       {/* ═══════════════════════════════ LEFT SIDEBAR ═══════════════════════════════ */}
-      <div className={cn("flex w-full flex-col border-r border-border bg-card md:w-[320px] md:shrink-0 md:pl-2", mobileShowChat && "hidden md:flex")}>
+      <div className={cn("flex w-full flex-col border-r border-border bg-background/50 backdrop-blur-xl md:w-[340px] md:shrink-0", mobileShowChat && "hidden md:flex")}>
 
         {/* User header */}
-        <div className="flex items-center justify-between bg-muted/40 pl-5 pr-4 py-3 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-muted/20">
+          <div className="flex items-center gap-3.5">
+            <div className="relative group cursor-pointer">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-sm font-bold overflow-hidden shadow-lg shadow-primary/20 group-hover:scale-105 transition-all">
                 {currentUserAvatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={currentUserAvatar} alt={currentUserName} className="h-full w-full object-cover" />
                 ) : getInitials(currentUserName)}
               </div>
-              <span className={cn("absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card", PRESENCE_META[myPresence].color)} />
+              <span className={cn("absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-background shadow-sm", PRESENCE_META[myPresence].color)} />
             </div>
             <div className="relative">
               <button
@@ -904,23 +905,23 @@ function ChatClientContent({
             <div className="flex items-center gap-1 relative">
               <Link
                 href="/dashboard"
-                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="rounded-xl p-2.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all group"
                 title="Back to Dashboard"
               >
-                <LayoutDashboard className="h-5 w-5" />
+                <LayoutDashboard className="h-5 w-5 transition-transform group-hover:scale-110" />
               </Link>
               <button
                 ref={notificationsButtonRef}
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={cn(
-                  "relative rounded-full p-2.5 transition-all hover:scale-105 active:scale-95",
-                  showNotifications ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  "relative rounded-xl p-2.5 transition-all hover:scale-105 active:scale-95 group",
+                  showNotifications ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
                 )}
                 title="Notifications"
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-5 w-5 transition-transform group-hover:rotate-12" />
                 {notifications.filter((n) => !n.is_read).length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-card animate-pulse" />
+                  <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
                 )}
               </button>
 
@@ -1007,17 +1008,17 @@ function ChatClientContent({
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2 border-b border-border/50">
-          <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="px-5 py-3">
+          <div className="flex items-center gap-2.5 rounded-2xl bg-muted/50 px-4 py-2.5 ring-1 ring-border/50 focus-within:ring-primary/40 focus-within:bg-background transition-all shadow-sm">
+            <Search className="h-4 w-4 text-muted-foreground/60 shrink-0" />
             <input
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
-              placeholder="Search channels & people..."
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+              placeholder="Search channels & conversations..."
+              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/40 font-medium"
             />
             {sidebarSearch && (
-              <button onClick={() => setSidebarSearch("")} className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => setSidebarSearch("")} className="text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -1028,11 +1029,11 @@ function ChatClientContent({
         <div className="flex-1 overflow-y-auto">
 
           {/* Channels section */}
-          <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Channels</h3>
+          <div className="px-6 pt-5 pb-2 flex items-center justify-between group/section">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">Channels</h3>
             {currentUserRole === "super_admin" && (
-              <button onClick={() => { setShowNewChannel(true); setCreateError(null); }} className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="New channel">
-                <Plus className="h-4 w-4" />
+              <button onClick={() => { setShowNewChannel(true); setCreateError(null); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all opacity-0 group-hover/section:opacity-100" title="New channel">
+                <Plus className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -1061,10 +1062,10 @@ function ChatClientContent({
           )}
 
           {/* Direct Messages section */}
-          <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Direct Messages</h3>
-            <button onClick={() => { setShowNewDM(true); setDmSearchQuery(""); }} className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="New message">
-              <UserPlus className="h-4 w-4" />
+          <div className="px-6 pt-8 pb-2 flex items-center justify-between group/section">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">Direct Messages</h3>
+            <button onClick={() => { setShowNewDM(true); setDmSearchQuery(""); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all opacity-0 group-hover/section:opacity-100" title="New message">
+              <UserPlus className="h-3.5 w-3.5" />
             </button>
           </div>
 
@@ -1087,6 +1088,8 @@ function ChatClientContent({
                 time={ch.last_message ? formatRelativeTime(ch.last_message.created_at) : undefined}
                 isSubtitleItalic={!ch.last_message}
                 presenceDot={online ? "online" : "offline"}
+                showDelete={currentUserRole === "super_admin" || ch.created_by === currentUserId}
+                onDelete={() => handleDeleteChannelFromSidebar(ch.id, dmName)}
               />
             );
           })}
@@ -1102,7 +1105,7 @@ function ChatClientContent({
         {activeChannel ? (
           <>
             {/* Chat header */}
-            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border-b border-border px-3 py-2 sm:px-4 sticky top-0 z-20">
+            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border-b border-border px-3 py-2 sm:px-4 sticky top-0 z-30">
               <button onClick={handleMobileBack} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted md:hidden"><ChevronLeft className="h-5 w-5" /></button>
               <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
                 {activeChannel.is_direct && activeChannel.dm_partner?.avatar_url ? (
@@ -1152,21 +1155,56 @@ function ChatClientContent({
                 <button onClick={() => setShowMemberPanel(!showMemberPanel)} className={cn("shrink-0 rounded-full p-2 transition-colors", showMemberPanel ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
                   {showMemberPanel ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
                 </button>
-                <div ref={headerMenuRef}>
+                <div ref={headerMenuRef} className="relative">
                   <button
                     ref={headerMenuBtnRef}
                     onClick={(e) => {
                       e.stopPropagation();
-                        if (showHeaderMenu) {
-                          setShowHeaderMenu(false);
-                        } else {
-                        setShowHeaderMenu(true);
-                      }
+                      setShowHeaderMenu(!showHeaderMenu);
                     }}
                     className={cn("shrink-0 rounded-full p-2 transition-colors", showHeaderMenu ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
                   >
                     <Settings className="h-4 w-4" />
                   </button>
+                  {showHeaderMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-48 rounded-xl glass border border-border shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
+                      <div className="p-1">
+                        {!activeChannel?.is_direct && (
+                          <button
+                            onClick={() => {
+                              setShowChannelSettings(true);
+                              setShowHeaderMenu(false);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Users className="h-3.5 w-3.5" />
+                            Channel Settings
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            handleClearChat();
+                            setShowHeaderMenu(false);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                        >
+                          <Eraser className="h-3.5 w-3.5" />
+                          Clear Messages
+                        </button>
+                        <div className="my-1 border-t border-border/50" />
+                        <button
+                          onClick={() => {
+                            handleDeleteChannel();
+                            setShowHeaderMenu(false);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {activeChannel?.is_direct ? "Delete Chat" : "Delete Channel"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1906,8 +1944,17 @@ function ChatClientContent({
 /* ─── Sidebar Item Component ─── */
 
 function SidebarItem({
-  isActive, unread, onClick, avatar, name, subtitle, time, isSubtitleItalic, presenceDot,
-  showDelete, onDelete,
+  isActive,
+  unread,
+  onClick,
+  avatar,
+  name,
+  subtitle,
+  time,
+  isSubtitleItalic,
+  presenceDot,
+  showDelete,
+  onDelete,
 }: {
   isActive: boolean;
   unread: number;
@@ -1926,28 +1973,32 @@ function SidebarItem({
       role="button"
       tabIndex={0}
       className={cn(
-        "group relative flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all border-l-2 border-l-transparent hover:bg-muted/30 cursor-pointer",
-        isActive && "chat-sidebar-active border-l-2",
+        "group relative mx-2 mb-0.5 flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-all hover:bg-muted/40 cursor-pointer",
+        isActive && "bg-primary/[0.08] text-primary shadow-sm",
       )}
     >
-      <div onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
+      <div onClick={onClick} className="flex items-center gap-3.5 flex-1 min-w-0">
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
           {avatar}
           {presenceDot && (
-            <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card", presenceDot === "online" ? "bg-emerald-500" : "bg-gray-400")} />
+            <span className={cn("absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-card", presenceDot === "online" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400")} />
           )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("text-sm font-semibold text-foreground truncate", unread > 0 && "font-bold")}>{name}</p>
+            <p className={cn("text-[13.5px] font-bold text-foreground truncate transition-colors", isActive && "text-primary", unread > 0 && "font-extrabold")}>{name}</p>
             <div className="flex flex-col items-end gap-0.5 shrink-0">
-              {time && <span suppressHydrationWarning className={cn("text-[10px]", unread > 0 ? "text-primary font-semibold" : "text-muted-foreground")}>{time}</span>}
+              {time && (
+                <span suppressHydrationWarning className={cn("text-[10px] font-medium tracking-tight", unread > 0 ? "text-primary font-bold" : "text-muted-foreground/60")}>
+                  {time}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 mt-0.5">
-            <p className={cn("text-[11px] text-muted-foreground truncate", isSubtitleItalic && "italic opacity-50")}>{subtitle}</p>
+            <p className={cn("text-[11.5px] text-muted-foreground truncate leading-tight", isSubtitleItalic && "italic opacity-50", unread > 0 && "text-foreground font-medium opacity-100")}>{subtitle}</p>
             {unread > 0 && (
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 shrink-0">
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 shrink-0 shadow-lg shadow-primary/25">
                 {unread > 99 ? "99+" : unread}
               </span>
             )}
@@ -1957,8 +2008,8 @@ function SidebarItem({
       {showDelete && onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-          className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
-          title="Delete channel"
+          className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all ml-1"
+          title="Delete"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
