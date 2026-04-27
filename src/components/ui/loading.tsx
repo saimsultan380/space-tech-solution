@@ -12,12 +12,32 @@ export function Spinner({ className }: { className?: string }) {
 
 export function PageLoader() {
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background/80 backdrop-blur-md">
-      <div className="relative mb-4 flex items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary shadow-lg" />
-        <div className="absolute h-10 w-10 rounded-full border-4 border-primary/10" />
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0a0a0c]/90 backdrop-blur-xl">
+      {/* Decorative gradient blur */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -left-[10%] -top-[10%] h-[40%] w-[40%] rounded-full bg-blue-600/10 blur-[120px]" />
+        <div className="absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full bg-indigo-600/10 blur-[120px]" />
       </div>
-      <p className="text-sm font-bold tracking-widest text-primary uppercase animate-pulse">Loading System</p>
+
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="relative mb-6 flex items-center justify-center">
+          {/* Outer Ring */}
+          <div className="absolute h-16 w-16 rounded-full border-2 border-blue-500/10" />
+          {/* Inner Glow */}
+          <div className="absolute h-12 w-12 rounded-full bg-blue-500/5 blur-lg animate-pulse" />
+          {/* Spinner */}
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+        </div>
+        
+        <div className="space-y-1.5 text-center">
+          <p className="text-xs font-bold tracking-[0.3em] text-blue-400 uppercase">
+            Loading
+          </p>
+          <p className="text-xl font-bold tracking-tight text-white">
+            Space Tech Solution
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

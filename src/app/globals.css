@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -113,10 +114,18 @@
   --color-chart-4: hsl(256 80% 60%);
   --color-chart-5: hsl(0 84% 60%);
   --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-fadeIn: fade-in 0.5s ease-out;
+  --animate-success: success-pulse 0.5s ease-in-out;
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-slide-down: slide-down 0.2s ease-out;
   --animate-scale-in: scale-in 0.2s ease-out;
   --animate-slide-in-right: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes success-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); background-color: #10b981; }
+    100% { transform: scale(1); background-color: #059669; }
+  }
 
   @keyframes slide-in-right {
     from {
@@ -170,6 +179,16 @@
       transform: scale(1);
     }
   }
+}
+
+/* Global Autofill Overrides */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: white !important;
 }
 
 .no-scrollbar::-webkit-scrollbar {
