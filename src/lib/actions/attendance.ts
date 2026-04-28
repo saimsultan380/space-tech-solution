@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 import { notifySuperAdmins, createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 
@@ -224,7 +225,7 @@ export async function checkOut() {
   }
 }
 
-export async function getTodayAttendance() {
+export const getTodayAttendance = cache(async () => {
   const user = await requireAuth();
   const supabase = await createClient();
   const today = new Date().toISOString().split("T")[0];
@@ -234,10 +235,10 @@ export async function getTodayAttendance() {
     .select("*")
     .eq("user_id", user.id)
     .eq("date", today)
-    .single();
+    .maybeSingle();
 
   return data;
-}
+});
 
 export async function getMonthlyAttendanceSummary(month?: string, userId?: string) {
   await requireAuth();

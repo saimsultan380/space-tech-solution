@@ -28,8 +28,8 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const [locationKey, setLocationKey] = useState(pathname);
   const startedAtRef = useRef<number | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const MIN_VISIBLE_MS = 800; // Faster transition
-  const ROUTE_SETTLE_BUFFER_MS = 200;
+  const MIN_VISIBLE_MS = 200; // Much faster transition
+  const ROUTE_SETTLE_BUFFER_MS = 50;
 
   const clearPendingTimeout = useCallback(() => {
     if (timeoutRef.current) {

@@ -94,10 +94,18 @@ export function Header({
   const [profileOpen, setProfileOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profile, setProfile] = useState<any | null>(null);
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
   const notificationsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const notificationsPanelRef = useRef<HTMLDivElement | null>(null);
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const [chatNotificationsOpen, setChatNotificationsOpen] = useState(false);
+  const [chatNotifications, setChatNotifications] = useState<Notification[]>([]);
+  const [loadingChatNotifications, setLoadingChatNotifications] = useState(false);
+  const chatNotificationsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const chatNotificationsPanelRef = useRef<HTMLDivElement | null>(null);
+
+  const unreadChatCount = chatNotifications.filter((n) => !n.is_read).length;
 
   const handleSignOut = async () => {
     startLoading();
@@ -127,7 +135,24 @@ export function Header({
       }
     };
 
+    const loadChatNotifications = async () => {
+      setLoadingChatNotifications(true);
+      try {
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("type", "chat")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!error && data) setChatNotifications(data as Notification[]);
+      } finally {
+        setLoadingChatNotifications(false);
+      }
+    };
+
     loadNotifications();
+    loadChatNotifications();
 
     const channel = supabase
       .channel(`notifications-${userId}`)
@@ -136,6 +161,7 @@ export function Header({
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         () => {
           void loadNotifications();
+          void loadChatNotifications();
         }
       )
       .subscribe();
@@ -176,12 +202,26 @@ export function Header({
   };
 
   const markAsRead = async (id: string) => {
-    const target = notifications.find((n) => n.id === id);
-    if (!target || target.is_read) return;
+    const isGeneral = notifications.some((n) => n.id === id);
+    const isChat = chatNotifications.some((n) => n.id === id);
+    
+    if (isGeneral) {
+      const target = notifications.find((n) => n.id === id);
+      if (!target || target.is_read) return;
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+      );
+    } else if (isChat) {
+      const target = chatNotifications.find((n) => n.id === id);
+      if (!target || target.is_read) return;
+      setChatNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+      );
+    } else {
+      return;
+    }
+
     const supabase = createClient();
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-    );
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
   };
 
@@ -216,19 +256,35 @@ export function Header({
   const closeProfile = () => setProfileOpen(false);
 
   useEffect(() => {
-    if (!notificationsOpen || isMobile) return;
+    if ((!notificationsOpen && !chatNotificationsOpen) || isMobile) return;
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (
-        notificationsPanelRef.current?.contains(target) ||
-        notificationsTriggerRef.current?.contains(target)
-      ) {
-        return;
+      
+      // General notifications panel
+      if (notificationsOpen) {
+        if (
+          !notificationsPanelRef.current?.contains(target) &&
+          !notificationsTriggerRef.current?.contains(target)
+        ) {
+          setNotificationsOpen(false);
+        }
       }
-      setNotificationsOpen(false);
+
+      // Chat notifications panel
+      if (chatNotificationsOpen) {
+        if (
+          !chatNotificationsPanelRef.current?.contains(target) &&
+          !chatNotificationsTriggerRef.current?.contains(target)
+        ) {
+          setChatNotificationsOpen(false);
+        }
+      }
     };
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setNotificationsOpen(false);
+      if (event.key === "Escape") {
+        setNotificationsOpen(false);
+        setChatNotificationsOpen(false);
+      }
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onEscape);
@@ -236,7 +292,7 @@ export function Header({
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onEscape);
     };
-  }, [notificationsOpen, isMobile]);
+  }, [notificationsOpen, chatNotificationsOpen, isMobile]);
 
   return (
     <>
@@ -289,17 +345,116 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            startLoading();
-            router.push("/chat");
-          }}
-          className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
-          aria-label="Open chat"
-        >
-          <MessageSquare className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-        </button>
+        <div className="relative">
+          <button
+            ref={chatNotificationsTriggerRef}
+            type="button"
+            onClick={() => setChatNotificationsOpen(!chatNotificationsOpen)}
+            className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
+            aria-label="Open chat notifications"
+          >
+            <MessageSquare className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+            {unreadChatCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+                {unreadChatCount > 9 ? "9+" : unreadChatCount}
+              </span>
+            )}
+          </button>
+
+          {chatNotificationsOpen && (
+            <div
+              ref={chatNotificationsPanelRef}
+              className={cn(
+                "absolute z-50 mt-2 rounded-xl border border-foreground/10 bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200",
+                isMobile 
+                  ? "fixed inset-x-4 top-20 w-auto" 
+                  : "right-0 w-[320px] origin-top-right"
+              )}
+            >
+              <div className="flex items-center justify-between border-b border-foreground/5 px-4 py-3 bg-muted/10">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Recent Messages
+                </span>
+                <button
+                  onClick={() => {
+                    startLoading();
+                    router.push("/chat");
+                    setChatNotificationsOpen(false);
+                  }}
+                  className="text-[11px] font-bold text-primary hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="max-h-[380px] overflow-y-auto no-scrollbar">
+                {loadingChatNotifications ? (
+                  <div className="flex items-center justify-center py-10">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+                ) : chatNotifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+                    <MessageSquare className="h-8 w-8 text-muted-foreground/20 mb-2" />
+                    <p className="text-xs text-muted-foreground font-medium">No messages yet</p>
+                  </div>
+                ) : (
+                  chatNotifications.map((n) => {
+                    const senderName = n.title.replace("New message from ", "").replace("New message in #", "");
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => {
+                          markAsRead(n.id);
+                          startLoading();
+                          router.push("/chat");
+                          setChatNotificationsOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-start gap-3 border-b border-foreground/5 px-4 py-4 text-left transition-all hover:bg-muted/30",
+                          !n.is_read && "bg-primary/[0.03]"
+                        )}
+                      >
+                        <div className="relative shrink-0">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-primary">
+                            {getInitials(senderName)}
+                          </div>
+                          {!n.is_read && (
+                            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <span className="truncate text-sm font-bold text-foreground">
+                              {senderName}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-muted-foreground font-medium">
+                              {formatDateTime(n.created_at)}
+                            </span>
+                          </div>
+                          <p className={cn(
+                            "line-clamp-2 text-[12px] leading-snug",
+                            !n.is_read ? "text-foreground font-medium" : "text-muted-foreground"
+                          )}>
+                            {n.body}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  startLoading();
+                  router.push("/chat");
+                  setChatNotificationsOpen(false);
+                }}
+                className="w-full py-3 bg-muted/5 text-center text-[11px] font-bold text-primary hover:bg-muted/10 transition-colors uppercase tracking-widest border-t border-foreground/5"
+              >
+                Go to Messenger
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Theme Toggle */}
         <button

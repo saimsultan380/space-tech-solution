@@ -68,6 +68,7 @@ import {
   EyeOff,
   MinusCircle,
   LayoutDashboard,
+  MoreVertical,
 } from "lucide-react";
 import type { UserRole, Notification } from "@/lib/types";
 
@@ -137,6 +138,7 @@ function ChatClientContent({
   // Search
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarFilter, setSidebarFilter] = useState<'all' | 'channels' | 'direct'>('all');
   const [sidebarSearch, setSidebarSearch] = useState("");
 
   // Notifications
@@ -218,15 +220,20 @@ function ChatClientContent({
   const regularChannels = channels.filter((c) => !c.is_direct);
   const dmChannels = channels.filter((c) => c.is_direct && (c.last_message || c.id === activeChannelId));
 
-  const filteredRegularChannels = sidebarSearch
-    ? regularChannels.filter((c) => c.name.toLowerCase().includes(sidebarSearch.toLowerCase()))
-    : regularChannels;
-  const filteredDmChannels = sidebarSearch
-    ? dmChannels.filter((c) => {
-        const name = c.dm_partner?.full_name ?? c.name;
-        return name.toLowerCase().includes(sidebarSearch.toLowerCase());
-      })
-    : dmChannels;
+  const filteredRegularChannels = (sidebarFilter === 'all' || sidebarFilter === 'channels')
+    ? (sidebarSearch
+        ? regularChannels.filter((c) => c.name.toLowerCase().includes(sidebarSearch.toLowerCase()))
+        : regularChannels)
+    : [];
+
+  const filteredDmChannels = (sidebarFilter === 'all' || sidebarFilter === 'direct')
+    ? (sidebarSearch
+        ? dmChannels.filter((c) => {
+            const name = c.dm_partner?.full_name ?? c.name;
+            return name.toLowerCase().includes(sidebarSearch.toLowerCase());
+          })
+        : dmChannels)
+    : [];
 
   const filteredMessages = showSearch && searchQuery
     ? messages.filter((m) => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -858,41 +865,37 @@ function ChatClientContent({
   // ─── Render ───
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
+    <div className="flex h-[100dvh] w-full items-center justify-center font-[family-name:var(--font-dm-sans)]">
+      <div className="flex h-full w-full overflow-hidden bg-white shadow-none">
       {/* ═══════════════════════════════ LEFT SIDEBAR ═══════════════════════════════ */}
-      <div className={cn("flex w-full flex-col border-r border-border bg-background/50 backdrop-blur-xl md:w-[340px] md:shrink-0", mobileShowChat && "hidden md:flex")}>
+      <div className={cn("flex w-full flex-col border-r-[1.5px] border-[#E0ECFF] bg-[#FFFFFF] md:w-[280px] md:shrink-0", mobileShowChat && "hidden md:flex")}>
 
         {/* User header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-muted/20">
-          <div className="flex items-center gap-3.5">
+        <div className="flex items-center justify-between px-4 py-4 border-b-[1.5px] border-[#E0ECFF]">
+          <div className="flex items-center gap-3">
             <div className="relative group cursor-pointer">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-sm font-bold overflow-hidden shadow-lg shadow-primary/20 group-hover:scale-105 transition-all">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#DBEAFE] text-[#2563EB] text-sm font-bold overflow-hidden transition-all">
                 {currentUserAvatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={currentUserAvatar} alt={currentUserName} className="h-full w-full object-cover" />
                 ) : getInitials(currentUserName)}
               </div>
-              <span className={cn("absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-background shadow-sm", PRESENCE_META[myPresence].color)} />
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
             </div>
             <div className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); setShowPresenceMenu((p) => !p); }}
                 className="text-left"
               >
-                <h2 className="text-sm font-bold text-foreground leading-tight">{currentUserName}</h2>
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", PRESENCE_META[myPresence].color)} />
-                  {PRESENCE_META[myPresence].label}
-                  <ChevronDown className="h-3 w-3" />
-                </p>
+                <h2 className="text-sm font-bold text-[#1E293B] leading-tight">{currentUserName}</h2>
               </button>
               {showPresenceMenu && (
-                <div className="absolute top-full left-0 mt-1 z-50 w-48 rounded-xl glass shadow-xl py-1.5" onClick={(e) => e.stopPropagation()}>
+                <div className="absolute top-full left-0 mt-2 z-50 w-48 rounded-xl bg-white border border-gray-100 shadow-2xl py-1.5 animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
                   {(Object.entries(PRESENCE_META) as [PresenceStatus, typeof PRESENCE_META["online"]][]).map(([key, meta]) => (
                     <button
                       key={key}
                       onClick={() => { setMyPresence(key); setShowPresenceMenu(false); }}
-                      className={cn("flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted/50 transition-colors", myPresence === key && "bg-muted/50")}
+                      className={cn("flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-50 transition-colors font-bold text-gray-700", myPresence === key && "bg-gray-50 text-indigo-600")}
                     >
                       <span className={cn("h-2.5 w-2.5 rounded-full", meta.color)} />
                       {meta.label}
@@ -902,138 +905,169 @@ function ChatClientContent({
               )}
             </div>
           </div>
-            <div className="flex items-center gap-1 relative">
-              <Link
-                href="/dashboard"
-                className="rounded-xl p-2.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all group"
-                title="Back to Dashboard"
-              >
-                <LayoutDashboard className="h-5 w-5 transition-transform group-hover:scale-110" />
-              </Link>
-              <button
-                ref={notificationsButtonRef}
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={cn(
-                  "relative rounded-xl p-2.5 transition-all hover:scale-105 active:scale-95 group",
-                  showNotifications ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                )}
-                title="Notifications"
-              >
-                <Bell className="h-5 w-5 transition-transform group-hover:rotate-12" />
-                {notifications.filter((n) => !n.is_read).length > 0 && (
-                  <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-                )}
-              </button>
+          <div className="flex items-center gap-1 relative">
+            <Link
+              href="/dashboard"
+              className="rounded-lg p-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-all"
+              title="Dashboard"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+            </Link>
+            <button
+              ref={notificationsButtonRef}
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={cn(
+                "relative rounded-lg p-2 transition-all",
+                showNotifications ? "bg-[#2563EB] text-white" : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+              )}
+              title="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+              {notifications.filter((n) => !n.is_read).length > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border border-white" />
+              )}
+            </button>
 
-              {/* Notification Panel */}
-              {showNotifications && (
-                <div
-                  ref={notificationsPanelRef}
-                  className="fixed sm:absolute top-[72px] sm:top-[calc(100%+12px)] left-4 right-4 sm:left-auto sm:right-[-12px] sm:w-[320px] rounded-2xl bg-background border border-border shadow-2xl z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right"
-                >
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Bell className="h-4 w-4" />
-                      </div>
-                      <h3 className="text-sm font-bold tracking-tight">Activity</h3>
+            {/* Notification Panel */}
+            {showNotifications && (
+              <div
+                ref={notificationsPanelRef}
+                className="fixed sm:absolute top-[72px] sm:top-[calc(100%+12px)] left-4 right-4 sm:left-auto sm:right-[-12px] sm:w-[320px] rounded-2xl bg-white border border-gray-100 shadow-2xl z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                      <Bell className="h-4 w-4" />
                     </div>
-                    <button
-                      onClick={handleMarkAllAsRead}
-                      className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary-foreground hover:bg-primary transition-all px-2 py-1 rounded-md border border-primary/20"
-                    >
-                      Clear All
-                    </button>
+                    <h3 className="text-sm font-bold tracking-tight text-gray-900">Activity</h3>
                   </div>
-                  <div className="max-h-[60vh] sm:max-h-[380px] overflow-y-auto no-scrollbar">
-                    {loadingNotifications && notifications.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                        <Loader2 className="h-8 w-8 animate-spin mb-3 text-primary/40" />
-                        <p className="text-xs font-medium">Updating...</p>
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 hover:text-white hover:bg-indigo-600 transition-all px-2 py-1 rounded-md border border-indigo-200"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="max-h-[60vh] sm:max-h-[380px] overflow-y-auto no-scrollbar">
+                  {loadingNotifications && notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                      <Loader2 className="h-8 w-8 animate-spin mb-3 text-indigo-600/40" />
+                      <p className="text-xs font-bold">Updating...</p>
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                      <div className="h-14 w-14 rounded-full bg-gray-50 flex items-center justify-center mb-4">
+                        <Bell className="h-7 w-7 opacity-20" />
                       </div>
-                    ) : notifications.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                        <div className="h-14 w-14 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-                          <Bell className="h-7 w-7 opacity-20" />
-                        </div>
-                        <p className="text-sm font-bold text-foreground">All caught up!</p>
-                        <p className="text-xs mt-1 opacity-60">No new chat activity</p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border/30">
-                        {notifications.map((n) => (
-                          <div
-                            key={n.id}
-                            className={cn(
-                              "px-4 py-3.5 transition-all hover:bg-muted/30 cursor-pointer relative group",
-                              !n.is_read ? "bg-primary/[0.02]" : "opacity-60"
-                            )}
-                            onClick={() => handleMarkAsRead(n.id)}
-                          >
-                            {!n.is_read && (
-                              <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
-                            )}
-                            <div className="flex justify-between items-start gap-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <div className={cn("h-1.5 w-1.5 rounded-full", !n.is_read ? "bg-primary" : "bg-muted-foreground/30")} />
-                                  <p className={cn("text-[13px] leading-none", !n.is_read ? "font-bold text-foreground" : "font-medium text-muted-foreground")}>
-                                    {n.title}
-                                  </p>
-                                </div>
-                                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed ml-3">
-                                  {n.body}
+                      <p className="text-sm font-bold text-gray-900">All caught up!</p>
+                      <p className="text-xs mt-1 font-medium">No new chat activity</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-50">
+                      {notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          className={cn(
+                            "px-4 py-3.5 transition-all hover:bg-gray-50/50 cursor-pointer relative group",
+                            !n.is_read ? "bg-indigo-50/30" : "opacity-60"
+                          )}
+                          onClick={() => handleMarkAsRead(n.id)}
+                        >
+                          {!n.is_read && (
+                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-indigo-600" />
+                          )}
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <p className={cn("text-[13px] leading-tight", !n.is_read ? "font-bold text-gray-900" : "font-medium text-gray-500")}>
+                                  {n.title}
                                 </p>
-                                <div className="flex items-center gap-2 mt-2 ml-3">
-                                  <Clock className="h-3 w-3 text-muted-foreground/40" />
-                                  <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-tight">
-                                    {formatRelativeTime(n.created_at)}
-                                  </p>
-                                </div>
+                              </div>
+                              <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed font-medium">
+                                {n.body}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Clock className="h-3 w-3 text-gray-400" />
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                                  {formatRelativeTime(n.created_at)}
+                                </p>
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2 border-t border-border bg-muted/5">
-                    <button className="w-full py-2 text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-all uppercase tracking-widest">
-                      Full History
-                    </button>
-                  </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-        </div>
-
-        {/* Search */}
-        <div className="px-5 py-3">
-          <div className="flex items-center gap-2.5 rounded-2xl bg-muted/50 px-4 py-2.5 ring-1 ring-border/50 focus-within:ring-primary/40 focus-within:bg-background transition-all shadow-sm">
-            <Search className="h-4 w-4 text-muted-foreground/60 shrink-0" />
-            <input
-              value={sidebarSearch}
-              onChange={(e) => setSidebarSearch(e.target.value)}
-              placeholder="Search channels & conversations..."
-              className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/40 font-medium"
-            />
-            {sidebarSearch && (
-              <button onClick={() => setSidebarSearch("")} className="text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted">
-                <X className="h-3.5 w-3.5" />
-              </button>
+                <div className="p-2 border-t border-gray-100 bg-gray-50/30">
+                  <button className="w-full py-2 text-[11px] font-bold text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all uppercase tracking-widest">
+                    Full History
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
+        {/* Search */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center gap-2.5 rounded-xl bg-[#EFF6FF] px-4 py-3 transition-all">
+            <Search className="h-4 w-4 text-[#94A3B8] shrink-0" />
+            <input
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              placeholder="Search chats & people..."
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#94A3B8] font-medium text-[#1E293B]"
+            />
+          </div>
+        </div>
+
+        {/* Filter Types */}
+        <div className="flex items-center gap-1 px-4 pb-4 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setSidebarFilter('all')}
+            className={cn(
+              "flex-1 px-4 py-2 rounded-lg text-[13px] font-medium transition-all shrink-0",
+              sidebarFilter === 'all'
+                ? "bg-[#2563EB] text-white"
+                : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+            )}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setSidebarFilter('channels')}
+            className={cn(
+              "flex-1 px-4 py-2 rounded-lg text-[13px] font-medium transition-all shrink-0",
+              sidebarFilter === 'channels'
+                ? "bg-[#2563EB] text-white"
+                : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+            )}
+          >
+            Channels
+          </button>
+          <button
+            onClick={() => setSidebarFilter('direct')}
+            className={cn(
+              "flex-1 px-4 py-2 rounded-lg text-[13px] font-medium transition-all shrink-0",
+              sidebarFilter === 'direct'
+                ? "bg-[#2563EB] text-white"
+                : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+            )}
+          >
+            Direct
+          </button>
+        </div>
+
         {/* Channel & DM list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto no-scrollbar">
 
           {/* Channels section */}
-          <div className="px-6 pt-5 pb-2 flex items-center justify-between group/section">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">Channels</h3>
+          <div className="px-4 pt-2 pb-2 flex items-center justify-between group/section">
+            <h3 className="text-xs font-semibold text-[#64748B]">Channels</h3>
             {currentUserRole === "super_admin" && (
-              <button onClick={() => { setShowNewChannel(true); setCreateError(null); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all opacity-0 group-hover/section:opacity-100" title="New channel">
-                <Plus className="h-3.5 w-3.5" />
+              <button onClick={() => { setShowNewChannel(true); setCreateError(null); }} className="rounded-md p-1 text-[#94A3B8] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-all" title="New channel">
+                <Plus className="h-4 w-4" />
               </button>
             )}
           </div>
@@ -1058,14 +1092,14 @@ function ChatClientContent({
           ))}
 
           {filteredRegularChannels.length === 0 && !sidebarSearch && (
-            <p className="px-4 py-3 text-xs text-muted-foreground/50 italic">No channels</p>
+            <p className="px-4 py-3 text-xs text-[#94A3B8] italic font-medium">No channels</p>
           )}
 
           {/* Direct Messages section */}
-          <div className="px-6 pt-8 pb-2 flex items-center justify-between group/section">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">Direct Messages</h3>
-            <button onClick={() => { setShowNewDM(true); setDmSearchQuery(""); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all opacity-0 group-hover/section:opacity-100" title="New message">
-              <UserPlus className="h-3.5 w-3.5" />
+          <div className="px-4 pt-6 pb-2 flex items-center justify-between group/section">
+            <h3 className="text-xs font-semibold text-[#64748B]">Individual Chats</h3>
+            <button onClick={() => { setShowNewDM(true); setDmSearchQuery(""); }} className="rounded-md p-1 text-[#94A3B8] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-all" title="New message">
+              <Plus className="h-4 w-4" />
             </button>
           </div>
 
@@ -1095,17 +1129,30 @@ function ChatClientContent({
           })}
 
           {filteredDmChannels.length === 0 && !sidebarSearch && (
-            <p className="px-4 py-3 text-xs text-muted-foreground/50 italic">No conversations yet</p>
+            <p className="px-4 py-3 text-xs text-[#94A3B8] italic font-medium">No conversations yet</p>
           )}
+        </div>
+
+        {/* Sidebar Bottom Bar */}
+        <div className="p-4 border-t-[1.5px] border-[#E0ECFF] mt-auto shrink-0">
+          <button
+            onClick={() => { setShowNewChannel(true); setCreateError(null); }}
+            className="flex w-full items-center justify-between rounded-xl bg-[#F7FAFF] px-4 py-3 text-sm font-semibold text-[#1E293B] hover:bg-[#EFF6FF] transition-all border-[1.5px] border-[#E0ECFF]"
+          >
+            New Group
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#2563EB] text-white">
+              <Plus className="h-4 w-4" />
+            </div>
+          </button>
         </div>
       </div>
 
       {/* ═══════════════════════════════ CENTER — CHAT AREA ═══════════════════════════════ */}
-      <div className={cn("flex flex-1 min-w-0 flex-col bg-background", !mobileShowChat && "hidden md:flex")}>
+      <div className={cn("flex flex-1 min-w-0 flex-col bg-[#F7FAFF]", !mobileShowChat && "hidden md:flex")}>
         {activeChannel ? (
           <>
             {/* Chat header */}
-            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border-b border-border px-3 py-2 sm:px-4 sticky top-0 z-30">
+            <div className="flex items-center gap-2 bg-[#FFFFFF] border-b-[1.5px] border-[#E0ECFF] px-4 py-4 sm:px-6 sticky top-0 z-30">
               <button onClick={handleMobileBack} className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted md:hidden"><ChevronLeft className="h-5 w-5" /></button>
               <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden">
                 {activeChannel.is_direct && activeChannel.dm_partner?.avatar_url ? (
@@ -1141,19 +1188,15 @@ function ChatClientContent({
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-0.5 sm:gap-1 overflow-visible">
-                <Link
-                  href="/dashboard"
-                  className="hidden sm:flex shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors"
-                  title="Back to Dashboard"
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                </Link>
-                <button onClick={() => setShowSearch(!showSearch)} className={cn("shrink-0 rounded-full p-2 transition-colors", showSearch ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
+              <div className="flex items-center gap-1 overflow-visible">
+                <button onClick={() => setShowSearch(!showSearch)} className="shrink-0 rounded-lg p-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-all">
                   <Search className="h-4 w-4" />
                 </button>
-                <button onClick={() => setShowMemberPanel(!showMemberPanel)} className={cn("shrink-0 rounded-full p-2 transition-colors", showMemberPanel ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
-                  {showMemberPanel ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                <button className="shrink-0 rounded-lg p-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-all">
+                  <LayoutDashboard className="h-4 w-4" />
+                </button>
+                <button className="shrink-0 rounded-lg p-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-all">
+                  <Clock className="h-4 w-4" />
                 </button>
                 <div ref={headerMenuRef} className="relative">
                   <button
@@ -1162,22 +1205,22 @@ function ChatClientContent({
                       e.stopPropagation();
                       setShowHeaderMenu(!showHeaderMenu);
                     }}
-                    className={cn("shrink-0 rounded-full p-2 transition-colors", showHeaderMenu ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+                    className={cn("shrink-0 rounded-lg p-2 transition-all", showHeaderMenu ? "bg-[#EFF6FF] text-[#2563EB]" : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]")}
                   >
-                    <Settings className="h-4 w-4" />
+                    <MoreVertical className="h-4 w-4" />
                   </button>
                   {showHeaderMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-48 rounded-xl glass border border-border shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
-                      <div className="p-1">
+                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right">
+                      <div className="p-1.5">
                         {!activeChannel?.is_direct && (
                           <button
                             onClick={() => {
                               setShowChannelSettings(true);
                               setShowHeaderMenu(false);
                             }}
-                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
                           >
-                            <Users className="h-3.5 w-3.5" />
+                            <Users className="h-4 w-4 text-indigo-500" />
                             Channel Settings
                           </button>
                         )}
@@ -1186,20 +1229,20 @@ function ChatClientContent({
                             handleClearChat();
                             setShowHeaderMenu(false);
                           }}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
                         >
-                          <Eraser className="h-3.5 w-3.5" />
+                          <Eraser className="h-4 w-4 text-amber-500" />
                           Clear Messages
                         </button>
-                        <div className="my-1 border-t border-border/50" />
+                        <div className="my-1 border-t border-gray-100" />
                         <button
                           onClick={() => {
                             handleDeleteChannel();
                             setShowHeaderMenu(false);
                           }}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                           {activeChannel?.is_direct ? "Delete Chat" : "Delete Channel"}
                         </button>
                       </div>
@@ -1219,7 +1262,7 @@ function ChatClientContent({
             )}
 
             {/* Tab bar */}
-            <div className="flex items-center gap-1 border-b border-border bg-background px-2 sm:px-4 overflow-x-auto no-scrollbar shrink-0 sticky top-[53px] sm:top-[57px] z-20">
+            <div className="flex items-center gap-1 border-b-[1.5px] border-[#E0ECFF] bg-[#F7FAFF] px-2 sm:px-4 overflow-x-auto no-scrollbar shrink-0 sticky top-[53px] sm:top-[57px] z-20">
               {(["chat", "files", "photos", "links"] as ActiveTab[]).map((tab) => {
                 const icons: Record<ActiveTab, React.ElementType> = { chat: MessageSquare, files: FileText, photos: ImageIcon, links: Link2 };
                 const Icon = icons[tab];
@@ -1229,16 +1272,16 @@ function ChatClientContent({
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "flex items-center gap-1.5 px-4 py-3 text-xs font-semibold capitalize transition-all border-b-2 shrink-0",
+                      "flex items-center gap-1.5 px-4 py-3 text-xs font-semibold capitalize transition-all border-b-[2.5px] shrink-0",
                       activeTab === tab 
-                        ? "border-primary text-primary bg-primary/5" 
-                        : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                        ? "border-[#2563EB] text-[#2563EB] bg-[#EFF6FF]" 
+                        : "border-transparent text-[#64748B] hover:text-[#1E293B] hover:bg-white",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
                     {tab}
                     {count > 0 && tab !== "chat" && (
-                      <span className={cn("ml-0.5 text-[10px] rounded-full px-1.5 py-0.5", activeTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{count}</span>
+                      <span className={cn("ml-0.5 text-[10px] rounded-full px-1.5 py-0.5", activeTab === tab ? "bg-[#2563EB] text-white" : "bg-[#E0ECFF] text-[#64748B]")}>{count}</span>
                     )}
                   </button>
                 );
@@ -1262,26 +1305,26 @@ function ChatClientContent({
                 <div className="flex flex-1 min-w-0 flex-col bg-background">
                   {/* Pinned messages banner */}
                   {pinnedMessages.length > 0 && (
-                    <div className="flex items-center gap-2 border-b border-border/50 bg-amber-500/5 px-4 py-2 cursor-pointer hover:bg-amber-500/10 transition-colors" onClick={() => setShowAllPinned(true)}>
-                      <Pin className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <p className="text-xs text-foreground truncate flex-1">
-                        <span className="font-semibold">{pinnedMessages.length} pinned message{pinnedMessages.length > 1 ? "s" : ""}</span>
-                        <span className="text-muted-foreground ml-2">{pinnedMessages[0]?.content?.slice(0, 50)}</span>
+                    <div className="flex items-center gap-2 border-b border-gray-100 bg-amber-50 px-4 py-3 cursor-pointer hover:bg-amber-100 transition-colors" onClick={() => setShowAllPinned(true)}>
+                      <Pin className="h-4 w-4 text-amber-600 shrink-0" />
+                      <p className="text-sm text-gray-900 truncate flex-1 font-bold">
+                        {pinnedMessages.length} pinned message{pinnedMessages.length > 1 ? "s" : ""}
+                        <span className="text-gray-400 ml-3 font-medium">{pinnedMessages[0]?.content?.slice(0, 50)}</span>
                       </p>
-                      <span className="text-[10px] text-primary font-semibold shrink-0">See all</span>
+                      <span className="text-[11px] text-indigo-600 font-black uppercase tracking-wider shrink-0">See all</span>
                     </div>
                   )}
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-6 md:px-8 lg:px-12 xl:px-16 sm:py-4 no-scrollbar bg-background/50">
+                  <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 sm:py-4 no-scrollbar bg-[#F7FAFF]">
                     {loadingMsgs ? (
-                      <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                      <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-indigo-600" /></div>
                     ) : filteredMessages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                        <div className="rounded-2xl glass px-8 py-6 text-center shadow-sm">
-                          <MessageSquare className="mx-auto h-12 w-12 mb-3 opacity-40" />
-                          <p className="text-sm font-semibold">{showSearch ? "No matches found" : "No messages yet"}</p>
-                          <p className="text-xs mt-1.5 opacity-60">{showSearch ? "Try a different search term" : `Send the first message in ${activeChannel.is_direct ? "this conversation" : "#" + activeChannel.name}`}</p>
+                      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                        <div className="rounded-3xl border border-gray-100 bg-gray-50 px-10 py-8 text-center shadow-sm">
+                          <MessageSquare className="mx-auto h-16 w-16 mb-4 text-indigo-200" />
+                          <p className="text-base font-bold text-gray-900">{showSearch ? "No matches found" : "No messages yet"}</p>
+                          <p className="text-sm mt-2 font-medium opacity-60">{showSearch ? "Try a different search term" : `Send the first message in ${activeChannel.is_direct ? "this conversation" : "#" + activeChannel.name}`}</p>
                         </div>
                       </div>
                     ) : (
@@ -1297,125 +1340,139 @@ function ChatClientContent({
                           return (
                             <div key={msg.id} className="msg-animate">
                               {showDate && (
-                                <div className="flex justify-center my-4">
-                                  <span className="rounded-full glass px-4 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">{formatDateSeparator(msg.created_at)}</span>
+                                <div className="flex justify-center relative my-6">
+                                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#E0ECFF]"></div></div>
+                                  <span className="relative rounded-full bg-[#F7FAFF] px-4 py-1 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">{formatDateSeparator(msg.created_at)}</span>
                                 </div>
                               )}
-                              <div className={cn("flex mb-0.5", isOwn ? "justify-end" : "justify-start", !sameAsPrev && "mt-3")}>
-                                {/* Avatar for others */}
-                                {!isOwn && !sameAsPrev && (
-                                  <div className="relative mr-2 mt-1 shrink-0">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary overflow-hidden">
-                                      {msg.sender?.avatar_url ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={msg.sender.avatar_url} alt="" className="h-full w-full object-cover" />
-                                      ) : getInitials(msg.sender?.full_name ?? "?")}
-                                    </div>
-                                    {onlineUsers.has(msg.sender_id) && (
-                                      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-[1.5px] border-background" />
-                                    )}
-                                  </div>
+                              <div className={cn("flex flex-col mb-1", isOwn ? "items-end" : "items-start")}>
+                                {/* Sender name above bubble (Strictly for others) */}
+                                {!isOwn && !sameAsPrev && !msg.is_deleted && (
+                                  <span className="text-[11px] font-bold text-[#64748B] mb-1 ml-1">{msg.sender?.full_name ?? "Unknown"}</span>
                                 )}
-                                {!isOwn && sameAsPrev && <div className="w-10 shrink-0" />}
-
+                                
                                 <div className={cn(
-                                  "group relative max-w-[80%] sm:max-w-[60%] rounded-2xl shadow-sm transition-shadow hover:shadow-md",
-                                  isOwn ? "chat-bubble-user bg-primary text-primary-foreground rounded-br-sm" : "chat-bubble-bot bg-card border border-border/60 text-foreground rounded-bl-sm",
-                                  hasAttachment && !msg.content ? "p-1.5" : "px-3 py-2",
-                                  msg.is_deleted && "opacity-50",
+                                  "flex items-end",
+                                  isOwn ? "flex-row-reverse" : "flex-row"
                                 )}>
-                                  {/* Sender name */}
-                                  {!isOwn && !sameAsPrev && !msg.is_deleted && (
-                                    <p className="text-[11px] font-bold mb-1 text-primary">{msg.sender?.full_name ?? "Unknown"}</p>
-                                  )}
-
-                                  {/* Reply preview */}
-                                  {msg.reply_to && !msg.is_deleted && (
-                                    <div className={cn("mb-1.5 rounded-lg px-2.5 py-1.5 border-l-2", isOwn ? "bg-white/10 border-white/40" : "bg-muted/50 border-primary/40")}>
-                                      <p className={cn("text-[10px] font-bold", isOwn ? "text-white/80" : "text-primary")}>{msg.reply_to.sender?.full_name ?? "Unknown"}</p>
-                                      <p className={cn("text-[11px] truncate", isOwn ? "text-white/60" : "text-muted-foreground")}>{msg.reply_to.content}</p>
-                                    </div>
-                                  )}
-
-                                  {/* Pinned indicator */}
-                                  {msg.is_pinned && !msg.is_deleted && (
-                                    <div className={cn("flex items-center gap-1 mb-1", isOwn ? "text-white/50" : "text-amber-500/70")}>
-                                      <Pin className="h-2.5 w-2.5" />
-                                      <span className="text-[9px] font-medium">Pinned</span>
-                                    </div>
-                                  )}
-
-                                  {/* Attachment */}
-                                  {hasAttachment && !msg.is_deleted && (
-                                    <div className={cn(hasAttachment && msg.content && "mb-1.5")}>
-                                      {isImg ? (
-                                        <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className="block">
-                                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                                          <img src={msg.attachment_url!} alt={msg.attachment_name ?? "image"} className="max-w-full max-h-64 rounded-xl object-cover" />
-                                        </a>
-                                      ) : msg.attachment_type?.startsWith("audio/") ? (
-                                        <div className={cn("rounded-xl px-3 py-2", isOwn ? "bg-white/10" : "bg-muted/50")}>
-                                          <audio controls src={msg.attachment_url!} className="h-8 w-full max-w-[240px]" />
-                                        </div>
-                                      ) : (
-                                        <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors", isOwn ? "bg-white/10 hover:bg-white/15" : "bg-muted/50 hover:bg-muted/70")}>
-                                          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", isOwn ? "bg-white/15" : "bg-primary/10")}>
-                                            <FileText className={cn("h-5 w-5", isOwn ? "text-white" : "text-primary")} />
-                                          </div>
-                                          <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-semibold truncate">{msg.attachment_name}</p>
-                                            <p className={cn("text-[10px]", isOwn ? "text-white/50" : "text-muted-foreground")}>{msg.attachment_size ? formatFileSize(msg.attachment_size) : "File"}</p>
-                                          </div>
-                                          <Download className={cn("h-4 w-4 shrink-0", isOwn ? "text-white/60" : "text-muted-foreground")} />
-                                        </a>
+                                  {/* Avatar for others */}
+                                  {!isOwn && !sameAsPrev && (
+                                    <div className="relative mr-2 mb-0.5 shrink-0">
+                                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#DBEAFE] text-[10px] font-black text-[#2563EB] overflow-hidden">
+                                        {msg.sender?.avatar_url ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={msg.sender.avatar_url} alt="" className="h-full w-full object-cover" />
+                                        ) : getInitials(msg.sender?.full_name ?? "?")}
+                                      </div>
+                                      {onlineUsers.has(msg.sender_id) && (
+                                        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-none" />
                                       )}
                                     </div>
                                   )}
+                                  {!isOwn && sameAsPrev && <div className="w-10 shrink-0" />}
 
-                                  {/* Message body */}
-                                  {editingMsgId === msg.id ? (
-                                    <div className="flex items-center gap-1.5 my-1">
-                                      <input ref={editInputRef} value={editContent} onChange={(e) => setEditContent(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") { setEditingMsgId(null); setEditContent(""); } }}
-                                        className="flex-1 min-w-0 rounded-md bg-background/20 px-2 py-1 text-sm outline-none text-inherit" />
-                                      <button onClick={handleSaveEdit} className="shrink-0 rounded-md p-1 hover:bg-white/20"><Check className="h-3.5 w-3.5" /></button>
-                                      <button onClick={() => { setEditingMsgId(null); setEditContent(""); }} className="shrink-0 rounded-md p-1 hover:bg-white/20"><X className="h-3.5 w-3.5" /></button>
-                                    </div>
-                                  ) : msg.is_deleted ? (
-                                    <div className="flex items-center gap-1.5 px-1.5"><Ban className="h-3 w-3 opacity-60" /><p className="text-[13px] italic opacity-70 select-none">This message was deleted</p></div>
-                                  ) : msg.content ? (
-                                    <p className="text-[13px] sm:text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
-                                  ) : null}
-
-                                  {/* Time + read receipts */}
-                                  <div className="flex items-center justify-end gap-1 mt-0.5 px-0.5">
-                                    {msg.is_edited && !msg.is_deleted && (
-                                      <span className={cn("text-[9px]", isOwn ? "text-white/50" : "text-muted-foreground/60")}>edited</span>
+                                  <div className={cn(
+                                    "group relative transition-all shadow-none min-w-[120px] max-w-[85%] sm:max-w-[70%]",
+                                    isOwn ? "bg-[#2563EB] text-white rounded-[16px] rounded-br-[4px]" : "bg-white text-[#1E293B] border-[1.5px] border-[#E0ECFF] rounded-[16px] rounded-bl-[4px]",
+                                    hasAttachment && !msg.content ? "p-1.5" : "px-3.5 py-2",
+                                    msg.is_deleted && "opacity-50 grayscale"
+                                  )}>
+                                    {/* Reply preview */}
+                                    {msg.reply_to && !msg.is_deleted && (
+                                      <div className={cn("mb-1.5 rounded-lg px-2.5 py-1.5 border-l-2", isOwn ? "bg-white/10 border-white/40" : "bg-[#F7FAFF] border-[#2563EB]")}>
+                                        <p className={cn("text-[10px] font-bold uppercase tracking-tight", isOwn ? "text-white/80" : "text-[#2563EB]")}>{msg.reply_to.sender?.full_name ?? "Unknown"}</p>
+                                        <p className={cn("text-xs truncate font-medium opacity-80", isOwn ? "text-white" : "text-[#64748B]")}>{msg.reply_to.content}</p>
+                                      </div>
                                     )}
-                                    <span suppressHydrationWarning className={cn("text-[10px]", isOwn ? "text-white/50" : "text-muted-foreground/60")}>{formatTime(msg.created_at)}</span>
-                                    {isOwn && !msg.is_deleted && (
-                                      <CheckCheck className={cn("h-3.5 w-3.5", "text-white/50")} />
+
+                                    {/* Pinned indicator */}
+                                    {msg.is_pinned && !msg.is_deleted && (
+                                      <div className={cn("flex items-center gap-1.5 mb-1", isOwn ? "text-white/70" : "text-amber-600")}>
+                                        <Pin className="h-3 w-3" />
+                                        <span className="text-[9px] font-bold uppercase tracking-tight">Pinned</span>
+                                      </div>
+                                    )}
+
+                                    {/* Attachment */}
+                                    {hasAttachment && !msg.is_deleted && (
+                                      <div className={cn(hasAttachment && msg.content && "mb-1.5")}>
+                                        {isImg ? (
+                                          <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={msg.attachment_url!} alt={msg.attachment_name ?? "image"} className="max-w-full max-h-80 object-cover hover:scale-105 transition-transform duration-300" />
+                                          </a>
+                                        ) : msg.attachment_type?.startsWith("audio/") ? (
+                                          <div className={cn("rounded-xl px-2 py-1.5", isOwn ? "bg-white/10" : "bg-[#F7FAFF] border border-[#E0ECFF]")}>
+                                            <audio controls src={msg.attachment_url!} className="h-7 w-full max-w-[200px]" />
+                                          </div>
+                                        ) : (
+                                          <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all", isOwn ? "bg-white/10 hover:bg-white/20" : "bg-[#F7FAFF] border border-[#E0ECFF] hover:bg-white")}>
+                                            <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", isOwn ? "bg-white/20" : "bg-[#DBEAFE]")}>
+                                              <FileText className={cn("h-5 w-5", isOwn ? "text-white" : "text-[#2563EB]")} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="text-[11px] font-bold truncate">{msg.attachment_name}</p>
+                                              <p className={cn("text-[9px] font-bold opacity-60", isOwn ? "text-white" : "text-[#64748B]")}>{msg.attachment_size ? formatFileSize(msg.attachment_size) : "File"}</p>
+                                            </div>
+                                            <Download className={cn("h-3.5 w-3.5 shrink-0 opacity-60", isOwn ? "text-white" : "text-[#64748B]")} />
+                                          </a>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Message body */}
+                                    {editingMsgId === msg.id ? (
+                                      <div className="flex items-center gap-2 my-1">
+                                        <input ref={editInputRef} value={editContent} onChange={(e) => setEditContent(e.target.value)}
+                                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") { setEditingMsgId(null); setEditContent(""); } }}
+                                          className="flex-1 min-w-0 rounded-lg bg-white/10 border border-white/20 px-3 py-1.5 text-sm outline-none text-white font-medium" />
+                                        <button onClick={handleSaveEdit} className="shrink-0 rounded-lg p-1.5 bg-white text-[#2563EB] hover:bg-gray-100"><Check className="h-4 w-4" /></button>
+                                        <button onClick={() => { setEditingMsgId(null); setEditContent(""); }} className="shrink-0 rounded-lg p-1.5 bg-white/10 hover:bg-white/20"><X className="h-4 w-4" /></button>
+                                      </div>
+                                    ) : msg.is_deleted ? (
+                                      <div className="flex items-center gap-2 px-1"><Ban className="h-3.5 w-3.5 opacity-50" /><p className="text-xs italic font-medium opacity-70 select-none">Message deleted</p></div>
+                                    ) : msg.content ? (
+                                      <p className={cn(
+                                        "text-sm sm:text-[15px] leading-relaxed font-medium break-words whitespace-pre-wrap",
+                                        isOwn ? "text-white" : "text-[#1E293B]"
+                                      )}>{msg.content}</p>
+                                    ) : null}
+
+                                    {/* Time + receipts */}
+                                    <div className="flex items-center justify-end gap-1.5 mt-1 opacity-60">
+                                      {msg.is_edited && !msg.is_deleted && (
+                                        <span className="text-[8px] font-bold uppercase tracking-tight">edited</span>
+                                      )}
+                                      <span suppressHydrationWarning className="text-[9px] font-bold">{formatTime(msg.created_at)}</span>
+                                      {isOwn && !msg.is_deleted && (
+                                        <CheckCheck className="h-3 w-3" />
+                                      )}
+                                    </div>
+
+                                    {/* Hover action toolbar */}
+                                    {!msg.is_deleted && editingMsgId !== msg.id && (
+                                      <div className={cn(
+                                        "absolute -top-5 flex items-center gap-1 rounded-[10px] bg-white border-[1.5px] border-[#E0ECFF] p-0.5 opacity-0 group-hover:opacity-100 transition-all z-10",
+                                        isOwn ? "right-0" : "left-0",
+                                      )}>
+                                        <div className="flex items-center gap-1 px-1 border-r border-[#E0ECFF]">
+                                          <button className="hover:scale-110 transition-transform text-sm" title="Thumbs up">👍</button>
+                                          <button className="hover:scale-110 transition-transform text-sm" title="Heart">❤️</button>
+                                          <button className="hover:scale-110 transition-transform text-sm" title="Laugh">😂</button>
+                                        </div>
+                                        <button onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F7FAFF] hover:text-[#2563EB] transition-colors" title="Reply"><Reply className="h-3 w-3" /></button>
+                                        <button onClick={() => handlePin(msg)} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F7FAFF] hover:text-amber-500 transition-colors" title={msg.is_pinned ? "Unpin" : "Pin"}>
+                                          {msg.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                                        </button>
+                                        {isOwn && (
+                                          <>
+                                              <button onClick={() => handleStartEdit(msg)} className="rounded-lg p-1 text-[#64748B] hover:bg-[#F7FAFF] hover:text-[#2563EB] transition-colors" title="Edit"><Pencil className="h-3 w-3" /></button>
+                                              <button onClick={() => handleDelete(msg.id)} className="rounded-lg p-1 text-[#64748B] hover:bg-red-50 hover:text-red-500 transition-colors" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                                          </>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
-
-                                  {/* Hover action toolbar */}
-                                  {!msg.is_deleted && editingMsgId !== msg.id && (
-                                    <div className={cn(
-                                      "absolute -top-3 flex items-center gap-0.5 rounded-lg glass shadow-md p-0.5 opacity-0 group-hover:opacity-100 transition-all z-10",
-                                      isOwn ? "right-2" : "left-2",
-                                    )}>
-                                      <button onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Reply"><Reply className="h-3.5 w-3.5" /></button>
-                                      <button onClick={() => handlePin(msg)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title={msg.is_pinned ? "Unpin" : "Pin"}>
-                                        {msg.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-                                      </button>
-                                      {isOwn && (
-                                        <>
-                                          <button onClick={() => handleStartEdit(msg)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
-                                          <button onClick={() => handleDelete(msg.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1428,21 +1485,21 @@ function ChatClientContent({
 
                   {/* Typing indicator */}
                   {channelTypingUsers.length > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/30">
-                      <div className="flex gap-0.5">
-                        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" />
-                        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" />
-                        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" />
+                    <div className="flex items-center gap-2 px-4 py-3 bg-[#F7FAFF]">
+                      <div className="flex items-center gap-1.5 bg-white border-[1.5px] border-[#E0ECFF] px-4 py-3 rounded-[16px] rounded-bl-[4px] shadow-none w-fit">
+                        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+                        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+                        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-semibold">{channelTypingUsers.join(", ")}</span> {channelTypingUsers.length === 1 ? "is" : "are"} typing...
+                      <p className="text-xs text-[#64748B]">
+                        <span className="font-semibold text-[#1E293B]">{channelTypingUsers.join(", ")}</span> {channelTypingUsers.length === 1 ? "is" : "are"} typing...
                       </p>
                     </div>
                   )}
 
                   {/* Reply banner */}
                   {replyTo && (
-                    <div className="flex items-center gap-3 border-t border-border bg-muted/80 backdrop-blur-sm px-4 py-2 sticky bottom-0 z-30 animate-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex items-center gap-3 border-t border-gray-100 bg-gray-50/95 px-4 py-2 sticky bottom-0 z-30 animate-in slide-in-from-bottom-2 duration-200">
                       <Reply className="h-4 w-4 text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-bold text-primary leading-none uppercase tracking-wider">{replyTo.sender?.full_name ?? "Unknown"}</p>
@@ -1453,99 +1510,97 @@ function ChatClientContent({
                   )}
 
                   {/* Input bar */}
-                  <div className="bg-background/95 backdrop-blur-md border-t border-border/60 px-3 py-3 sm:px-6 sm:py-4 sticky bottom-0 z-20 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] transition-all">
-                  <div className="w-full flex items-end gap-2 sm:gap-3">
-                      {/* Emoji & Attachment */}
-                      <div className="flex items-center gap-0.5 sm:gap-1 mb-1 sm:mb-1.5 shrink-0">
-                        <div className="relative" ref={emojiRef}>
-                          <button 
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-                            className={cn(
-                              "shrink-0 rounded-full p-2 transition-all hover:scale-105 active:scale-95", 
-                              showEmojiPicker ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  <div className="bg-[#FFFFFF] border-t-[1.5px] border-[#E0ECFF] px-4 py-3 sm:px-8 sm:py-4 sticky bottom-0 z-20 transition-all">
+                    <div className="w-full rounded-[16px] bg-[#EFF6FF] border-[1.5px] border-[#E0ECFF] p-1.5">
+                      <div className="flex items-center gap-2">
+                        {/* Emoji & Attachment */}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <div className="relative" ref={emojiRef}>
+                            <button 
+                              onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                              className={cn(
+                                "p-2 rounded-xl transition-all", 
+                                showEmojiPicker ? "text-[#2563EB] bg-[#E0ECFF]" : "text-[#94A3B8] hover:text-[#2563EB]"
+                              )}
+                              title="Add Emoji"
+                            >
+                              <Smile className="h-5 w-5" />
+                            </button>
+                            {showEmojiPicker && (
+                              <div className="absolute bottom-12 left-0 z-50 shadow-none rounded-[16px] overflow-hidden animate-in fade-in duration-200 border-[1.5px] border-[#E0ECFF]">
+                                <EmojiPicker onEmojiClick={handleEmojiSelect} width={320} height={400} searchPlaceHolder="Search emoji..." previewConfig={{ showPreview: false }} />
+                              </div>
                             )}
-                            title="Add Emoji"
-                          >
-                            <Smile className="h-5 w-5" />
-                          </button>
-                          {showEmojiPicker && (
-                            <div className="absolute bottom-14 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                              <EmojiPicker onEmojiClick={handleEmojiSelect} width={320} height={380} searchPlaceHolder="Search emoji..." previewConfig={{ showPreview: false }} />
-                            </div>
-                          )}
+                          </div>
+
+                          <div className="relative" ref={attachRef}>
+                            <button 
+                              onClick={() => setShowAttachMenu(!showAttachMenu)} 
+                              className={cn(
+                                "p-2 rounded-xl transition-all", 
+                                showAttachMenu ? "text-[#2563EB] bg-[#E0ECFF]" : "text-[#94A3B8] hover:text-[#2563EB]"
+                              )}
+                              title="Attach File"
+                            >
+                              <Paperclip className="h-5 w-5" />
+                            </button>
+                            {showAttachMenu && (
+                              <div className="absolute bottom-12 left-0 z-50 w-56 rounded-[16px] bg-[#FFFFFF] border-[1.5px] border-[#E0ECFF] shadow-none py-2.5 animate-in fade-in duration-200">
+                                <button onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-4 px-5 py-3.5 text-sm hover:bg-[#EFF6FF] transition-colors text-[#1E293B] font-bold">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#DBEAFE]"><ImageIcon className="h-5 w-5 text-[#2563EB]" /></div>
+                                  Photos & Videos
+                                </button>
+                                <button onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-4 px-5 py-3.5 text-sm hover:bg-[#EFF6FF] transition-colors text-[#1E293B] font-bold">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-emerald-100"><FileText className="h-5 w-5 text-emerald-600" /></div>
+                                  Documents
+                                </button>
+                              </div>
+                            )}
+                            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileInputChange} />
+                            <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" className="hidden" onChange={handleFileInputChange} />
+                          </div>
                         </div>
 
-                        <div className="relative" ref={attachRef}>
-                          <button 
-                            onClick={() => setShowAttachMenu(!showAttachMenu)} 
-                            className={cn(
-                              "shrink-0 rounded-full p-2 transition-all hover:scale-105 active:scale-95", 
-                              showAttachMenu ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                            )}
-                            title="Attach File"
-                          >
-                            <Paperclip className="h-5 w-5" />
-                          </button>
-                          {showAttachMenu && (
-                            <div className="absolute bottom-14 left-0 z-50 w-48 rounded-2xl bg-background border border-border shadow-2xl py-2 animate-in fade-in zoom-in-95 duration-200">
-                              <button onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-foreground font-medium">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/10"><ImageIcon className="h-4 w-4 text-violet-500" /></div>
-                                Photos
-                              </button>
-                              <button onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors text-foreground font-medium">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"><FileText className="h-4 w-4 text-primary" /></div>
-                                Document
-                              </button>
-                            </div>
-                          )}
-                          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileInputChange} />
-                          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" className="hidden" onChange={handleFileInputChange} />
+                        {/* Text input area */}
+                        <div className="flex-1 overflow-hidden">
+                          <textarea
+                            ref={inputRef}
+                            value={newMsg}
+                            onChange={handleInputChange}
+                            onKeyDown={handleKeyDown}
+                            maxLength={500}
+                            placeholder="Type a message..."
+                            className="w-full bg-transparent px-2 py-2 text-[15px] outline-none resize-none max-h-[100px] leading-relaxed placeholder:text-[#94A3B8] font-medium text-[#1E293B] no-scrollbar"
+                            rows={1}
+                            disabled={sending || uploading}
+                          />
                         </div>
-                      </div>
 
-                      {/* Text input area */}
-                      <div className="flex-1 relative flex items-end rounded-2xl border border-border/80 bg-muted/30 focus-within:border-primary/40 focus-within:bg-background focus-within:shadow-[0_0_0_4px_rgba(var(--primary-rgb),0.05)] transition-all overflow-hidden group">
-                        <textarea
-                          ref={inputRef}
-                          value={newMsg}
-                          onChange={handleInputChange}
-                          onKeyDown={handleKeyDown}
-                          onFocus={() => {
-                            setTimeout(() => {
-                              inputRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-                            }, 120);
-                          }}
-                          placeholder="Type a message..."
-                          className="w-full bg-transparent px-4 py-2.5 text-sm outline-none resize-none max-h-[120px] sm:max-h-[200px] leading-relaxed placeholder:text-muted-foreground/60"
-                          rows={1}
-                          disabled={sending || uploading}
-                        />
-                      </div>
-
-                      {/* Voice / Send button */}
-                      <div className="mb-1 sm:mb-1.5 shrink-0">
-                        {newMsg.trim() ? (
-                          <button 
-                            onClick={handleSend} 
-                            disabled={sending || uploading} 
-                            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-                          >
-                            {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                          </button>
-                        ) : (
-                          <button
-                            onMouseDown={handleStartRecording}
-                            onMouseUp={handleStopRecording}
-                            onMouseLeave={handleStopRecording}
-                            className={cn(
-                              "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-95", 
-                              isRecording ? "bg-red-500 text-white scale-110 shadow-lg" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                            )}
-                            title="Hold to record"
-                          >
-                            <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
-                          </button>
-                        )}
+                        {/* Voice / Send button */}
+                        <div className="shrink-0">
+                          {newMsg.trim() ? (
+                            <button 
+                              onClick={handleSend} 
+                              disabled={sending || uploading} 
+                              className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#2563EB] text-[#FFFFFF] shadow-none transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                            >
+                              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                            </button>
+                          ) : (
+                            <button
+                              onMouseDown={handleStartRecording}
+                              onMouseUp={handleStopRecording}
+                              onMouseLeave={handleStopRecording}
+                              className={cn(
+                                "flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#FFFFFF] border-[1.5px] border-[#E0ECFF] transition-all active:scale-95", 
+                                isRecording ? "bg-red-500 text-[#FFFFFF] border-red-500 scale-110" : "text-[#94A3B8] hover:text-[#2563EB]"
+                              )}
+                              title="Hold to record"
+                            >
+                              <Mic className={cn("h-5 w-5", isRecording && "animate-pulse")} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1642,12 +1697,12 @@ function ChatClientContent({
               {showMemberPanel && (
                 <>
                   <div className="absolute inset-0 z-10 bg-black/30 md:hidden" onClick={() => setShowMemberPanel(false)} />
-                  <div className="absolute right-0 top-0 bottom-0 z-20 w-80 border-l border-border overflow-y-auto bg-card shadow-lg md:static md:z-auto md:w-72 md:shrink-0 md:shadow-none panel-slide-in">
-                    <div className="flex items-center justify-between p-4 border-b border-border">
-                      <h4 className="text-sm font-bold text-foreground">
+                  <div className="absolute right-0 top-0 bottom-0 z-20 w-80 border-l-[1.5px] border-[#E0ECFF] overflow-y-auto bg-white shadow-none md:static md:z-auto md:w-72 md:shrink-0 panel-slide-in">
+                    <div className="flex items-center justify-between p-4 border-b-[1.5px] border-[#E0ECFF]">
+                      <h4 className="text-sm font-bold text-[#1E293B]">
                         {activeChannel.is_direct ? "Conversation Info" : "Channel Info"}
                       </h4>
-                      <button onClick={() => setShowMemberPanel(false)} className="rounded-full p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                      <button onClick={() => setShowMemberPanel(false)} className="rounded-full p-1 text-[#64748B] hover:text-[#1E293B] transition-colors"><X className="h-4 w-4" /></button>
                     </div>
 
                     {/* Description */}
@@ -1725,17 +1780,17 @@ function ChatClientContent({
             </div>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center bg-muted/10 p-6">
+          <div className="flex flex-1 items-center justify-center bg-[#F7FAFF] p-6">
             <div className="text-center">
-              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-primary/5">
-                <MessageSquare className="h-12 w-12 text-primary/30" />
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[#DBEAFE]">
+                <MessageSquare className="h-12 w-12 text-[#2563EB]/30" />
               </div>
-              <p className="text-xl font-bold text-foreground">Team Chat</p>
-              <p className="text-sm text-muted-foreground mt-2 max-w-sm">Select a channel or start a direct message to begin chatting with your team.</p>
+              <p className="text-xl font-bold text-[#1E293B]">Team Chat</p>
+              <p className="text-sm text-[#64748B] mt-2 max-w-sm">Select a channel or start a direct message to begin chatting with your team.</p>
               <div className="mt-6">
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white transition-colors"
                 >
                   <LayoutDashboard className="h-4 w-4" />
                   Back to Dashboard
@@ -1750,8 +1805,8 @@ function ChatClientContent({
 
       {/* Create channel */}
       {showNewChannel && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md glass p-5 sm:p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md bg-white border-[1.5px] border-[#E0ECFF] p-5 sm:p-6 shadow-none">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold">Create Channel</h3>
               <button onClick={() => { setShowNewChannel(false); setCreateError(null); }} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -1783,8 +1838,8 @@ function ChatClientContent({
               </div>
             </div>
             <div className="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-              <button onClick={() => { setShowNewChannel(false); setCreateError(null); }} className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted">Cancel</button>
-              <button onClick={handleCreateChannel} disabled={creatingChannel || !newChannelName.trim()} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={() => { setShowNewChannel(false); setCreateError(null); }} className="rounded-lg border-[1.5px] border-[#E0ECFF] px-4 py-2.5 text-sm font-medium text-[#64748B] hover:bg-[#F7FAFF]">Cancel</button>
+              <button onClick={handleCreateChannel} disabled={creatingChannel || !newChannelName.trim()} className="rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-none">
                 {creatingChannel && <Loader2 className="h-4 w-4 animate-spin" />}{creatingChannel ? "Creating..." : "Create Channel"}
               </button>
             </div>
@@ -1794,8 +1849,8 @@ function ChatClientContent({
 
       {/* New DM modal */}
       {showNewDM && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md glass p-5 sm:p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md bg-white border-[1.5px] border-[#E0ECFF] p-5 sm:p-6 shadow-none">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold">New Message</h3>
               <button onClick={() => setShowNewDM(false)} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -1840,8 +1895,8 @@ function ChatClientContent({
 
       {/* Channel settings (admin) */}
       {showChannelSettings && activeChannel && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md glass p-5 sm:p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md bg-white border-[1.5px] border-[#E0ECFF] p-5 sm:p-6 shadow-none">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-semibold">Channel Settings</h3>
               <button onClick={() => setShowChannelSettings(false)} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -1890,13 +1945,13 @@ function ChatClientContent({
               </div>
             </div>
             <div className="mt-5 space-y-2">
-              <button onClick={handleSaveChannelSettings} disabled={savingChannel || !editChName.trim()} className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={handleSaveChannelSettings} disabled={savingChannel || !editChName.trim()} className="w-full rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-black text-white transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-none">
                 {savingChannel && <Loader2 className="h-4 w-4 animate-spin" />}{savingChannel ? "Saving..." : "Save Changes"}
               </button>
-              <button onClick={handleClearChat} className="w-full rounded-lg border border-destructive/30 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 flex items-center justify-center gap-2 transition-colors">
+              <button onClick={handleClearChat} className="w-full rounded-lg border border-red-100 px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 flex items-center justify-center gap-2 transition-all">
                 <Trash2 className="h-4 w-4" /> Clear All Messages
               </button>
-              <button onClick={handleDeleteChannel} className="w-full rounded-lg border border-destructive px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/15 flex items-center justify-center gap-2 transition-colors">
+              <button onClick={handleDeleteChannel} className="w-full rounded-lg border border-red-600 px-4 py-2.5 text-sm font-black text-red-600 hover:bg-red-50 flex items-center justify-center gap-2 transition-all">
                 <Trash2 className="h-4 w-4" /> Delete Channel
               </button>
             </div>
@@ -1906,30 +1961,30 @@ function ChatClientContent({
 
       {/* Pinned messages panel */}
       {showAllPinned && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md glass p-5 sm:p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl sm:max-w-md bg-white border-[1.5px] border-[#E0ECFF] p-5 sm:p-6 shadow-none">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold flex items-center gap-2"><Pin className="h-4 w-4 text-amber-500" /> Pinned Messages</h3>
-              <button onClick={() => setShowAllPinned(false)} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+              <h3 className="text-base font-bold flex items-center gap-2"><Pin className="h-5 w-5 text-amber-500" /> Pinned Messages</h3>
+              <button onClick={() => setShowAllPinned(false)} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-900"><X className="h-5 w-5" /></button>
             </div>
             {pinnedMessages.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No pinned messages</p>
+              <p className="text-sm text-gray-400 text-center py-10 font-medium">No pinned messages</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {pinnedMessages.map((pm) => (
-                  <div key={pm.id} className="rounded-xl bg-card border border-border p-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary overflow-hidden">
+                  <div key={pm.id} className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[10px] font-black text-indigo-600 overflow-hidden">
                         {pm.sender?.avatar_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={pm.sender.avatar_url} alt="" className="h-full w-full object-cover" />
                         ) : getInitials(pm.sender?.full_name ?? "?")}
                       </div>
-                      <span className="text-xs font-semibold">{pm.sender?.full_name}</span>
-                      <span suppressHydrationWarning className="text-[10px] text-muted-foreground ml-auto">{formatRelativeTime(pm.created_at)}</span>
+                      <span className="text-xs font-black text-gray-900">{pm.sender?.full_name}</span>
+                      <span suppressHydrationWarning className="text-[10px] text-gray-400 font-bold ml-auto">{formatRelativeTime(pm.created_at)}</span>
                     </div>
-                    <p className="text-sm text-foreground">{pm.content || "Attachment"}</p>
-                    <button onClick={() => { handlePin(pm); setShowAllPinned(false); }} className="mt-2 text-[11px] text-destructive font-medium hover:underline">Unpin</button>
+                    <p className="text-sm text-gray-700 font-medium leading-relaxed">{pm.content || "Attachment"}</p>
+                    <button onClick={() => { handlePin(pm); setShowAllPinned(false); }} className="mt-3 text-[11px] text-red-500 font-black uppercase tracking-wider hover:underline">Unpin Message</button>
                   </div>
                 ))}
               </div>
@@ -1937,6 +1992,7 @@ function ChatClientContent({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -1973,32 +2029,52 @@ function SidebarItem({
       role="button"
       tabIndex={0}
       className={cn(
-        "group relative mx-2 mb-0.5 flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-all hover:bg-muted/40 cursor-pointer",
-        isActive && "bg-primary/[0.08] text-primary shadow-sm",
+        "group relative mx-2 mb-0.5 flex items-center gap-3 rounded-[4px] px-3 py-2 text-left transition-all cursor-pointer",
+        isActive ? "bg-[#2563EB] text-white shadow-none" : "hover:bg-[#EFF6FF]",
       )}
     >
-      <div onClick={onClick} className="flex items-center gap-3.5 flex-1 min-w-0">
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+      <div onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0">
+        <div className={cn(
+          "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] overflow-hidden transition-transform group-hover:scale-105",
+          isActive ? "bg-white/20" : "bg-[#EFF6FF] text-[#2563EB]"
+        )}>
           {avatar}
           {presenceDot && (
-            <span className={cn("absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-card", presenceDot === "online" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-gray-400")} />
+            <span className={cn(
+              "absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2",
+              isActive ? "border-[#2563EB]" : "border-white",
+              presenceDot === "online" ? "bg-emerald-500 shadow-none" : "bg-gray-300"
+            )} />
           )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("text-[13.5px] font-bold text-foreground truncate transition-colors", isActive && "text-primary", unread > 0 && "font-extrabold")}>{name}</p>
-            <div className="flex flex-col items-end gap-0.5 shrink-0">
-              {time && (
-                <span suppressHydrationWarning className={cn("text-[10px] font-medium tracking-tight", unread > 0 ? "text-primary font-bold" : "text-muted-foreground/60")}>
-                  {time}
-                </span>
-              )}
-            </div>
+            <p className={cn(
+              "text-[13px] font-bold truncate transition-colors",
+              isActive ? "text-white" : "text-[#1E293B]",
+              unread > 0 && !isActive && "text-[#2563EB]"
+            )}>{name}</p>
+            {time && (
+              <span suppressHydrationWarning className={cn(
+                "text-[10px] font-bold uppercase tracking-tight",
+                isActive ? "text-white/60" : unread > 0 ? "text-[#2563EB]" : "text-[#94A3B8]"
+              )}>
+                {time}
+              </span>
+            )}
           </div>
           <div className="flex items-center justify-between gap-2 mt-0.5">
-            <p className={cn("text-[11.5px] text-muted-foreground truncate leading-tight", isSubtitleItalic && "italic opacity-50", unread > 0 && "text-foreground font-medium opacity-100")}>{subtitle}</p>
+            <p className={cn(
+              "text-[11px] truncate leading-tight font-medium",
+              isActive ? "text-white/70" : "text-[#64748B]",
+              isSubtitleItalic && "italic opacity-60",
+              unread > 0 && !isActive && "text-[#1E293B] font-bold"
+            )}>{subtitle}</p>
             {unread > 0 && (
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 shrink-0 shadow-lg shadow-primary/25">
+              <span className={cn(
+                "inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] text-[9px] font-black px-1 shrink-0",
+                isActive ? "bg-white text-[#2563EB]" : "bg-[#2563EB] text-white"
+              )}>
                 {unread > 99 ? "99+" : unread}
               </span>
             )}
@@ -2008,7 +2084,10 @@ function SidebarItem({
       {showDelete && onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-          className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all ml-1"
+          className={cn(
+            "shrink-0 rounded-[4px] p-1.5 transition-all opacity-0 group-hover:opacity-100 ml-1",
+            isActive ? "text-white/60 hover:bg-white/20 hover:text-white" : "text-[#94A3B8] hover:bg-red-50 hover:text-red-500"
+          )}
           title="Delete"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -2017,3 +2096,4 @@ function SidebarItem({
     </div>
   );
 }
+

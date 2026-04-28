@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendanceSettings } from "@/lib/types";
@@ -36,14 +37,14 @@ function toMinutes(time24: string) {
   return h * 60 + m;
 }
 
-export async function getAttendanceSettings(): Promise<
+export const getAttendanceSettings = cache(async (): Promise<
   AttendanceSettings & {
     shift_start_12h: string;
     late_after_12h: string;
     shift_end_12h: string;
     checkout_latest_12h: string;
   }
-> {
+> => {
   await requireAuth();
   const supabase = await createClient();
 
@@ -81,7 +82,7 @@ export async function getAttendanceSettings(): Promise<
     shift_end_12h: format12Hour(settings.shift_end_time),
     checkout_latest_12h: format12Hour(settings.checkout_latest_time),
   };
-}
+});
 
 export async function updateAttendanceSettings(input: {
   // Prefer 24h picker values (HH:MM). 12h fields are kept for backward compatibility.

@@ -6,82 +6,48 @@ import { requireAuth } from "@/lib/auth";
 export async function getDashboardStats(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0];
 
-  let totalSalesQuery = supabase.from("sales").select("id", { count: "exact", head: true });
-  let rejectedSalesQuery = supabase.from("sales").select("id", { count: "exact", head: true }).eq("status", "rejected");
-  let revenueQuery = supabase.from("sales").select("charged_amount").neq("status", "rejected");
-  let customersQuery = supabase.from("customers").select("id", { count: "exact", head: true });
-  let totalChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true });
-  let openChargebacksQuery = supabase.from("chargebacks").select("id", { count: "exact", head: true }).eq("status", "open");
-  let callLogsQuery = supabase.from("customers").select("id", { count: "exact", head: true }).eq("source", "call_log");
-  let processingAccountsQuery = supabase.from("processing_accounts").select("id", { count: "exact", head: true });
-  let pendingLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true }).eq("status", "pending");
-  const todayLeavesQuery = supabase.from("leaves").select("id", { count: "exact", head: true })
-    .eq("status", "approved").lte("start_date", today).gte("end_date", today);
+  const { data, error } = await supabase.rpc("get_dashboard_analytics", {
+    month_filter: month || null,
+  });
 
-  if (month) {
-    const monthStart = `${month}-01`;
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
-
-    totalSalesQuery = totalSalesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    rejectedSalesQuery = rejectedSalesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    revenueQuery = revenueQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    customersQuery = customersQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    totalChargebacksQuery = totalChargebacksQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    openChargebacksQuery = openChargebacksQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    callLogsQuery = callLogsQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    processingAccountsQuery = processingAccountsQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-    // Leaves might not need month filtering for dashboard overview, but for reports we can filter them
-    pendingLeavesQuery = pendingLeavesQuery.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
+  if (error || !data || data.length === 0) {
+    return {
+      totalSales: 0,
+      totalRevenue: 0,
+      totalCustomers: 0,
+      pendingSales: 0,
+      approvedSales: 0,
+      rejectedSales: 0,
+      totalChargebacks: 0,
+      openChargebacks: 0,
+      totalCallLogs: 0,
+      totalProcessingAccounts: 0,
+      pendingLeaves: 0,
+      todayOnLeave: 0,
+      conversionRate: "0",
+    };
   }
 
-  const [
-    totalSalesRes,
-    rejectedSalesRes,
-    revenueRes,
-    customersRes,
-    totalChargebacksRes,
-    openChargebacksRes,
-    callLogsRes,
-    processingAccountsRes,
-    pendingLeavesRes,
-    todayLeavesRes,
-  ] = await Promise.all([
-    totalSalesQuery,
-    rejectedSalesQuery,
-    revenueQuery,
-    customersQuery,
-    totalChargebacksQuery,
-    openChargebacksQuery,
-    callLogsQuery,
-    processingAccountsQuery,
-    pendingLeavesQuery,
-    todayLeavesQuery,
-  ]);
-
-  const totalSales = totalSalesRes.count || 0;
-  const rejectedSales = rejectedSalesRes.count || 0;
-  const recordedSales = totalSales - rejectedSales;
-  const totalRevenue = (revenueRes.data || []).reduce((sum, s) => sum + Number(s.charged_amount), 0);
+  const stats = data[0];
+  const totalSales = Number(stats.total_sales);
+  const approvedSales = Number(stats.total_sales) - Number(stats.rejected_sales);
 
   return {
     totalSales,
-    totalRevenue,
-    totalCustomers: customersRes.count || 0,
+    totalRevenue: Number(stats.total_revenue),
+    totalCustomers: Number(stats.total_customers),
     pendingSales: 0,
-    approvedSales: recordedSales,
-    rejectedSales,
-    totalChargebacks: totalChargebacksRes.count || 0,
-    openChargebacks: openChargebacksRes.count || 0,
-    totalCallLogs: callLogsRes.count || 0,
-    totalProcessingAccounts: processingAccountsRes.count || 0,
-    pendingLeaves: pendingLeavesRes.count || 0,
-    todayOnLeave: todayLeavesRes.count || 0,
+    approvedSales,
+    rejectedSales: Number(stats.rejected_sales),
+    totalChargebacks: Number(stats.total_chargebacks),
+    openChargebacks: Number(stats.open_chargebacks),
+    totalCallLogs: Number(stats.total_call_logs),
+    totalProcessingAccounts: Number(stats.total_processing_accounts),
+    pendingLeaves: Number(stats.pending_leaves),
+    todayOnLeave: Number(stats.today_on_leave),
     conversionRate:
-      totalSales > 0 ? ((recordedSales / totalSales) * 100).toFixed(1) : "0",
+      totalSales > 0 ? ((approvedSales / totalSales) * 100).toFixed(1) : "0",
   };
 }
 
@@ -166,34 +132,15 @@ export async function getSalesPerProcessor(month?: string) {
 export async function getRevenueOverTime(period: "day" | "week" | "month" = "day") {
   await requireAuth();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("sales")
-    .select("charged_amount, created_at, status")
-    .neq("status", "rejected")
-    .order("created_at", { ascending: true });
-
-  const revenueMap = new Map<string, number>();
-
-  (data || []).forEach((sale) => {
-    const date = new Date(sale.created_at);
-    let key: string;
-
-    if (period === "day") {
-      key = date.toISOString().split("T")[0];
-    } else if (period === "week") {
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      key = weekStart.toISOString().split("T")[0];
-    } else {
-      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    }
-
-    revenueMap.set(key, (revenueMap.get(key) || 0) + Number(sale.charged_amount));
+  const { data, error } = await supabase.rpc("get_revenue_over_time", {
+    period_type: period,
   });
 
-  return Array.from(revenueMap.entries()).map(([date, revenue]) => ({
-    date,
-    revenue,
+  if (error || !data) return [];
+
+  return (data as Array<{ date: string; revenue: number }>).map((row) => ({
+    date: row.date,
+    revenue: Number(row.revenue),
   }));
 }
 
@@ -422,25 +369,25 @@ export async function getEmployeeMonthlyStats(month?: string) {
   const attendance = attendanceRes.data || [];
 
   return users.map((u) => {
-      const userSales = sales.filter((s) => s.agent_id === u.id);
-      const userAttendance = attendance.filter((a) => a.user_id === u.id);
-      const totalHours = userAttendance.reduce((sum, a) => {
-        if (!a.check_out) return sum;
-        return sum + (new Date(a.check_out).getTime() - new Date(a.check_in).getTime()) / 3600000;
-      }, 0);
+    const userSales = sales.filter((s) => s.agent_id === u.id);
+    const userAttendance = attendance.filter((a) => a.user_id === u.id);
+    const totalHours = userAttendance.reduce((sum, a) => {
+      if (!a.check_out) return sum;
+      return sum + (new Date(a.check_out).getTime() - new Date(a.check_in).getTime()) / 3600000;
+    }, 0);
 
-      return {
-        id: u.id,
-        name: u.full_name,
-        role: u.role,
-        totalSales: userSales.length,
-        approvedSales: userSales.filter((s) => s.status !== "rejected").length,
-        rejectedSales: userSales.filter((s) => s.status === "rejected").length,
-        revenue: userSales
-          .filter((s) => s.status !== "rejected")
-          .reduce((sum, s) => sum + Number(s.charged_amount), 0),
-        daysPresent: userAttendance.length,
-        totalHours: Math.round(totalHours * 10) / 10,
-      };
-    });
+    return {
+      id: u.id,
+      name: u.full_name,
+      role: u.role,
+      totalSales: userSales.length,
+      approvedSales: userSales.filter((s) => s.status !== "rejected").length,
+      rejectedSales: userSales.filter((s) => s.status === "rejected").length,
+      revenue: userSales
+        .filter((s) => s.status !== "rejected")
+        .reduce((sum, s) => sum + Number(s.charged_amount), 0),
+      daysPresent: userAttendance.length,
+      totalHours: Math.round(totalHours * 10) / 10,
+    };
+  });
 }

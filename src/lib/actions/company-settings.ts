@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 
 export type CompanySettings = {
   company_name: string;
@@ -39,7 +40,7 @@ export type ThemeColors = Pick<
   | "chat_bot_bubble_text_color"
 >;
 
-export async function getCompanySettings(): Promise<CompanySettings> {
+export const getCompanySettings = cache(async (): Promise<CompanySettings> => {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -67,7 +68,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
     chat_bot_bubble_color: data.chat_bot_bubble_color ?? null,
     chat_bot_bubble_text_color: data.chat_bot_bubble_text_color ?? null,
   };
-}
+});
 
 type BrandingInput = Pick<CompanySettings, "company_name" | "address_line" | "contact_email" | "logo_url">;
 

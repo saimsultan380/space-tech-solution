@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins, Quicksand, Orbitron, IBM_Plex_Mono, Space_Mono } from "next/font/google";
+import { Poppins, Quicksand, Orbitron, IBM_Plex_Mono, Space_Mono, DM_Sans } from "next/font/google";
 import "./globals.css";
 import "./landing.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -40,6 +40,13 @@ const spaceMono = Space_Mono({
   display: "swap",
 });
 
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Space Tech Solution",
   description: "Space Tech Solution - ERP System",
@@ -52,7 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${poppins.variable} ${quicksand.variable} ${orbitron.variable} ${ibmPlexMono.variable} ${spaceMono.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${poppins.variable} ${quicksand.variable} ${orbitron.variable} ${ibmPlexMono.variable} ${spaceMono.variable} ${dmSans.variable} antialiased`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
