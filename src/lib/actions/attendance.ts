@@ -73,7 +73,7 @@ export async function getAttendance(filters?: {
 
   let query = supabase
     .from("attendance")
-    .select("*, user:users(id, full_name, role)", { count: "exact" })
+    .select("id, user_id, date, check_in, check_out, status, total_hours, location_metadata, created_at, user:users(id, full_name, role)", { count: "exact" })
     .order("date", { ascending: false });
 
   if (filters?.date) {
@@ -95,7 +95,10 @@ export async function getAttendance(filters?: {
   if (error) throw new Error(error.message);
   
   return {
-    data: data || [],
+    data: (data || []).map((item: any) => ({
+      ...item,
+      user: Array.isArray(item.user) ? item.user[0] : item.user,
+    })),
     count: count || 0,
     page,
     pageSize,
@@ -232,7 +235,7 @@ export const getTodayAttendance = cache(async () => {
 
   const { data } = await supabase
     .from("attendance")
-    .select("*")
+    .select("id, user_id, date, check_in, check_out, status, total_hours, location_metadata, created_at")
     .eq("user_id", user.id)
     .eq("date", today)
     .maybeSingle();

@@ -61,7 +61,7 @@ export async function getMyChannels(): Promise<ChatChannel[]> {
 
   const { data: channels } = await supabase
     .from("chat_channels")
-    .select("*")
+    .select("id, name, description, is_direct, created_by, created_at, avatar_url")
     .in("id", channelIds)
     .order("created_at", { ascending: true });
 
@@ -101,7 +101,7 @@ export async function getMyChannels(): Promise<ChatChannel[]> {
       last_message: lastMsg
         ? {
             content: lastMsg.content,
-            sender_name: (lastMsg.sender as unknown as { full_name: string })?.full_name ?? "",
+            sender_name: (Array.isArray(lastMsg.sender) ? lastMsg.sender[0] : (lastMsg.sender as any))?.full_name ?? "",
             created_at: lastMsg.created_at,
           }
         : null,
@@ -127,7 +127,7 @@ export async function getChannelMessages(
 
   const { data } = await supabase
     .from("chat_messages")
-    .select("*, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
+    .select("id, channel_id, sender_id, content, created_at, is_edited, is_deleted, is_pinned, updated_at, attachment_url, attachment_name, attachment_type, attachment_size, reply_to_id, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
     .eq("channel_id", channelId)
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -149,8 +149,9 @@ export async function getChannelMessages(
     }
   }
 
-  return data.map((m) => ({
+  return data.map((m: any) => ({
     ...m,
+    sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
     is_pinned: m.is_pinned ?? false,
     reply_to: m.reply_to_id ? replyMap[m.reply_to_id] ?? null : null,
   })) as ChatMessage[];
@@ -428,7 +429,7 @@ export async function searchMessages(query: string): Promise<{ messages: ChatMes
 
   const { data: msgs } = await supabase
     .from("chat_messages")
-    .select("*, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
+    .select("id, channel_id, sender_id, content, created_at, is_edited, is_deleted, is_pinned, updated_at, attachment_url, attachment_name, attachment_type, attachment_size, reply_to_id, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
     .in("channel_id", channelIds)
     .eq("is_deleted", false)
     .ilike("content", `%${query}%`)
@@ -437,12 +438,16 @@ export async function searchMessages(query: string): Promise<{ messages: ChatMes
 
   const { data: chs } = await supabase
     .from("chat_channels")
-    .select("*")
+    .select("id, name, description, is_direct, created_by, created_at, avatar_url")
     .in("id", channelIds)
     .ilike("name", `%${query}%`);
 
   return {
-    messages: (msgs ?? []).map((m) => ({ ...m, is_pinned: m.is_pinned ?? false })) as ChatMessage[],
+    messages: (msgs ?? []).map((m: any) => ({
+      ...m,
+      sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
+      is_pinned: m.is_pinned ?? false,
+    })) as ChatMessage[],
     channels: (chs ?? []) as ChatChannel[],
   };
 }

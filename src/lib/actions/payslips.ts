@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { formatCnic } from "@/lib/utils";
+import type { Payslip } from "@/lib/types";
 
 interface CreatePayslipInput {
   user_id: string;
@@ -102,11 +103,15 @@ export async function getPayslips(filters?: {
 
   if (error) throw new Error(error.message);
 
-  const payslips = (data || []).map((payslip) => {
-    const userEmployeeId = payslip.user?.employee_id?.trim() || "";
+  const payslips: Payslip[] = (data || []).map((payslip: any) => {
+    const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
+    const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
+    const userEmployeeId = user?.employee_id?.trim() || "";
     const storedEmployeeId = payslip.employee_id_display?.trim() || "";
     return {
       ...payslip,
+      user,
+      generator,
       employee_id_display: storedEmployeeId || userEmployeeId || null,
     };
   });
@@ -139,11 +144,15 @@ export async function getMyPayslips(filters?: {
 
   if (error) throw new Error(error.message);
 
-  const payslips = (data || []).map((payslip) => {
-    const userEmployeeId = payslip.user?.employee_id?.trim() || "";
+  const payslips: Payslip[] = (data || []).map((payslip: any) => {
+    const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
+    const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
+    const userEmployeeId = user?.employee_id?.trim() || "";
     const storedEmployeeId = payslip.employee_id_display?.trim() || "";
     return {
       ...payslip,
+      user,
+      generator,
       employee_id_display: storedEmployeeId || userEmployeeId || null,
     };
   });
@@ -174,14 +183,18 @@ export async function getRecentPayslips(limit = 5) {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  return (data || []).map((payslip) => {
-    const userEmployeeId = payslip.user?.employee_id?.trim() || "";
+  return (data || []).map((payslip: any) => {
+    const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
+    const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
+    const userEmployeeId = user?.employee_id?.trim() || "";
     const storedEmployeeId = payslip.employee_id_display?.trim() || "";
     return {
       ...payslip,
+      user,
+      generator,
       employee_id_display: storedEmployeeId || userEmployeeId || null,
     };
-  });
+  }) as Payslip[];
 }
 
 async function computePayslipAttendanceSummary(
@@ -498,7 +511,7 @@ export async function clonePayslipToNextMonth(payslipId: string, status: "proces
 
   const { data: source, error: sourceError } = await supabase
     .from("payslips")
-    .select("*")
+    .select("id, user_id, period_start, period_end, pay_date, basic_salary, allowances, deductions, bonus, currency")
     .eq("id", payslipId)
     .single();
 

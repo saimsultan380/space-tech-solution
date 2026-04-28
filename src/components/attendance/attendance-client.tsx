@@ -109,7 +109,7 @@ export function AttendanceClient({
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthParam = searchParams.get("month") ?? currentMonth;
-  const roleFilter = (searchParams.get("role") as any) || "all";
+  const roleFilter = (searchParams.get("role") as UserRole | "all") || "all";
   const selectedEmployeeId = searchParams.get("user_id") || "all";
 
   const handleMonthChange = (value: string) => {

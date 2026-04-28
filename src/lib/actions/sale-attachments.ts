@@ -11,7 +11,7 @@ export async function getSaleAttachments(saleId: string): Promise<SaleAttachment
 
   const { data, error } = await supabase
     .from("sale_attachments")
-    .select("*")
+    .select("id, sale_id, file_name, file_path, file_url, mime_type, size_bytes, uploaded_by, created_at")
     .eq("sale_id", saleId)
     .order("created_at", { ascending: false });
 
@@ -41,7 +41,7 @@ export async function createSaleAttachment(input: {
       size_bytes: input.size_bytes,
       uploaded_by: user.id,
     })
-    .select("*")
+    .select("id, sale_id, file_name, file_path, file_url, mime_type, size_bytes, uploaded_by, created_at")
     .single();
 
   if (error) throw new Error(error.message);

@@ -52,7 +52,7 @@ async function getAttendanceSettingsAdmin(): Promise<AttendanceSettings> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("attendance_settings")
-    .select("*")
+    .select("shift_start_time, late_after_time, shift_end_time, checkout_latest_time, checkout_grace_minutes, allow_early_checkout, early_checkout_minutes, notify_after_minutes, auto_leave_after_minutes, auto_leave_enabled, auto_leave_type")
     .eq("id", 1)
     .single();
 
@@ -65,6 +65,9 @@ async function getAttendanceSettingsAdmin(): Promise<AttendanceSettings> {
     late_after_time: "09:15:00",
     shift_end_time: "18:00:00",
     checkout_latest_time: "23:00:00",
+    checkout_grace_minutes: 0,
+    allow_early_checkout: false,
+    early_checkout_minutes: 0,
     notify_after_minutes: 60,
     auto_leave_after_minutes: 240,
     auto_leave_enabled: true,

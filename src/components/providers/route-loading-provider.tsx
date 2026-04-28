@@ -29,7 +29,7 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const showLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearPendingTimeouts = useCallback(() => {
+  const clearPendingTimeout = useCallback(() => {
     if (showLoaderTimeoutRef.current) {
       clearTimeout(showLoaderTimeoutRef.current);
       showLoaderTimeoutRef.current = null;
@@ -41,12 +41,12 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const stopLoading = useCallback(() => {
-    clearPendingTimeouts();
+    clearPendingTimeout();
     setIsLoading(false);
-  }, [clearPendingTimeouts]);
+  }, [clearPendingTimeout]);
 
   const startLoading = useCallback(() => {
-    clearPendingTimeouts();
+    clearPendingTimeout();
     
     // Only show the loader if the request takes longer than 150ms
     showLoaderTimeoutRef.current = setTimeout(() => {
@@ -57,7 +57,7 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
     safetyTimeoutRef.current = setTimeout(() => {
       stopLoading();
     }, 10000);
-  }, [clearPendingTimeouts, stopLoading]);
+  }, [clearPendingTimeout, stopLoading]);
 
   useEffect(() => {
     setLocationKey(`${pathname}${window.location.search}`);
@@ -140,8 +140,8 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   }, [startLoading]);
 
   useEffect(() => {
-    return () => clearPendingTimeouts();
-  }, [clearPendingTimeouts]);
+    return () => clearPendingTimeout();
+  }, [clearPendingTimeout]);
 
   const value = useMemo(
     () => ({

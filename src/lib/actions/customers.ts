@@ -79,8 +79,9 @@ export async function getCustomers(filters?: {
   const query = applySharedFilters(
     supabase
       .from("customers")
-      .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+      .select("id, name, email, phone, account_no, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
       .eq("source", "call_log")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }),
   );
 
@@ -98,7 +99,8 @@ export async function getCustomers(filters?: {
     let fallbackQuery = applySharedFilters(
       supabase
         .from("customers")
-        .select("*, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+        .select("id, name, email, phone, account_no, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+        .is("deleted_at", null)
         .order("created_at", { ascending: false }),
     );
     if (salesCustomerIds.length > 0) {
@@ -156,7 +158,7 @@ export async function getCustomer(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("customers")
-    .select("*")
+    .select("id, name, phone, email, address, dob, ssn_encrypted, account_no, created_by, created_at, source, cnic")
     .eq("id", id)
     .single();
 
@@ -300,7 +302,7 @@ export async function deleteCustomer(id: string) {
     }
   }
 
-  const { error } = await supabase.from("customers").delete().eq("id", id);
+  const { error } = await supabase.from("customers").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidateCallLogsResponsesPaths();
 }
@@ -312,6 +314,7 @@ export async function searchCustomers(query: string) {
   const { data, error } = await supabase
     .from("customers")
     .select("id, name, email, phone")
+    .is("deleted_at", null)
     .or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`)
     .limit(20);
 

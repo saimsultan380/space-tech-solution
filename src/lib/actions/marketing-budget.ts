@@ -594,7 +594,7 @@ export async function getMarketingEntries(filters?: {
   await requireRole(["super_admin", "processor"]);
   const supabase = await createClient();
 
-  let query = supabase.from("marketing_entries").select("*").order("entry_date", { ascending: false }).order("created_at", { ascending: false });
+  let query = supabase.from("marketing_entries").select("id, entry_date, campaign, budget_assigned, calls_landed, dropped_calls, sales_acquired, created_by, created_at, updated_at").order("entry_date", { ascending: false }).order("created_at", { ascending: false });
 
   query = applyMarketingEntryFilters(query, filters);
 
@@ -626,7 +626,7 @@ export async function getMarketingEntriesPage(filters?: {
 
   let countQuery = supabase
     .from("marketing_entries")
-    .select("*", { count: "exact", head: true });
+    .select("id", { count: "exact", head: true });
 
   countQuery = applyMarketingEntryFilters(countQuery, filters);
 
@@ -640,7 +640,7 @@ export async function getMarketingEntriesPage(filters?: {
 
   let dataQuery = supabase
     .from("marketing_entries")
-    .select("*")
+    .select("id, entry_date, campaign, budget_assigned, calls_landed, dropped_calls, sales_acquired, created_by, created_at, updated_at")
     .order("entry_date", { ascending: false })
     .order("created_at", { ascending: false });
 

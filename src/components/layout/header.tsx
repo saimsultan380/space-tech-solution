@@ -50,6 +50,32 @@ function ProfileField({ label, value, badge }: { label: string; value: string | 
   );
 }
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  role: string;
+  email: string;
+  department?: string | null;
+  job_position?: string | null;
+  company_name?: string | null;
+  category?: string | null;
+  employment_type?: string | null;
+  joining_date?: string | null;
+  father_name?: string | null;
+  cnic?: string | null;
+  address?: string | null;
+  education_degree?: string | null;
+  pay_days?: number | null;
+  pay_rate?: number | null;
+  gross_pay?: number | null;
+  basic_salary?: number | null;
+  paid_through?: string | null;
+  bank_account_no?: string | null;
+  bank_branch?: string | null;
+  employee_id?: string | null;
+}
+
 const NOTIFICATION_STYLES = {
   sale: { icon: ShoppingCart, color: "text-emerald-500", bg: "bg-emerald-500/10" },
   chargeback: { icon: AlertTriangle, color: "text-rose-500", bg: "bg-rose-500/10" },
@@ -93,7 +119,7 @@ export function Header({
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const notificationsTriggerRef = useRef<HTMLButtonElement | null>(null);

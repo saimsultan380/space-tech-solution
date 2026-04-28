@@ -110,7 +110,7 @@ export async function getProcessingAccountStats(filters?: {
   };
 }
 
-const FULL_SELECT = "*, creator:users!processing_accounts_created_by_fkey(id, full_name)";
+const FULL_SELECT = "id, account_type, account_holder_name, routing_number_encrypted, account_number_encrypted, card_number_encrypted, expiration_date, cvv_encrypted, billing_address, status, notes, created_by, created_at, updated_at, creator:users!processing_accounts_created_by_fkey(id, full_name)";
 
 export async function getProcessingAccounts(filters?: {
   page?: number;
@@ -218,7 +218,7 @@ export async function getProcessingAccount(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("processing_accounts")
-    .select("*, creator:users!processing_accounts_created_by_fkey(id, full_name)")
+    .select("id, account_type, account_holder_name, routing_number_encrypted, account_number_encrypted, card_number_encrypted, expiration_date, cvv_encrypted, billing_address, status, notes, created_by, created_at, updated_at, creator:users!processing_accounts_created_by_fkey(id, full_name)")
     .eq("id", id)
     .single();
 

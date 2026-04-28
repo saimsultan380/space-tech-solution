@@ -21,7 +21,7 @@ export async function getUsers(filters?: {
 
   let query = supabase
     .from("users")
-    .select("*", { count: "exact" })
+    .select("id, email, full_name, role, is_active, created_at, avatar_url, preferred_currency, allowed_modules, joining_date, category, department, job_position, father_name, cnic, address, pay_days, pay_rate, gross_pay, basic_salary, paid_through, bank_account_no, bank_branch, bank_name, employee_id", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (filters?.search) {

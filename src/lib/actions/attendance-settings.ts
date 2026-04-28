@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { cache } from "react";
+import { revalidatePath, unstable_cache, revalidateTag } from "next/cache";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { AttendanceSettings } from "@/lib/types";
 
 function format12Hour(time24: string) {
@@ -37,52 +37,55 @@ function toMinutes(time24: string) {
   return h * 60 + m;
 }
 
-export const getAttendanceSettings = cache(async (): Promise<
-  AttendanceSettings & {
-    shift_start_12h: string;
-    late_after_12h: string;
-    shift_end_12h: string;
-    checkout_latest_12h: string;
-  }
-> => {
-  await requireAuth();
-  const supabase = await createClient();
+export const getAttendanceSettings = unstable_cache(
+  async (): Promise<
+    AttendanceSettings & {
+      shift_start_12h: string;
+      late_after_12h: string;
+      shift_end_12h: string;
+      checkout_latest_12h: string;
+    }
+  > => {
+    const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("attendance_settings")
-    .select("*")
-    .eq("id", 1)
-    .single();
+    const { data, error } = await supabase
+      .from("attendance_settings")
+      .select("id, shift_start_time, late_after_time, shift_end_time, checkout_latest_time, checkout_grace_minutes, allow_early_checkout, early_checkout_minutes, notify_after_minutes, auto_leave_after_minutes, auto_leave_enabled, auto_leave_type, created_at, updated_at")
+      .eq("id", 1)
+      .single();
 
-  if (error && error.code !== "PGRST116") {
-    throw new Error(error.message);
-  }
+    if (error && error.code !== "PGRST116") {
+      throw new Error(error.message);
+    }
 
-  const settings = data || {
-    id: 1,
-    shift_start_time: "09:00:00",
-    late_after_time: "09:15:00",
-    shift_end_time: "18:00:00",
-    checkout_latest_time: "23:00:00",
-    checkout_grace_minutes: 0,
-    allow_early_checkout: false,
-    early_checkout_minutes: 0,
-    notify_after_minutes: 60,
-    auto_leave_after_minutes: 240,
-    auto_leave_enabled: true,
-    auto_leave_type: "casual",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+    const settings = data || {
+      id: 1,
+      shift_start_time: "09:00:00",
+      late_after_time: "09:15:00",
+      shift_end_time: "18:00:00",
+      checkout_latest_time: "23:00:00",
+      checkout_grace_minutes: 0,
+      allow_early_checkout: false,
+      early_checkout_minutes: 0,
+      notify_after_minutes: 60,
+      auto_leave_after_minutes: 240,
+      auto_leave_enabled: true,
+      auto_leave_type: "casual",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-  return {
-    ...settings,
-    shift_start_12h: format12Hour(settings.shift_start_time),
-    late_after_12h: format12Hour(settings.late_after_time),
-    shift_end_12h: format12Hour(settings.shift_end_time),
-    checkout_latest_12h: format12Hour(settings.checkout_latest_time),
-  };
-});
+    return {
+      ...settings,
+      shift_start_12h: format12Hour(settings.shift_start_time),
+      late_after_12h: format12Hour(settings.late_after_time),
+      shift_end_12h: format12Hour(settings.shift_end_time),
+      checkout_latest_12h: format12Hour(settings.checkout_latest_time),
+    };
+  },
+  ["attendance-settings"],
+  { revalidate: 3600, tags: ["settings", "attendance-settings"] }
+);
 
 export async function updateAttendanceSettings(input: {
   // Prefer 24h picker values (HH:MM). 12h fields are kept for backward compatibility.
@@ -194,6 +197,7 @@ export async function updateAttendanceSettings(input: {
 
   if (error) throw new Error(error.message);
 
+  (revalidateTag as any)("attendance-settings");
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/attendance");
   revalidatePath("/dashboard");

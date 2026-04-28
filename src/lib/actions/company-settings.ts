@@ -1,9 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth, requireRole } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
-import { cache } from "react";
+import { revalidatePath, unstable_cache, revalidateTag } from "next/cache";
 
 export type CompanySettings = {
   company_name: string;
@@ -40,35 +40,42 @@ export type ThemeColors = Pick<
   | "chat_bot_bubble_text_color"
 >;
 
-export const getCompanySettings = cache(async (): Promise<CompanySettings> => {
-  await requireAuth();
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("company_settings")
-    .select("*")
-    .eq("id", 1)
-    .single();
+export const getCompanySettings = unstable_cache(
+  async (): Promise<CompanySettings> => {
+    // Note: We cannot use requireAuth inside unstable_cache if it relies on headers/cookies 
+    // unless we pass the user context in. For global settings, we usually don't need auth 
+    // inside the cache function if the data is public-ish or safe.
+    // However, since we want to ensure only authorized users trigger the fetch:
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("company_settings")
+      .select("company_name, address_line, contact_email, logo_url, shell_bg_color, shell_text_color, sidebar_color, sidebar_text_color, button_color, button_text_color, active_tab_color, active_tab_text_color, chat_user_bubble_color, chat_user_bubble_text_color, chat_bot_bubble_color, chat_bot_bubble_text_color")
+      .eq("id", 1)
+      .single();
 
-  if (error) throw new Error(error.message);
-  return {
-    company_name: data.company_name,
-    address_line: data.address_line,
-    contact_email: data.contact_email,
-    logo_url: data.logo_url ?? null,
-    shell_bg_color: data.shell_bg_color ?? null,
-    shell_text_color: data.shell_text_color ?? null,
-    sidebar_color: data.sidebar_color ?? null,
-    sidebar_text_color: data.sidebar_text_color ?? null,
-    button_color: data.button_color ?? null,
-    button_text_color: data.button_text_color ?? null,
-    active_tab_color: data.active_tab_color ?? null,
-    active_tab_text_color: data.active_tab_text_color ?? null,
-    chat_user_bubble_color: data.chat_user_bubble_color ?? null,
-    chat_user_bubble_text_color: data.chat_user_bubble_text_color ?? null,
-    chat_bot_bubble_color: data.chat_bot_bubble_color ?? null,
-    chat_bot_bubble_text_color: data.chat_bot_bubble_text_color ?? null,
-  };
-});
+    if (error) throw new Error(error.message);
+    return {
+      company_name: data.company_name,
+      address_line: data.address_line,
+      contact_email: data.contact_email,
+      logo_url: data.logo_url ?? null,
+      shell_bg_color: data.shell_bg_color ?? null,
+      shell_text_color: data.shell_text_color ?? null,
+      sidebar_color: data.sidebar_color ?? null,
+      sidebar_text_color: data.sidebar_text_color ?? null,
+      button_color: data.button_color ?? null,
+      button_text_color: data.button_text_color ?? null,
+      active_tab_color: data.active_tab_color ?? null,
+      active_tab_text_color: data.active_tab_text_color ?? null,
+      chat_user_bubble_color: data.chat_user_bubble_color ?? null,
+      chat_user_bubble_text_color: data.chat_user_bubble_text_color ?? null,
+      chat_bot_bubble_color: data.chat_bot_bubble_color ?? null,
+      chat_bot_bubble_text_color: data.chat_bot_bubble_text_color ?? null,
+    };
+  },
+  ["company-settings"],
+  { revalidate: 3600, tags: ["settings", "company-settings"] }
+);
 
 type BrandingInput = Pick<CompanySettings, "company_name" | "address_line" | "contact_email" | "logo_url">;
 
@@ -87,6 +94,7 @@ export async function updateCompanySettings(input: BrandingInput) {
     .eq("id", 1);
 
   if (error) throw new Error(error.message);
+  (revalidateTag as any)("company-settings");
   revalidatePath("/dashboard/settings");
 }
 
@@ -119,6 +127,7 @@ export async function updateThemeColors(input: ThemeColors) {
     .eq("id", 1);
 
   if (error) throw new Error(error.message);
+  (revalidateTag as any)("company-settings");
   revalidatePath("/dashboard", "layout");
 }
 

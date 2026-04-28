@@ -54,79 +54,41 @@ export async function getDashboardStats(month?: string) {
 export async function getSalesPerAgent(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  let query = supabase
-    .from("sales")
-    .select("agent_id, status, charged_amount, created_at, agent:users!sales_agent_id_fkey(full_name)");
-
-  if (month) {
-    const monthStart = `${month}-01`;
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
-    query = query.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-  }
-
-  const { data } = await query;
-
-  const agentMap = new Map<string, { name: string; total: number; approved: number; revenue: number }>();
-
-  (data || []).forEach((sale) => {
-    const agent = sale.agent as unknown as { full_name: string } | null;
-    const agentName = agent?.full_name || "Unknown";
-    const existing = agentMap.get(sale.agent_id) || {
-      name: agentName,
-      total: 0,
-      approved: 0,
-      revenue: 0,
-    };
-    existing.total += 1;
-    if (sale.status !== "rejected") {
-      existing.approved += 1;
-      existing.revenue += Number(sale.charged_amount);
-    }
-    agentMap.set(sale.agent_id, existing);
+  const { data, error } = await supabase.rpc("get_sales_per_agent_stats", {
+    target_month: month || null,
   });
 
-  return Array.from(agentMap.values());
+  if (error) {
+    console.error("Error fetching sales per agent:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    name: row.name,
+    total: Number(row.total),
+    approved: Number(row.approved),
+    revenue: Number(row.revenue),
+  }));
 }
 
 export async function getSalesPerProcessor(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  let query = supabase
-    .from("sales")
-    .select("processor_id, status, created_at, processor:users!sales_processor_id_fkey(full_name)")
-    .not("processor_id", "is", null);
-
-  if (month) {
-    const monthStart = `${month}-01`;
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
-    query = query.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-  }
-
-  const { data } = await query;
-
-  const procMap = new Map<string, { name: string; total: number; approved: number; rejected: number }>();
-
-  (data || []).forEach((sale) => {
-    const proc = sale.processor as unknown as { full_name: string } | null;
-    const procName = proc?.full_name || "Unknown";
-    const pid = sale.processor_id!;
-    const existing = procMap.get(pid) || {
-      name: procName,
-      total: 0,
-      approved: 0,
-      rejected: 0,
-    };
-    existing.total += 1;
-    if (sale.status !== "rejected") existing.approved += 1;
-    if (sale.status === "rejected") existing.rejected += 1;
-    procMap.set(pid, existing);
+  const { data, error } = await supabase.rpc("get_sales_per_processor_stats", {
+    target_month: month || null,
   });
 
-  return Array.from(procMap.values());
+  if (error) {
+    console.error("Error fetching sales per processor:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    name: row.name,
+    total: Number(row.total),
+    approved: Number(row.approved),
+    rejected: Number(row.rejected),
+  }));
 }
 
 export async function getRevenueOverTime(period: "day" | "week" | "month" = "day") {
@@ -147,32 +109,19 @@ export async function getRevenueOverTime(period: "day" | "week" | "month" = "day
 export async function getChargebacksPerEmployee(month?: string) {
   await requireAuth();
   const supabase = await createClient();
-  let query = supabase
-    .from("chargebacks")
-    .select("created_at, sale:sales(agent_id, agent:users!sales_agent_id_fkey(full_name))");
-
-  if (month) {
-    const monthStart = `${month}-01`;
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
-    query = query.gte("created_at", `${monthStart}T00:00:00.000Z`).lt("created_at", `${monthEnd}T00:00:00.000Z`);
-  }
-
-  const { data } = await query;
-
-  const empMap = new Map<string, { name: string; count: number }>();
-
-  (data || []).forEach((cb) => {
-    const sale = cb.sale as unknown as { agent_id: string; agent: { full_name: string } | null } | null;
-    if (!sale) return;
-    const agentName = sale.agent?.full_name || "Unknown";
-    const existing = empMap.get(sale.agent_id) || { name: agentName, count: 0 };
-    existing.count += 1;
-    empMap.set(sale.agent_id, existing);
+  const { data, error } = await supabase.rpc("get_chargebacks_per_employee_stats", {
+    target_month: month || null,
   });
 
-  return Array.from(empMap.values());
+  if (error) {
+    console.error("Error fetching chargebacks per employee:", error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    name: row.name,
+    count: Number(row.count),
+  }));
 }
 
 export async function getAttendanceVsPerformance(month?: string) {

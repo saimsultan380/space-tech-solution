@@ -77,8 +77,8 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
     });
   };
 
-  const statusFilter = (searchParams.get("status") as any) || "all";
-  const roleFilter = (searchParams.get("role") as any) || "all";
+  const statusFilter = (searchParams.get("status") as string) || "all";
+  const roleFilter = (searchParams.get("role") as string) || "all";
   const monthFilter = searchParams.get("month") || new Date().toISOString().slice(0, 7);
 
   const { monthStart, monthEnd } = getMonthStartEnd(monthFilter);
