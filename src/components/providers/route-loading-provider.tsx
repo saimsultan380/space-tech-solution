@@ -60,12 +60,19 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   }, [clearPendingTimeout, stopLoading]);
 
   useEffect(() => {
-    setLocationKey(`${pathname}${window.location.search}`);
+    // Defer update to avoid "useInsertionEffect must not schedule updates" in React 19
+    const timer = setTimeout(() => {
+      setLocationKey(`${pathname}${window.location.search}`);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   useEffect(() => {
     const updateLocationKey = () => {
-      setLocationKey(`${window.location.pathname}${window.location.search}`);
+      // Defer update to avoid "useInsertionEffect must not schedule updates" in React 19
+      setTimeout(() => {
+        setLocationKey(`${window.location.pathname}${window.location.search}`);
+      }, 0);
     };
 
     const patchHistoryMethod = (method: "pushState" | "replaceState") => {
