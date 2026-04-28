@@ -26,41 +26,38 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(false);
   const [locationKey, setLocationKey] = useState(pathname);
-  const startedAtRef = useRef<number | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const MIN_VISIBLE_MS = 200; // Much faster transition
-  const ROUTE_SETTLE_BUFFER_MS = 50;
+  const showLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearPendingTimeout = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const clearPendingTimeouts = useCallback(() => {
+    if (showLoaderTimeoutRef.current) {
+      clearTimeout(showLoaderTimeoutRef.current);
+      showLoaderTimeoutRef.current = null;
+    }
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+      safetyTimeoutRef.current = null;
     }
   }, []);
 
   const stopLoading = useCallback(() => {
-    clearPendingTimeout();
-    const startedAt = startedAtRef.current;
-    const elapsed = startedAt ? Date.now() - startedAt : 0;
-    const waitMs = Math.max(0, MIN_VISIBLE_MS - elapsed) + ROUTE_SETTLE_BUFFER_MS;
-
-    timeoutRef.current = setTimeout(() => {
-      setIsLoading(false);
-      startedAtRef.current = null;
-    }, waitMs);
-  }, [clearPendingTimeout]);
+    clearPendingTimeouts();
+    setIsLoading(false);
+  }, [clearPendingTimeouts]);
 
   const startLoading = useCallback(() => {
-    clearPendingTimeout();
-    startedAtRef.current = Date.now();
-    setIsLoading(true);
+    clearPendingTimeouts();
+    
+    // Only show the loader if the request takes longer than 150ms
+    showLoaderTimeoutRef.current = setTimeout(() => {
+      setIsLoading(true);
+    }, 150);
 
     // Safety timeout: avoid stuck loader in edge cases
-    timeoutRef.current = setTimeout(() => {
-      setIsLoading(false);
-      startedAtRef.current = null;
+    safetyTimeoutRef.current = setTimeout(() => {
+      stopLoading();
     }, 10000);
-  }, [clearPendingTimeout]);
+  }, [clearPendingTimeouts, stopLoading]);
 
   useEffect(() => {
     setLocationKey(`${pathname}${window.location.search}`);
@@ -143,8 +140,8 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   }, [startLoading]);
 
   useEffect(() => {
-    return () => clearPendingTimeout();
-  }, [clearPendingTimeout]);
+    return () => clearPendingTimeouts();
+  }, [clearPendingTimeouts]);
 
   const value = useMemo(
     () => ({

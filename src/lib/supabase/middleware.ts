@@ -38,26 +38,39 @@ export async function updateSession(request: NextRequest) {
 
   // If user is authenticated but disabled in app profile, force them back to login
   if (user && isDashboardPage) {
-    try {
-      const { data: profile, error } = await supabase
-        .from("users")
-        .select("is_active")
-        .eq("id", user.id)
-        .single();
+    const activeCookie = request.cookies.get("sb-active-cache")?.value;
+    
+    // If we have a cached 'active' status, we can skip the DB query
+    if (activeCookie !== "true") {
+      try {
+        const { data: profile, error } = await supabase
+          .from("users")
+          .select("is_active")
+          .eq("id", user.id)
+          .single();
 
-      if (!error && profile && profile.is_active === false) {
-        try {
-          await supabase.auth.signOut();
-        } catch {
-          // ignore
+        if (!error && profile) {
+          if (profile.is_active === false) {
+            try {
+              await supabase.auth.signOut();
+            } catch {
+              // ignore
+            }
+            const url = request.nextUrl.clone();
+            url.pathname = "/login";
+            url.searchParams.set("inactive", "1");
+            return NextResponse.redirect(url);
+          } else {
+            // Cache the active status for 5 minutes to speed up subsequent requests
+            supabaseResponse.cookies.set("sb-active-cache", "true", {
+              maxAge: 300, // 5 minutes
+              path: "/",
+            });
+          }
         }
-        const url = request.nextUrl.clone();
-        url.pathname = "/login";
-        url.searchParams.set("inactive", "1");
-        return NextResponse.redirect(url);
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
   }
 

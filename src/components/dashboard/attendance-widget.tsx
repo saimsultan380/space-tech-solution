@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useOptimistic, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/loading";
 import { checkIn, checkOut } from "@/lib/actions/attendance";
@@ -26,34 +26,51 @@ interface AttendanceWidgetProps {
 }
 
 export function AttendanceWidget({ todayAttendance, attendanceSettings }: AttendanceWidgetProps) {
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
-  const hasCheckedIn = !!todayAttendance;
-  const hasCheckedOut = !!todayAttendance?.check_out;
-
-  const handleCheckIn = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await checkIn();
-      if (!res.ok) setError(res.error ?? "Failed to check in");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to check in");
+  const [optimisticAttendance, setOptimisticAttendance] = useOptimistic(
+    todayAttendance,
+    (state: any, action: { type: "check-in" | "check-out"; time: string }) => {
+      if (action.type === "check-in") {
+        return { id: "temp", check_in: action.time, check_out: null };
+      }
+      if (action.type === "check-out") {
+        return state ? { ...state, check_out: action.time } : state;
+      }
+      return state;
     }
-    setLoading(false);
+  );
+
+  const hasCheckedIn = !!optimisticAttendance;
+  const hasCheckedOut = !!optimisticAttendance?.check_out;
+
+  const handleCheckIn = () => {
+    startTransition(async () => {
+      setError("");
+      const now = new Date().toISOString();
+      setOptimisticAttendance({ type: "check-in", time: now });
+      try {
+        const res = await checkIn();
+        if (!res.ok) setError(res.error ?? "Failed to check in");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to check in");
+      }
+    });
   };
 
-  const handleCheckOut = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await checkOut();
-      if (!res.ok) setError(res.error ?? "Failed to check out");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to check out");
-    }
-    setLoading(false);
+  const handleCheckOut = () => {
+    startTransition(async () => {
+      setError("");
+      const now = new Date().toISOString();
+      setOptimisticAttendance({ type: "check-out", time: now });
+      try {
+        const res = await checkOut();
+        if (!res.ok) setError(res.error ?? "Failed to check out");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to check out");
+      }
+    });
   };
 
   return (
@@ -65,19 +82,19 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
         </div>
       </div>
 
-      {hasCheckedIn && (
+      {hasCheckedIn && optimisticAttendance && (
         <div className="mb-4 space-y-2">
           <div className="flex items-center justify-between rounded-md bg-success/10 px-3 py-2">
             <span className="text-xs font-medium text-muted-foreground">Check In</span>
             <span className="text-xs font-semibold text-success">
-              {formatDateTime(todayAttendance.check_in)}
+              {formatDateTime(optimisticAttendance.check_in)}
             </span>
           </div>
           {hasCheckedOut && (
             <div className="flex items-center justify-between rounded-md bg-primary/10 px-3 py-2">
               <span className="text-xs font-medium text-muted-foreground">Check Out</span>
               <span className="text-xs font-semibold text-primary">
-                {formatDateTime(todayAttendance.check_out!)}
+                {formatDateTime(optimisticAttendance.check_out!)}
               </span>
             </div>
           )}
@@ -95,10 +112,10 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
         <Button
           size="sm"
           onClick={handleCheckIn}
-          disabled={loading}
+          disabled={isPending}
           className="h-10 w-full rounded-lg bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
         >
-          {loading ? <Spinner /> : <><LogIn className="h-4 w-4 mr-2" /> Check In</>}
+          {isPending ? <Spinner /> : <><LogIn className="h-4 w-4 mr-2" /> Check In</>}
         </Button>
       )}
 
@@ -107,10 +124,10 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
           size="sm"
           variant="outline"
           onClick={handleCheckOut}
-          disabled={loading}
+          disabled={isPending}
           className="h-10 w-full rounded-lg border-primary text-primary font-semibold hover:bg-primary/10 hover:text-primary"
         >
-          {loading ? <Spinner /> : <><LogOut className="h-4 w-4 mr-2" /> Check Out</>}
+          {isPending ? <Spinner /> : <><LogOut className="h-4 w-4 mr-2" /> Check Out</>}
         </Button>
       )}
 
