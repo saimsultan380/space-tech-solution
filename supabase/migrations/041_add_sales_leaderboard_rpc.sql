@@ -42,6 +42,7 @@ AS $$
       COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected_sales,
       COALESCE(SUM(CASE WHEN status <> 'rejected' THEN charged_amount ELSE 0 END), 0)::numeric AS revenue
     FROM public.sales
+    WHERE deleted_at IS NULL
     GROUP BY agent_id
   ) s ON s.agent_id = u.id
   LEFT JOIN (
@@ -49,10 +50,10 @@ AS $$
       s.agent_id,
       COUNT(cb.id)::int AS chargebacks
     FROM public.chargebacks cb
-    JOIN public.sales s ON s.id = cb.sale_id
+    JOIN public.sales s ON s.id = cb.sale_id AND s.deleted_at IS NULL
     GROUP BY s.agent_id
   ) cb ON cb.agent_id = u.id
-  WHERE u.role = 'sales_agent' AND u.is_active = true;
+  WHERE u.role = 'sales_agent' AND u.is_active = true AND u.deleted_at IS NULL;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_sales_leaderboard() FROM PUBLIC;

@@ -19,12 +19,13 @@ import {
   getProcessingAccount,
 } from "@/lib/actions/processing-accounts";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
-import type { ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
+import type { UserRole, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
 import { Save, Building2, CreditCard } from "lucide-react";
 
 interface ProcessingAccountFormDialogProps {
   open: boolean;
   onClose: () => void;
+  userRole: UserRole;
   account?: {
     id: string;
     account_holder_name: string;
@@ -50,6 +51,7 @@ const emptyForm = {
 export function ProcessingAccountFormDialog({
   open,
   onClose,
+  userRole,
   account,
 }: ProcessingAccountFormDialogProps) {
   const router = useRouter();
@@ -66,14 +68,15 @@ export function ProcessingAccountFormDialog({
       getProcessingAccount(account.id)
         .then((full) => {
           const accountType = (full.account_type as ProcessingAccountType) || "checkin";
+          const isAdmin = userRole === "super_admin";
           setForm({
             account_type: accountType,
             account_holder_name: full.account_holder_name || "",
             routing_number: full.routing_number || "",
             account_number: full.account_number || "",
-            card_number: full.card_number || "",
+            card_number: isAdmin ? (full.card_number || "") : (full.card_number ? `****${full.card_number.slice(-4)}` : ""),
             expiration_date: full.expiration_date || "",
-            cvv: full.cvv || "",
+            cvv: isAdmin ? (full.cvv || "") : (full.cvv ? "***" : ""),
             billing_address: full.billing_address || "",
             status: full.status,
             notes: full.notes || "",

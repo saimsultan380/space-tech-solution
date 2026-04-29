@@ -91,9 +91,11 @@ const statusConfig: Record<
 // ─── View Account Dialog ──────────────────────────────────────────────────────
 function ViewAccountDialog({
   account,
+  userRole,
   onClose,
 }: {
   account: ProcessingAccountRow | null;
+  userRole: UserRole;
   onClose: () => void;
 }) {
   if (!account) return null;
@@ -158,9 +160,13 @@ function ViewAccountDialog({
         />
         {isCard ? (
           <>
-            <DetailRow label="Card Number" value={account.card_number} mono />
+            <DetailRow 
+              label="Card Number" 
+              value={userRole === "super_admin" ? account.card_number : (account.card_number ? `****${account.card_number.trim().slice(-4)}` : "—")} 
+              mono 
+            />
             <DetailRow label="Expiry Date" value={account.expiration_date} mono />
-            <DetailRow label="CVV" value={account.cvv} mono />
+            <DetailRow label="CVV" value={userRole === "super_admin" ? account.cvv : "—"} mono />
           </>
         ) : (
           <>
@@ -604,8 +610,10 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
                           {account.account_type === "card"
-                            ? account.card_number?.trim() || "—"
-                            : account.routing_number?.trim() || "—"}
+                            ? (userRole === "super_admin" 
+                                ? (account.card_number?.trim() || "—")
+                                : (account.card_number?.trim() ? `****${account.card_number.trim().slice(-4)}` : "—"))
+                            : (account.routing_number?.trim() || "—")}
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
                           {account.account_type === "card"
@@ -614,7 +622,7 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap">
                           {account.account_type === "card"
-                            ? account.cvv?.trim() || "—"
+                            ? (userRole === "super_admin" ? (account.cvv?.trim() || "—") : "—")
                             : "—"}
                         </TableCell>
                         <TableCell className="align-middle">
@@ -705,6 +713,7 @@ export function ProcessingAccountsClient({
       {viewingAccount && (
         <ViewAccountDialog
           account={viewingAccount}
+          userRole={userRole}
           onClose={() => setViewingAccount(null)}
         />
       )}
@@ -719,6 +728,7 @@ export function ProcessingAccountsClient({
       {showForm && (
         <ProcessingAccountFormDialog
           open={showForm}
+          userRole={userRole}
           onClose={() => setShowForm(false)}
         />
       )}
@@ -727,6 +737,7 @@ export function ProcessingAccountsClient({
         <ProcessingAccountFormDialog
           open={!!editingAccount}
           account={editingAccount}
+          userRole={userRole}
           onClose={() => setEditingAccount(null)}
         />
       )}

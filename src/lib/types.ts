@@ -117,6 +117,7 @@ export interface Sale {
   vehicle_details: string;
   payment_method: string;
   merchant_name: string;
+  card_last_four?: string | null;
   customer?: Customer;
   agent?: AppUser;
   processor?: AppUser;

@@ -491,7 +491,7 @@ export function SaleForm({
                 <Input
                   id="card_cvv"
                   label="CVV"
-                  type={mode === "edit" ? "text" : "password"}
+                  type="text"
                   placeholder="XXX"
                   autoComplete="off"
                   value={form.card_cvv}

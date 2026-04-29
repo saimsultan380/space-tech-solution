@@ -64,7 +64,7 @@ function applySalesFilters(
     const like = `%${safe}%`;
     const numericSearch = Number(searchTerm.replace(/[^0-9.-]/g, ""));
     const isNumericSearch = Number.isFinite(numericSearch) && searchTerm.replace(/[^0-9.-]/g, "").length > 0;
-    const textMatch = `customer_name.ilike.${like},customer_email.ilike.${like},customer_phone.ilike.${like},company_name.ilike.${like},utility_company_service_number.ilike.${like},policy_holder_name.ilike.${like},account_holder_name.ilike.${like}`;
+    const textMatch = `customer_name.ilike.${like},customer_email.ilike.${like},customer_phone.ilike.${like},company_name.ilike.${like},utility_company_service_number.ilike.${like},policy_holder_name.ilike.${like},account_holder_name.ilike.${like},card_last_four.ilike.${like}`;
     const amountMatch = isNumericSearch
       ? `amount.eq.${numericSearch},charged_amount.eq.${numericSearch}`
       : "";
@@ -335,6 +335,9 @@ export async function createSale(formData: CreateSaleInput) {
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
     merchant_name: formData.merchant_name,
+    card_last_four: formData.payment_method === "card" && formData.card_number 
+      ? formData.card_number.slice(-4) 
+      : null,
   };
 
   let { data: saleData, error: saleError } = await supabase
@@ -500,6 +503,10 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     payment_method: formData.payment_method,
     merchant_name: formData.merchant_name,
   };
+
+  if (formData.payment_method === "card" && formData.card_number && !formData.card_number.startsWith("*")) {
+    updatePayload.card_last_four = formData.card_number.slice(-4);
+  }
 
   if (formData.ssn) {
     updatePayload.ssn_encrypted = encrypt(formData.ssn);

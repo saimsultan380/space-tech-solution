@@ -366,16 +366,29 @@ export async function updateProcessingAccount(
   const updateData: Record<string, unknown> = {
     account_type: formData.account_type || "checkin",
     account_holder_name: formData.account_holder_name.trim(),
-    routing_number_encrypted: isCard ? encrypt("") : encrypt((formData.routing_number || "").trim()),
-    account_number_encrypted: isCard ? encrypt("") : encrypt((formData.account_number || "").trim()),
-    card_number_encrypted: isCard ? encrypt((formData.card_number || "").trim()) : null,
-    expiration_date: isCard ? (formData.expiration_date || null) : null,
-    cvv_encrypted: isCard ? encrypt((formData.cvv || "").trim()) : null,
     billing_address: formData.billing_address.trim(),
     status: formData.status || null,
     notes: formData.notes?.trim() ? formData.notes.trim() : null,
     updated_at: new Date().toISOString(),
   };
+
+  if (isCard) {
+    if (formData.card_number && !formData.card_number.startsWith("*")) {
+      updateData.card_number_encrypted = encrypt(formData.card_number.trim());
+    }
+    if (formData.cvv && !formData.cvv.startsWith("*")) {
+      updateData.cvv_encrypted = encrypt(formData.cvv.trim());
+    }
+    updateData.expiration_date = formData.expiration_date || null;
+    updateData.routing_number_encrypted = encrypt("");
+    updateData.account_number_encrypted = encrypt("");
+  } else {
+    updateData.routing_number_encrypted = encrypt((formData.routing_number || "").trim());
+    updateData.account_number_encrypted = encrypt((formData.account_number || "").trim());
+    updateData.card_number_encrypted = null;
+    updateData.expiration_date = null;
+    updateData.cvv_encrypted = null;
+  }
 
   const { error } = await supabase
     .from("processing_accounts")

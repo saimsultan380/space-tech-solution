@@ -16,6 +16,7 @@ CREATE POLICY "Authorized users can add chargeback activity"
       FROM public.chargebacks cb
       LEFT JOIN public.sales s ON s.id = cb.sale_id
       WHERE cb.id = chargeback_activity.chargeback_id
+      AND cb.deleted_at IS NULL
       AND (
         public.get_user_role() IN ('super_admin', 'processor')
         OR cb.assigned_to = auth.uid()
@@ -35,6 +36,7 @@ CREATE POLICY "Agents can create chargebacks"
       SELECT 1 FROM public.sales
       WHERE sales.id = chargebacks.sale_id
       AND sales.agent_id = auth.uid()
+      AND sales.deleted_at IS NULL
     )
   );
 

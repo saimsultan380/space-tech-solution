@@ -252,7 +252,7 @@ export default async function SaleDetailPage(props: {
                       <>
                         <span className="text-muted-foreground">Card number</span>
                         <span className="break-all font-mono text-foreground">
-                          {cardSecrets.cardNumber.trim()
+                          {user.role === "super_admin" && cardSecrets.cardNumber.trim()
                             ? cardSecrets.cardNumber
                             : p.card_last_four
                               ? `****${p.card_last_four}`
@@ -262,7 +262,7 @@ export default async function SaleDetailPage(props: {
                         <span className="font-mono text-foreground">{dash(p.card_exp)}</span>
                         <span className="text-muted-foreground">CVV</span>
                         <span className="font-mono text-foreground">
-                          {cardSecrets.cardCvv.trim() ? cardSecrets.cardCvv : "—"}
+                          {user.role === "super_admin" && cardSecrets.cardCvv.trim() ? cardSecrets.cardCvv : "—"}
                         </span>
                         <span className="text-muted-foreground">Billing address</span>
                         <span className="text-foreground">{dash(p.billing_address)}</span>

@@ -64,6 +64,51 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sales' AND column_name = 'deleted_at') THEN
         ALTER TABLE public.sales ADD COLUMN deleted_at TIMESTAMPTZ;
     END IF;
+
+    -- chargebacks
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'chargebacks' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.chargebacks ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- leaves
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leaves' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.leaves ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- payslips
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payslips' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.payslips ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- attendance
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'attendance' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.attendance ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- processing_accounts
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'processing_accounts' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.processing_accounts ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- notes
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notes' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.notes ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- marketing_entries
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'marketing_entries' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.marketing_entries ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- chat_channels
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'chat_channels' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.chat_channels ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
+
+    -- chat_messages
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'chat_messages' AND column_name = 'deleted_at') THEN
+        ALTER TABLE public.chat_messages ADD COLUMN deleted_at TIMESTAMPTZ;
+    END IF;
 END $$;
 
 -- 4. Chat Performance Enhancements

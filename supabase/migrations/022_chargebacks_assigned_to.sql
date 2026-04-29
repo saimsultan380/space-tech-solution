@@ -14,7 +14,7 @@ CREATE POLICY "Agents can view chargebacks for their sales or assigned"
   USING (
     public.get_user_role() = 'sales_agent'
     AND (
-      sale_id IN (SELECT id FROM public.sales WHERE agent_id = auth.uid())
+      sale_id IN (SELECT id FROM public.sales WHERE agent_id = auth.uid() AND deleted_at IS NULL)
       OR assigned_to = auth.uid()
     )
   );

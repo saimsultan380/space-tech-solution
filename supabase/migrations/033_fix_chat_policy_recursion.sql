@@ -13,11 +13,13 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
+    select exists (
     select 1
     from public.chat_channel_members m
+    join public.chat_channels c on c.id = m.channel_id
     where m.channel_id = p_channel_id
       and m.user_id = auth.uid()
+      and c.deleted_at is null
   );
 $$;
 
@@ -43,19 +45,19 @@ create policy "Users can view channel members"
 create policy "Admins can view all memberships"
   on public.chat_channel_members for select
   using (
-    exists (select 1 from public.users where id = auth.uid() and role = 'super_admin')
+    public.get_user_role() = 'super_admin'
   );
 
 create policy "Admins can add members"
   on public.chat_channel_members for insert
   with check (
-    exists (select 1 from public.users where id = auth.uid() and role = 'super_admin')
+    public.get_user_role() = 'super_admin'
   );
 
 create policy "Admins can remove members"
   on public.chat_channel_members for delete
   using (
-    exists (select 1 from public.users where id = auth.uid() and role = 'super_admin')
+    public.get_user_role() = 'super_admin'
   );
 
 -- Also update channel/message policies to use the helper (avoids future recursion patterns)
@@ -70,13 +72,13 @@ create policy "Members can view their channels"
 create policy "Admins can view all channels"
   on public.chat_channels for select
   using (
-    exists (select 1 from public.users where id = auth.uid() and role = 'super_admin')
+    public.get_user_role() = 'super_admin'
   );
 
 create policy "Admins can create channels"
   on public.chat_channels for insert
   with check (
-    exists (select 1 from public.users where id = auth.uid() and role = 'super_admin')
+    public.get_user_role() = 'super_admin'
   );
 
 drop policy if exists "Members can read channel messages" on public.chat_messages;

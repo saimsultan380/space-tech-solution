@@ -63,12 +63,14 @@ BEGIN
     COUNT(*) FILTER (WHERE status = 'open')
   INTO cb_total, cb_open
   FROM chargebacks
-  WHERE (month_start IS NULL OR (created_at >= month_start AND created_at < month_end));
+  WHERE (month_start IS NULL OR (created_at >= month_start AND created_at < month_end))
+    AND deleted_at IS NULL;
 
   -- 4. Processing Accounts
   SELECT COUNT(*) INTO pa_total
   FROM processing_accounts
-  WHERE (month_start IS NULL OR (created_at >= month_start AND created_at < month_end));
+  WHERE (month_start IS NULL OR (created_at >= month_start AND created_at < month_end))
+    AND deleted_at IS NULL;
 
   -- 5. Leaves Aggregation
   SELECT 
@@ -77,7 +79,7 @@ BEGIN
   INTO l_pending, l_today
   FROM leaves
   WHERE (month_start IS NULL OR (created_at >= month_start AND created_at < month_end))
-     OR (status = 'approved' AND today_date BETWEEN start_date AND end_date);
+    AND deleted_at IS NULL;
 
   RETURN QUERY SELECT 
     s_total, s_rejected, s_revenue, 

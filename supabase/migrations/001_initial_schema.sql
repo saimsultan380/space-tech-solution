@@ -176,7 +176,7 @@ ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
 -- Helper function to get user role
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS TEXT AS $$
-  SELECT role FROM public.users WHERE id = auth.uid();
+  SELECT role FROM public.users WHERE id = auth.uid() AND deleted_at IS NULL;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ---- USERS policies ----

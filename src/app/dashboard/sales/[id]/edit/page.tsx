@@ -63,8 +63,9 @@ export default async function EditSalePage(props: {
         encrypted_details: latestPayment.encrypted_details as string | null,
         card_cvv_encrypted: latestPayment.card_cvv_encrypted as string | null,
       });
-      card_number = cardNumber;
-      card_cvv = cardCvv;
+      const isMasked = user.role !== "super_admin";
+      card_number = isMasked && cardNumber ? `****${cardNumber.slice(-4)}` : cardNumber;
+      card_cvv = isMasked && cardCvv ? "***" : cardCvv;
       card_exp = (latestPayment.card_exp as string) || "";
       card_billing_address = (latestPayment.billing_address as string) || "";
     } else if (latestPayment.method === "bank") {

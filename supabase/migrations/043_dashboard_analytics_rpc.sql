@@ -30,16 +30,16 @@ BEGIN
 
   RETURN QUERY
   SELECT
-    (SELECT count(*) FROM sales s WHERE (month_start IS NULL OR (s.created_at >= month_start AND s.created_at < month_end))),
-    (SELECT count(*) FROM sales s WHERE s.status = 'rejected' AND (month_start IS NULL OR (s.created_at >= month_start AND s.created_at < month_end))),
-    (SELECT COALESCE(sum(charged_amount), 0) FROM sales s WHERE s.status <> 'rejected' AND (month_start IS NULL OR (s.created_at >= month_start AND s.created_at < month_end))),
-    (SELECT count(*) FROM customers c WHERE (month_start IS NULL OR (c.created_at >= month_start AND c.created_at < month_end))),
-    (SELECT count(*) FROM chargebacks cb WHERE (month_start IS NULL OR (cb.created_at >= month_start AND cb.created_at < month_end))),
-    (SELECT count(*) FROM chargebacks cb WHERE cb.status = 'open' AND (month_start IS NULL OR (cb.created_at >= month_start AND cb.created_at < month_end))),
-    (SELECT count(*) FROM customers c WHERE c.source = 'call_log' AND (month_start IS NULL OR (c.created_at >= month_start AND c.created_at < month_end))),
-    (SELECT count(*) FROM processing_accounts pa WHERE (month_start IS NULL OR (pa.created_at >= month_start AND pa.created_at < month_end))),
-    (SELECT count(*) FROM leaves l WHERE l.status = 'pending' AND (month_start IS NULL OR (l.created_at >= month_start AND l.created_at < month_end))),
-    (SELECT count(*) FROM leaves l WHERE l.status = 'approved' AND today_date BETWEEN l.start_date AND l.end_date)
+    (SELECT count(*) FROM sales s WHERE (month_start IS NULL OR (s.created_at >= month_start AND s.created_at < month_end)) AND s.deleted_at IS NULL),
+    (SELECT count(*) FROM sales s WHERE s.status = 'rejected' AND (month_start IS NULL OR (s.created_at >= month_start AND s.created_at < month_end)) AND s.deleted_at IS NULL),
+    (SELECT COALESCE(sum(charged_amount), 0) FROM sales s WHERE s.status <> 'rejected' AND (month_start IS NULL OR (s.created_at >= month_start AND s.created_at < month_end)) AND s.deleted_at IS NULL),
+    (SELECT count(*) FROM customers c WHERE (month_start IS NULL OR (c.created_at >= month_start AND c.created_at < month_end)) AND c.deleted_at IS NULL),
+    (SELECT count(*) FROM chargebacks cb WHERE (month_start IS NULL OR (cb.created_at >= month_start AND cb.created_at < month_end)) AND cb.deleted_at IS NULL),
+    (SELECT count(*) FROM chargebacks cb WHERE cb.status = 'open' AND (month_start IS NULL OR (cb.created_at >= month_start AND cb.created_at < month_end)) AND cb.deleted_at IS NULL),
+    (SELECT count(*) FROM customers c WHERE c.source = 'call_log' AND (month_start IS NULL OR (c.created_at >= month_start AND c.created_at < month_end)) AND c.deleted_at IS NULL),
+    (SELECT count(*) FROM processing_accounts pa WHERE (month_start IS NULL OR (pa.created_at >= month_start AND pa.created_at < month_end)) AND pa.deleted_at IS NULL),
+    (SELECT count(*) FROM leaves l WHERE l.status = 'pending' AND (month_start IS NULL OR (l.created_at >= month_start AND l.created_at < month_end)) AND l.deleted_at IS NULL),
+    (SELECT count(*) FROM leaves l WHERE l.status = 'approved' AND today_date BETWEEN l.start_date AND l.end_date AND l.deleted_at IS NULL)
   ;
 END;
 $$;

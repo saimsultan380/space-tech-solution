@@ -29,8 +29,8 @@ CREATE POLICY "Agents can view and create notes for their sales/customers"
   USING (
     public.get_user_role() = 'sales_agent'
     AND (
-      sale_id IN (SELECT id FROM public.sales WHERE agent_id = auth.uid())
-      OR customer_id IN (SELECT id FROM public.customers WHERE created_by = auth.uid())
+      sale_id IN (SELECT id FROM public.sales WHERE agent_id = auth.uid() AND deleted_at IS NULL)
+      OR customer_id IN (SELECT id FROM public.customers WHERE created_by = auth.uid() AND deleted_at IS NULL)
     )
   );
 

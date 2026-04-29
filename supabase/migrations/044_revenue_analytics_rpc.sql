@@ -13,28 +13,28 @@ BEGIN
   IF period_type = 'day' THEN
     RETURN QUERY
     SELECT
-      to_char(created_at, 'YYYY-MM-DD') as d,
-      sum(charged_amount)
-    FROM sales
-    WHERE status <> 'rejected'
+      to_char(s.created_at, 'YYYY-MM-DD') as d,
+      COALESCE(sum(s.charged_amount), 0)
+    FROM sales s
+    WHERE s.status <> 'rejected' AND s.deleted_at IS NULL
     GROUP BY d
     ORDER BY d ASC;
   ELSIF period_type = 'week' THEN
     RETURN QUERY
     SELECT
-      to_char(date_trunc('week', created_at), 'YYYY-MM-DD') as d,
-      sum(charged_amount)
-    FROM sales
-    WHERE status <> 'rejected'
+      to_char(date_trunc('week', s.created_at), 'YYYY-MM-DD') as d,
+      COALESCE(sum(s.charged_amount), 0)
+    FROM sales s
+    WHERE s.status <> 'rejected' AND s.deleted_at IS NULL
     GROUP BY d
     ORDER BY d ASC;
   ELSIF period_type = 'month' THEN
     RETURN QUERY
     SELECT
-      to_char(created_at, 'YYYY-MM') as d,
-      sum(charged_amount)
-    FROM sales
-    WHERE status <> 'rejected'
+      to_char(s.created_at, 'YYYY-MM') as d,
+      COALESCE(sum(s.charged_amount), 0)
+    FROM sales s
+    WHERE s.status <> 'rejected' AND s.deleted_at IS NULL
     GROUP BY d
     ORDER BY d ASC;
   END IF;

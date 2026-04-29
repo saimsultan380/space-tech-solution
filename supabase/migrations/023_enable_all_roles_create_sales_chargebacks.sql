@@ -11,7 +11,7 @@ CREATE POLICY "Processors can insert payments for their sales"
   ON public.payments FOR INSERT
   WITH CHECK (
     public.get_user_role() = 'processor'
-    AND sale_id IN (SELECT id FROM public.sales WHERE processor_id = auth.uid())
+    AND sale_id IN (SELECT id FROM public.sales WHERE processor_id = auth.uid() AND deleted_at IS NULL)
   );
 
 -- Allow sales agents to create chargebacks.
