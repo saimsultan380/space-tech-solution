@@ -139,6 +139,7 @@ interface MessageRowProps {
   isEditing: boolean;
   editContent: string;
   currentUserId: string;
+  reactions: Record<string, string[]>; // emoji -> userIds
   onReply: (msg: ChatMessage) => void;
   onPin: (msg: ChatMessage) => void;
   onStartEdit: (msg: ChatMessage) => void;
@@ -146,7 +147,8 @@ interface MessageRowProps {
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onEditChange: (v: string) => void;
-  editInputRef: React.RefObject<HTMLInputElement | null>;
+  onReact: (msgId: string, emoji: string) => void;
+  editInputRef: React.RefObject<HTMLTextAreaElement | null>;
   formatTime: (d: string) => string;
   formatDateSeparator: (d: string) => string;
   formatFileSize: (b: number) => string;
@@ -156,8 +158,8 @@ interface MessageRowProps {
 
 const MessageRow = React.memo(function MessageRow({
   msg, isOwn, showDate, sameAsPrev, isOnline, isEditing, editContent,
-  onReply, onPin, onStartEdit, onDelete, onSaveEdit, onCancelEdit, onEditChange,
-  editInputRef, formatTime, formatDateSeparator, formatFileSize, getInitials, isImageType,
+  reactions, currentUserId, onReply, onPin, onStartEdit, onDelete, onSaveEdit, onCancelEdit, onEditChange,
+  onReact, editInputRef, formatTime, formatDateSeparator, formatFileSize, getInitials, isImageType,
 }: MessageRowProps) {
   const hasAttachment = !!msg.attachment_url;
   const isImg = isImageType(msg.attachment_type);
@@ -237,13 +239,10 @@ const MessageRow = React.memo(function MessageRow({
               </div>
             )}
             {isEditing ? (
-              <div className="flex items-center gap-2 my-1">
-                <input ref={editInputRef as React.RefObject<HTMLInputElement>} value={editContent} onChange={(e) => onEditChange(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
-                  className="flex-1 min-w-0 rounded-lg bg-white/10 border border-white/20 px-3 py-1.5 text-sm outline-none text-white font-medium" />
-                <button onClick={onSaveEdit} className="shrink-0 rounded-lg p-1.5 bg-white text-primary hover:bg-gray-100"><Check className="h-4 w-4" /></button>
-                <button onClick={onCancelEdit} className="shrink-0 rounded-lg p-1.5 bg-white/10 hover:bg-white/20"><X className="h-4 w-4" /></button>
-              </div>
+              // Show original message dimmed while editing in the input bar
+              <p className={cn("text-sm sm:text-[15px] leading-relaxed font-medium break-words whitespace-pre-wrap opacity-50 italic", isOwn ? "text-white" : "text-foreground")}>
+                {msg.content}
+              </p>
             ) : msg.is_deleted ? (
               <div className="flex items-center gap-2 px-1"><Ban className="h-3.5 w-3.5 opacity-50" /><p className="text-xs italic font-medium opacity-70 select-none">Message deleted</p></div>
             ) : msg.content ? (
@@ -255,26 +254,47 @@ const MessageRow = React.memo(function MessageRow({
               {isOwn && !msg.is_deleted && <CheckCheck className="h-3 w-3" />}
             </div>
             {!msg.is_deleted && !isEditing && (
-              <div className={cn("absolute -top-5 flex items-center gap-1 rounded-[5px] bg-card border border-border p-0.5 opacity-0 group-hover:opacity-100 transition-all z-10", isOwn ? "right-0" : "left-0")}>
-                <div className="flex items-center gap-1 px-1 border-r border-border">
-                  <button className="hover:scale-110 transition-transform text-sm" title="Thumbs up">👍</button>
-                  <button className="hover:scale-110 transition-transform text-sm" title="Heart">❤️</button>
-                  <button className="hover:scale-110 transition-transform text-sm" title="Laugh">😂</button>
+              <div className={cn("absolute -top-8 flex items-center gap-1 rounded-[5px] bg-card border border-border p-1 opacity-0 group-hover:opacity-100 transition-all z-10 shadow-lg", isOwn ? "right-0" : "left-0")}>
+                <div className="flex items-center gap-1.5 px-1.5 border-r border-border">
+                  <button onClick={() => onReact(msg.id, "👍")} className="hover:scale-125 transition-transform text-xl leading-none" title="Thumbs up">👍</button>
+                  <button onClick={() => onReact(msg.id, "❤️")} className="hover:scale-125 transition-transform text-xl leading-none" title="Heart">❤️</button>
+                  <button onClick={() => onReact(msg.id, "😂")} className="hover:scale-125 transition-transform text-xl leading-none" title="Laugh">😂</button>
                 </div>
-                <button onClick={() => onReply(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Reply"><Reply className="h-3 w-3" /></button>
-                <button onClick={() => onPin(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-amber-500 transition-colors" title={msg.is_pinned ? "Unpin" : "Pin"}>
-                  {msg.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                <button onClick={() => onReply(msg)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Reply"><Reply className="h-4 w-4" /></button>
+                <button onClick={() => onPin(msg)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-amber-500 transition-colors" title={msg.is_pinned ? "Unpin" : "Pin"}>
+                  {msg.is_pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                 </button>
                 {isOwn && (
                   <>
-                    <button onClick={() => onStartEdit(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Edit"><Pencil className="h-3 w-3" /></button>
-                    <button onClick={() => onDelete(msg.id)} className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                    <button onClick={() => onStartEdit(msg)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Edit"><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => onDelete(msg.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
                   </>
                 )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Reactions display */}
+        {Object.keys(reactions).length > 0 && (
+          <div className={cn("flex flex-wrap gap-1 mt-1 px-1", isOwn ? "justify-end" : "justify-start")}>
+            {Object.entries(reactions).map(([emoji, userIds]) => (
+              <button
+                key={emoji}
+                onClick={() => onReact(msg.id, emoji)}
+                className={cn(
+                  "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border transition-all",
+                  userIds.includes(currentUserId)
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : "bg-muted border-border text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                <span className="text-sm leading-none">{emoji}</span>
+                <span>{userIds.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -365,6 +385,9 @@ function ChatClientContent({
   const [editContent, setEditContent] = useState("");
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
+  // Emoji reactions: { [msgId]: { [emoji]: userId[] } }
+  const [reactions, setReactions] = useState<Record<string, Record<string, string[]>>>({});
+
   // Channel settings
   const [showChannelSettings, setShowChannelSettings] = useState(false);
   const [editChName, setEditChName] = useState("");
@@ -399,7 +422,7 @@ function ChatClientContent({
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const attachRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -639,7 +662,7 @@ function ChatClientContent({
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + "px";
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + "px";
     }
   }, [newMsg]);
 
@@ -826,7 +849,15 @@ function ChatClientContent({
   };
 
   const handleSend = useCallback(async () => {
-    if (!newMsg.trim() || !activeChannelId || sending) return;
+    if (!activeChannelId || sending) return;
+
+    // If editing, save the edit instead of sending a new message
+    if (editingMsgId) {
+      await handleSaveEdit();
+      return;
+    }
+
+    if (!newMsg.trim()) return;
     const content = newMsg;
     const replyId = replyTo?.id;
     setNewMsg("");
@@ -850,11 +881,12 @@ function ChatClientContent({
     await sendMessage(activeChannelId, content, { replyToId: replyId });
     setSending(false);
     inputRef.current?.focus();
-  }, [newMsg, activeChannelId, sending, replyTo, currentUserId, currentUserName, currentUserAvatar, currentUserRole]);
+  }, [newMsg, activeChannelId, sending, replyTo, currentUserId, currentUserName, currentUserAvatar, currentUserRole, editingMsgId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && editingMsgId) { handleCancelEdit(); return; }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  }, [handleSend]);
+  }, [handleSend, editingMsgId]);
 
   const handleFileUpload = async (file: File) => {
     if (!file || !activeChannelId) return;
@@ -1075,16 +1107,52 @@ function ChatClientContent({
   const handleStartEdit = (msg: ChatMessage) => {
     setEditingMsgId(msg.id);
     setEditContent(msg.content);
-    setTimeout(() => editInputRef.current?.focus(), 50);
+    setReplyTo(null); // clear reply if any
+    setNewMsg(msg.content); // load into main input
+    setTimeout(() => {
+      inputRef.current?.focus();
+      // Move cursor to end
+      const len = msg.content.length;
+      inputRef.current?.setSelectionRange(len, len);
+    }, 50);
   };
 
   const handleSaveEdit = async () => {
-    if (!editingMsgId || !editContent.trim()) return;
-    setMessages((prev) => prev.map((m) => m.id === editingMsgId ? { ...m, content: editContent, is_edited: true } : m));
+    if (!editingMsgId || !newMsg.trim()) return;
+    const content = newMsg.trim();
+    setMessages((prev) => prev.map((m) => m.id === editingMsgId ? { ...m, content, is_edited: true } : m));
     setEditingMsgId(null);
-    await editMessage(editingMsgId, editContent);
     setEditContent("");
+    setNewMsg("");
+    await editMessage(editingMsgId, content);
   };
+
+  const handleCancelEdit = () => {
+    setEditingMsgId(null);
+    setEditContent("");
+    setNewMsg("");
+    inputRef.current?.focus();
+  };
+
+  const handleReact = useCallback((msgId: string, emoji: string) => {
+    setReactions((prev) => {
+      const msgReactions = { ...(prev[msgId] ?? {}) };
+      const users = msgReactions[emoji] ? [...msgReactions[emoji]] : [];
+      const idx = users.indexOf(currentUserId);
+      if (idx >= 0) {
+        // Toggle off
+        users.splice(idx, 1);
+      } else {
+        users.push(currentUserId);
+      }
+      if (users.length === 0) {
+        delete msgReactions[emoji];
+      } else {
+        msgReactions[emoji] = users;
+      }
+      return { ...prev, [msgId]: msgReactions };
+    });
+  }, [currentUserId]);
 
   const handleDelete = async (msgId: string) => {
     setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, is_deleted: true, content: "" } : m));
@@ -1393,44 +1461,37 @@ function ChatClientContent({
               <LayoutDashboard className="h-4 w-4" />
             </Link>
 
-            {/* Mute / Unmute notifications */}
-            <button
-              onClick={toggleNotifMute}
-              className={cn(
-                "rounded-[5px] p-2 transition-all",
-                notifMuted ? "text-muted-foreground/40 hover:text-muted-foreground" : "text-muted-foreground hover:bg-muted hover:text-primary"
-              )}
-              title={notifMuted ? "Unmute notifications" : "Mute notifications"}
-            >
-              {notifMuted ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-              {!notifMuted && notifTotalUnread > 0 && (
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-              )}
-            </button>
-
-            {/* Browser notification permission prompt */}
-            {notifPermission === "default" && (
-              <button
-                onClick={requestNotifPermission}
-                className="rounded-[5px] p-2 text-amber-500 hover:bg-amber-500/10 transition-all"
-                title="Enable browser notifications"
-              >
-                <BellRing className="h-4 w-4" />
-              </button>
-            )}
-
+            {/* Single notification bell — handles permission, mute state & activity panel */}
             <button
               ref={notificationsButtonRef}
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={() => {
+                if (notifPermission === "default") {
+                  requestNotifPermission();
+                  return;
+                }
+                setShowNotifications(!showNotifications);
+              }}
+              onContextMenu={(e) => { e.preventDefault(); toggleNotifMute(); }}
               className={cn(
                 "relative rounded-[5px] p-2 transition-all",
                 showNotifications ? "bg-primary text-white" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
               )}
-              title="Activity"
+              title={
+                notifPermission === "default"
+                  ? "Click to enable browser notifications"
+                  : notifMuted
+                  ? "Notifications muted — right-click to unmute"
+                  : "Activity — right-click to mute"
+              }
             >
-              <Bell className="h-4 w-4" />
-              {notifications.filter((n) => !n.is_read).length > 0 && (
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border border-white" />
+              {notifMuted
+                ? <BellOff className="h-4 w-4 opacity-50" />
+                : notifPermission === "default"
+                ? <BellRing className="h-4 w-4 text-amber-500" />
+                : <Bell className="h-4 w-4" />
+              }
+              {!notifMuted && (notifications.filter((n) => !n.is_read).length > 0 || notifTotalUnread > 0) && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 border border-card" />
               )}
             </button>
             {/* Notification Panel */}
@@ -2172,13 +2233,15 @@ function ChatClientContent({
                               isEditing={editingMsgId === msg.id}
                               editContent={editContent}
                               currentUserId={currentUserId}
+                              reactions={reactions[msg.id] ?? {}}
                               onReply={(m) => { setReplyTo(m); inputRef.current?.focus(); }}
                               onPin={handlePin}
                               onStartEdit={handleStartEdit}
                               onDelete={handleDelete}
                               onSaveEdit={handleSaveEdit}
-                              onCancelEdit={() => { setEditingMsgId(null); setEditContent(""); }}
+                              onCancelEdit={handleCancelEdit}
                               onEditChange={setEditContent}
+                              onReact={handleReact}
                               editInputRef={editInputRef}
                               formatTime={formatTime}
                               formatDateSeparator={formatDateSeparator}
@@ -2204,6 +2267,18 @@ function ChatClientContent({
                       <p className="text-xs text-muted-foreground">
                         <span className="font-semibold text-foreground">{channelTypingUsers.join(", ")}</span> {channelTypingUsers.length === 1 ? "is" : "are"} typing...
                       </p>
+                    </div>
+                  )}
+
+                  {/* Editing banner */}
+                  {editingMsgId && (
+                    <div className="flex items-center gap-3 border-t border-primary/20 bg-primary/5 px-4 py-2 sticky bottom-0 z-30 animate-in slide-in-from-bottom-2 duration-200">
+                      <Pencil className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold text-primary leading-none uppercase tracking-wider">Editing message</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{editContent}</p>
+                      </div>
+                      <button onClick={handleCancelEdit} className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Cancel edit (Esc)"><X className="h-4 w-4" /></button>
                     </div>
                   )}
 
@@ -2278,17 +2353,16 @@ function ChatClientContent({
                             value={newMsg}
                             onChange={handleInputChange}
                             onKeyDown={handleKeyDown}
-                            maxLength={500}
                             placeholder="Type a message..."
-                            className="w-full bg-transparent px-2 py-2 text-[15px] outline-none resize-none max-h-[100px] leading-relaxed placeholder:text-muted-foreground font-medium text-foreground no-scrollbar"
+                            className="w-full bg-transparent px-2 py-2 text-[15px] outline-none resize-none max-h-[200px] leading-relaxed placeholder:text-muted-foreground font-medium text-foreground no-scrollbar"
                             rows={1}
                             disabled={sending || uploading}
                           />
                         </div>
 
-                        {/* Voice / Send button */}
+                        {/* Voice / Send / Save button */}
                         <div className="shrink-0">
-                          {newMsg.trim() ? (
+                          {(newMsg.trim() || editingMsgId) ? (
                             <button 
                               onClick={handleSend} 
                               disabled={sending || uploading} 
@@ -2297,8 +2371,9 @@ function ChatClientContent({
                                 backgroundColor: 'var(--theme-button-color, hsl(var(--primary)))',
                                 color: 'var(--theme-button-text-color, white)'
                               }}
+                              title={editingMsgId ? "Save edit (Enter)" : "Send"}
                             >
-                              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : editingMsgId ? <Check className="h-5 w-5" /> : <Send className="h-5 w-5" />}
                             </button>
                           ) : (
                             <button
@@ -2859,8 +2934,8 @@ function SidebarItem({
         isActive ? "shadow-md" : "hover:bg-muted/50",
       )}
       style={isActive ? {
-        backgroundColor: 'var(--theme-active-tab-color, hsl(var(--primary)))',
-        color: 'var(--theme-active-tab-text-color, white)'
+        backgroundColor: 'var(--theme-button-color, hsl(var(--primary)))',
+        color: 'var(--theme-button-text-color, white)'
       } : {}}
     >
       <div onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0">
