@@ -12,30 +12,22 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useChartTheme, RichTooltip } from "./chart-tooltip";
 
 interface SalesPerAgentChartProps {
   data: Array<{ name: string; total: number; approved: number; revenue: number }>;
 }
 
-
-
 export function SalesPerAgentChart({ data }: SalesPerAgentChartProps) {
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { isDark, grid, tick, cursorFill } = useChartTheme();
 
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-8">No agent data available</p>;
+    return (
+      <div className="flex h-[320px] items-center justify-center">
+        <p className="text-sm text-muted-foreground">No agent data available</p>
+      </div>
+    );
   }
-
-  const isDark = mounted && theme === "dark";
-  const gridStroke = isDark ? "#374151" : "#EEF2FF";
-  const tickFill = isDark ? "#94A3B8" : "#475569";
 
   const chartData = data
     .map((d) => {
@@ -43,132 +35,96 @@ export function SalesPerAgentChart({ data }: SalesPerAgentChartProps) {
       const approved = Number(d.approved ?? 0);
       const notApproved = Math.max(0, total - approved);
       const conversion = total > 0 ? Math.round((approved / total) * 100) : 0;
-      return {
-        name: d.name,
-        total,
-        approved,
-        notApproved,
-        revenue: Number(d.revenue ?? 0),
-        conversion,
-      };
+      return { name: d.name, total, approved, notApproved, revenue: Number(d.revenue ?? 0), conversion };
     })
     .sort((a, b) => b.total - a.total);
+
   const averageSales = Math.round(
-    chartData.reduce((sum, row) => sum + row.total, 0) / Math.max(chartData.length, 1)
+    chartData.reduce((s, r) => s + r.total, 0) / Math.max(chartData.length, 1)
   );
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+      <ComposedChart data={chartData} margin={{ top: 20, right: 24, left: 0, bottom: 0 }}>
         <defs>
-          <linearGradient id="approvedGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3B82F6" stopOpacity={1} />
-            <stop offset="100%" stopColor="#2563EB" stopOpacity={0.88} />
+          <linearGradient id="agentApproved" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+            <stop offset="100%" stopColor="#2563eb" stopOpacity={0.85} />
           </linearGradient>
-          <linearGradient id="notApprovedGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#A5B4FC" stopOpacity={0.9} />
-            <stop offset="100%" stopColor="#CBD5E1" stopOpacity={0.9} />
+          <linearGradient id="agentRejected" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={isDark ? "#475569" : "#cbd5e1"} stopOpacity={0.9} />
+            <stop offset="100%" stopColor={isDark ? "#334155" : "#e2e8f0"} stopOpacity={0.9} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} stroke={gridStroke} strokeDasharray="3 3" />
+
+        <CartesianGrid vertical={false} stroke={grid} strokeDasharray="4 4" />
         <XAxis
           dataKey="name"
-          className="text-xs"
-          tick={{ fill: tickFill, fontWeight: 600 }}
+          tick={{ fill: tick, fontSize: 11, fontWeight: 600 }}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
           yAxisId="left"
           allowDecimals={false}
-          className="text-xs"
-          tick={{ fill: isDark ? "#94A3B8" : "#94A3B8" }}
+          tick={{ fill: tick, fontSize: 11 }}
           tickLine={false}
           axisLine={false}
-          label={{ 
-            value: "Sales Count", 
-            angle: -90, 
-            position: "insideLeft", 
-            style: { textAnchor: "middle", fill: isDark ? "#94A3B8" : "#94A3B8", fontSize: "11px" },
-            offset: 15
-          }}
         />
         <YAxis
           yAxisId="right"
           orientation="right"
           domain={[0, 100]}
-          className="text-xs"
-          tick={{ fill: isDark ? "#94A3B8" : "#94A3B8" }}
+          tick={{ fill: tick, fontSize: 11 }}
           tickLine={false}
           axisLine={false}
-          label={{ 
-            value: "Conversion %", 
-            angle: 90, 
-            position: "insideRight", 
-            style: { textAnchor: "middle", fill: isDark ? "#94A3B8" : "#94A3B8", fontSize: "11px" },
-            offset: 15
-          }}
+          tickFormatter={(v) => `${v}%`}
         />
+
         <Legend
           verticalAlign="top"
           align="right"
           iconType="circle"
           iconSize={8}
-          wrapperStyle={{ fontSize: "12px", color: isDark ? "#94A3B8" : "#64748B", paddingBottom: "12px" }}
-          formatter={(v) => <span style={{ color: isDark ? "#94A3B8" : "#64748B" }}>{v}</span>}
+          wrapperStyle={{ fontSize: "11px", paddingBottom: "12px" }}
         />
+
         <Tooltip
-          cursor={{ fill: isDark ? "#1F2937" : "#F1F5F9", opacity: 0.6 }}
-          contentStyle={{
-            backgroundColor: isDark ? "#111827" : "#FFFFFF",
-            border: `1px solid ${isDark ? "#374151" : "#E2E8F0"}`,
-            borderRadius: "10px",
-            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-            padding: "10px 12px",
-          }}
+          cursor={{ fill: cursorFill }}
+          content={
+            <RichTooltip
+              formatter={(name, value) =>
+                name === "Conversion %" ? `${value}%` : value.toLocaleString()
+              }
+            />
+          }
         />
-        <Bar
-          yAxisId="left"
-          dataKey="approved"
-          name="Recorded"
-          fill="url(#approvedGradient)"
-          radius={[4, 4, 0, 0]}
-          barSize={32}
-        />
-        <Bar
-          yAxisId="left"
-          dataKey="notApproved"
-          name="Rejected"
-          fill="url(#notApprovedGradient)"
-          radius={[4, 4, 0, 0]}
-          barSize={32}
-        />
+
+        <Bar yAxisId="left" dataKey="approved" name="Recorded" fill="url(#agentApproved)" radius={[5, 5, 0, 0]} barSize={28} isAnimationActive animationDuration={900} animationEasing="ease-out" />
+        <Bar yAxisId="left" dataKey="notApproved" name="Rejected" fill="url(#agentRejected)" radius={[5, 5, 0, 0]} barSize={28} isAnimationActive animationDuration={900} animationEasing="ease-out" />
+
         <Line
           yAxisId="right"
           type="monotone"
           dataKey="conversion"
           name="Conversion %"
-          stroke="#10B981"
-          strokeWidth={3}
-          dot={{ fill: "#10B981", strokeWidth: 2, r: 4, stroke: isDark ? "#111827" : "#fff" }}
+          stroke="#10b981"
+          strokeWidth={2.5}
+          dot={{ fill: "#10b981", strokeWidth: 2, r: 4, stroke: isDark ? "#0f172a" : "#fff" }}
           activeDot={{ r: 6, strokeWidth: 0 }}
+          isAnimationActive
+          animationDuration={1200}
         />
+
         <ReferenceLine
           yAxisId="left"
           y={averageSales}
-          stroke="#94A3B8"
-          strokeDasharray="4 4"
-          label={{ 
-            value: "Avg Sales", 
-            position: "right", 
-            fill: "#94A3B8", 
-            fontSize: 10,
-            fontWeight: 600
-          }}
+          stroke={isDark ? "#475569" : "#94a3b8"}
+          strokeDasharray="5 5"
+          strokeWidth={1.5}
+          label={{ value: `Avg ${averageSales}`, position: "right", fill: isDark ? "#64748b" : "#94a3b8", fontSize: 10, fontWeight: 600 }}
         />
       </ComposedChart>
     </ResponsiveContainer>
   );
 }
-
-
