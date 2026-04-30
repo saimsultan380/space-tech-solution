@@ -25,6 +25,7 @@ import {
   getAllMyEvents,
   updateChatEvent,
   deleteChatEvent,
+  getFullChannelData,
   type ChatChannel,
   type ChatMessage,
   type ChatEvent,
@@ -416,32 +417,23 @@ function ChatClientContent({
     async function load() {
       hasLoadedInitialMessagesRef.current = false;
       setLoadingMsgs(true);
-      
-      // Fire all requests in parallel
-      const msgsPromise = getChannelMessages(activeChannelId!);
-      const memsPromise = getChannelMembers(activeChannelId!);
-      const pinnedPromise = getPinnedMessages(activeChannelId!);
-      const evtsPromise = getChannelEvents(activeChannelId!);
-
-      // Await messages first to show chat instantly
-      const msgs = await msgsPromise;
-      
-      if (!cancelled) {
-        setMessages(msgs);
-        setLoadingMsgs(false);
-        requestAnimationFrame(() => {
-          scrollToBottom("auto");
-          hasLoadedInitialMessagesRef.current = true;
-        });
-      }
-
-      // Await secondary data
-      const [mems, pinned, evts] = await Promise.all([memsPromise, pinnedPromise, evtsPromise]);
-      
-      if (!cancelled) {
-        setMembers(mems as Member[]);
-        setPinnedMessages(pinned);
-        setEvents(evts);
+      try {
+        const data = await getFullChannelData(activeChannelId!);
+        
+        if (!cancelled) {
+          setMessages(data.messages);
+          setMembers(data.members as Member[]);
+          setPinnedMessages(data.pinnedMessages);
+          setEvents(data.events);
+          setLoadingMsgs(false);
+          requestAnimationFrame(() => {
+            scrollToBottom("auto");
+            hasLoadedInitialMessagesRef.current = true;
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load channel data:", err);
+        if (!cancelled) setLoadingMsgs(false);
       }
     }
     load();

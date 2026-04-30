@@ -8,6 +8,7 @@ import { AttendanceWidget } from "./attendance-widget";
 import { PayslipDashboardCard } from "@/components/payslips/payslip-dashboard-card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
+import { createClient } from "@/lib/supabase/client";
 import type { AppUser, Payslip } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 import {
@@ -77,6 +78,23 @@ export function AgentDashboard({
   useEffect(() => {
     setSelectedMonth(month);
   }, [month]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("agent-dashboard-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
+        router.refresh();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, () => {
+        router.refresh();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
 
   const monthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];

@@ -139,6 +139,26 @@ export async function getChannelMessages(
   })) as ChatMessage[];
 }
 
+export async function getFullChannelData(channelId: string) {
+  // A single server action to fetch all necessary data for a channel,
+  // drastically reducing network latency and redundant auth checks.
+  await requireAuth();
+  
+  const [messages, members, pinnedMessages, events] = await Promise.all([
+    getChannelMessages(channelId),
+    getChannelMembers(channelId),
+    getPinnedMessages(channelId),
+    getChannelEvents(channelId),
+  ]);
+
+  return {
+    messages,
+    members,
+    pinnedMessages,
+    events,
+  };
+}
+
 export async function sendMessage(
   channelId: string,
   content: string,

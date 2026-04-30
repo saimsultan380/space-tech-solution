@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { AttendanceWidget } from "./attendance-widget";
 import { RevenueChart } from "@/components/reports/charts/revenue-chart";
 import { SalesPerAgentChart } from "@/components/reports/charts/sales-per-agent-chart";
@@ -70,9 +72,27 @@ export function DashboardClient({
   companySettings,
 }: DashboardClientProps) {
   const [showCharts, setShowCharts] = useState(true);
+  const router = useRouter();
   const { currency } = useCurrency();
   const revenueTrend = getRevenueTrend(revenueData);
   const conversionValue = Number(stats.conversionRate || 0);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-dashboard-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
+        router.refresh();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, () => {
+        router.refresh();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
 
   return (
     <div className="space-y-5">

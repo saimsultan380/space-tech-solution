@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,9 +50,27 @@ export function ProcessorDashboard({
   companySettings,
 }: ProcessorDashboardProps) {
   const { currency } = useCurrency();
+  const router = useRouter();
   const [showCallLogsCta, setShowCallLogsCta] = useState(false);
 
   const hasCallLogsAccess = canAccessCallLogsResponses(user.role, user.allowed_modules);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("processor-dashboard-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
+        router.refresh();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, () => {
+        router.refresh();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
 
   useEffect(() => {
     if (!hasCallLogsAccess) {
