@@ -555,6 +555,36 @@ export async function deleteChannel(channelId: string) {
   return { error: null };
 }
 
+/**
+ * Leave a DM / remove yourself from a channel without deleting it for others.
+ * Used when a user clicks the delete icon on a DM in their sidebar.
+ */
+export async function leaveDmChannel(channelId: string) {
+  const user = await requireAuth();
+  const adminSupabase = createAdminClient();
+
+  // Verify the user is actually a member
+  const { data: membership } = await adminSupabase
+    .from("chat_channel_members")
+    .select("user_id")
+    .eq("channel_id", channelId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership) return { error: "You are not a member of this chat" };
+
+  // Remove the user from the channel members
+  const { error } = await adminSupabase
+    .from("chat_channel_members")
+    .delete()
+    .eq("channel_id", channelId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/chat");
+  return { error: null };
+}
+
 export async function setChannelMembers(channelId: string, memberIds: string[]) {
   const user = await requireAuth();
   if (user.role !== "super_admin") return { error: "Only admins can edit members" };

@@ -26,6 +26,7 @@ import {
   updateChatEvent,
   deleteChatEvent,
   getFullChannelData,
+  leaveDmChannel,
   type ChatChannel,
   type ChatMessage,
   type ChatEvent,
@@ -162,14 +163,14 @@ const MessageRow = React.memo(function MessageRow({
   const isImg = isImageType(msg.attachment_type);
 
   return (
-    <div className="msg-animate" style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}>
+    <div className="msg-animate">
       {showDate && (
         <div className="flex justify-center relative my-6">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
           <span className="relative rounded-full bg-background px-4 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{formatDateSeparator(msg.created_at)}</span>
         </div>
       )}
-      <div className={cn("flex flex-col mb-1", isOwn ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col mb-1 pt-2", isOwn ? "items-end" : "items-start")}>
         {!isOwn && !sameAsPrev && !msg.is_deleted && (
           <span className="text-[11px] font-bold text-muted-foreground mb-1 ml-1">{msg.sender?.full_name ?? "Unknown"}</span>
         )}
@@ -188,7 +189,7 @@ const MessageRow = React.memo(function MessageRow({
           {!isOwn && sameAsPrev && <div className="w-10 shrink-0" />}
           <div
             className={cn(
-              "group relative transition-all shadow-none min-w-[120px] max-w-[85%] sm:max-w-[70%]",
+              "group relative transition-all shadow-none min-w-[120px] max-w-[85%] sm:max-w-[70%] overflow-visible",
               hasAttachment && !msg.content ? "p-1.5" : "px-3.5 py-2",
               msg.is_deleted && "opacity-50 grayscale",
               isOwn ? "rounded-[5px] rounded-br-[4px]" : "border border-border rounded-[5px] rounded-bl-[4px]",
@@ -1146,13 +1147,27 @@ function ChatClientContent({
     setActiveChannelId(null); setMessages([]); setMembers([]); setShowChannelSettings(false);
   };
 
-  const handleDeleteChannelFromSidebar = async (channelId: string, channelName: string) => {
-    if (!confirm(`Delete channel "${channelName}" and all its messages for everyone? This cannot be undone.`)) return;
-    const result = await deleteChannel(channelId);
-    if (result.error) { alert(result.error); return; }
+  const handleDeleteChannelFromSidebar = async (channelId: string, channelName: string, isDm = false) => {
+    const confirmMsg = isDm
+      ? `Remove "${channelName}" from your chats? This only removes it from your view — the other person's chat is not affected.`
+      : `Delete channel "${channelName}" and all its messages for everyone? This cannot be undone.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    if (isDm) {
+      // For DMs: just leave (remove self from members), don't delete for everyone
+      const result = await leaveDmChannel(channelId);
+      if (result.error) { alert(result.error); return; }
+    } else {
+      // For channels: hard delete (admin/creator only)
+      const result = await deleteChannel(channelId);
+      if (result.error) { alert(result.error); return; }
+    }
+
     setChannels((prev) => prev.filter((c) => c.id !== channelId));
     if (activeChannelId === channelId) {
       setActiveChannelId(null); setMessages([]); setMembers([]);
+      setMobileShowChat(false);
     }
   };
 
@@ -1635,8 +1650,8 @@ function ChatClientContent({
                         time={ch.last_message ? formatRelativeTime(ch.last_message.created_at) : undefined}
                         isSubtitleItalic={!ch.last_message}
                         presenceDot={online ? "online" : "offline"}
-                        showDelete={currentUserRole === "super_admin" || ch.created_by === currentUserId}
-                        onDelete={() => handleDeleteChannelFromSidebar(ch.id, dmName)}
+                        showDelete={true}
+                        onDelete={() => handleDeleteChannelFromSidebar(ch.id, dmName, true)}
                       />
                     );
                   })}
