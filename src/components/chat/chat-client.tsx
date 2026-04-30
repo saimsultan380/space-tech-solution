@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent, Suspense } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -34,6 +34,7 @@ import {
   getNotifications,
   markNotificationsAsRead,
 } from "@/lib/actions/notifications";
+import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import {
@@ -64,6 +65,8 @@ import {
   Pin,
   PinOff,
   Bell,
+  BellOff,
+  BellRing,
   Link2,
   Calendar,
   Calendar as CalendarIcon,
@@ -124,6 +127,157 @@ export function ChatClient(props: ChatClientProps) {
     </Suspense>
   );
 }
+
+/* ─── Memoized Message Row ─── */
+interface MessageRowProps {
+  msg: ChatMessage;
+  isOwn: boolean;
+  showDate: boolean;
+  sameAsPrev: boolean;
+  isOnline: boolean;
+  isEditing: boolean;
+  editContent: string;
+  currentUserId: string;
+  onReply: (msg: ChatMessage) => void;
+  onPin: (msg: ChatMessage) => void;
+  onStartEdit: (msg: ChatMessage) => void;
+  onDelete: (id: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onEditChange: (v: string) => void;
+  editInputRef: React.RefObject<HTMLInputElement | null>;
+  formatTime: (d: string) => string;
+  formatDateSeparator: (d: string) => string;
+  formatFileSize: (b: number) => string;
+  getInitials: (n: string) => string;
+  isImageType: (t: string | null) => boolean | undefined;
+}
+
+const MessageRow = React.memo(function MessageRow({
+  msg, isOwn, showDate, sameAsPrev, isOnline, isEditing, editContent,
+  onReply, onPin, onStartEdit, onDelete, onSaveEdit, onCancelEdit, onEditChange,
+  editInputRef, formatTime, formatDateSeparator, formatFileSize, getInitials, isImageType,
+}: MessageRowProps) {
+  const hasAttachment = !!msg.attachment_url;
+  const isImg = isImageType(msg.attachment_type);
+
+  return (
+    <div className="msg-animate" style={{ contentVisibility: "auto", containIntrinsicSize: "0 80px" }}>
+      {showDate && (
+        <div className="flex justify-center relative my-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+          <span className="relative rounded-full bg-background px-4 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{formatDateSeparator(msg.created_at)}</span>
+        </div>
+      )}
+      <div className={cn("flex flex-col mb-1", isOwn ? "items-end" : "items-start")}>
+        {!isOwn && !sameAsPrev && !msg.is_deleted && (
+          <span className="text-[11px] font-bold text-muted-foreground mb-1 ml-1">{msg.sender?.full_name ?? "Unknown"}</span>
+        )}
+        <div className={cn("flex items-end", isOwn ? "flex-row-reverse" : "flex-row")}>
+          {!isOwn && !sameAsPrev && (
+            <div className="relative mr-2 mb-0.5 shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-[10px] font-black text-primary overflow-hidden">
+                {msg.sender?.avatar_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={msg.sender.avatar_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  : getInitials(msg.sender?.full_name ?? "?")}
+              </div>
+              {isOnline && <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background" />}
+            </div>
+          )}
+          {!isOwn && sameAsPrev && <div className="w-10 shrink-0" />}
+          <div
+            className={cn(
+              "group relative transition-all shadow-none min-w-[120px] max-w-[85%] sm:max-w-[70%]",
+              hasAttachment && !msg.content ? "p-1.5" : "px-3.5 py-2",
+              msg.is_deleted && "opacity-50 grayscale",
+              isOwn ? "rounded-[5px] rounded-br-[4px]" : "border border-border rounded-[5px] rounded-bl-[4px]",
+            )}
+            style={{
+              backgroundColor: isOwn ? "var(--theme-chat-user-bg, hsl(var(--primary)))" : "var(--theme-chat-bot-bg, hsl(var(--card)))",
+              color: isOwn ? "var(--theme-chat-user-text, white)" : "var(--theme-chat-bot-text, hsl(var(--foreground)))",
+            }}
+          >
+            {msg.reply_to && !msg.is_deleted && (
+              <div className={cn("mb-1.5 rounded-[5px] px-2.5 py-1.5 border-l-2", isOwn ? "bg-white/10 border-white/40" : "bg-primary/5 border-primary")}>
+                <p className={cn("text-[10px] font-bold uppercase tracking-tight", isOwn ? "text-white/80" : "text-primary")}>{msg.reply_to.sender?.full_name ?? "Unknown"}</p>
+                <p className={cn("text-xs truncate font-medium opacity-80", isOwn ? "text-white" : "text-muted-foreground")}>{msg.reply_to.content}</p>
+              </div>
+            )}
+            {msg.is_pinned && !msg.is_deleted && (
+              <div className={cn("flex items-center gap-1.5 mb-1", isOwn ? "text-white/70" : "text-amber-600")}>
+                <Pin className="h-3 w-3" />
+                <span className="text-[9px] font-bold uppercase tracking-tight">Pinned</span>
+              </div>
+            )}
+            {hasAttachment && !msg.is_deleted && (
+              <div className={cn(hasAttachment && msg.content && "mb-1.5")}>
+                {isImg ? (
+                  <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[5px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={msg.attachment_url!} alt={msg.attachment_name ?? "image"} loading="lazy" className="max-w-full max-h-80 object-cover hover:scale-105 transition-transform duration-300" />
+                  </a>
+                ) : msg.attachment_type?.startsWith("audio/") ? (
+                  <div className={cn("rounded-[5px] px-2 py-1.5", isOwn ? "bg-white/10" : "bg-primary/5 border border-primary/10")}>
+                    <audio controls src={msg.attachment_url!} className="h-7 w-full max-w-[200px]" />
+                  </div>
+                ) : (
+                  <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all", isOwn ? "bg-white/10 hover:bg-white/20" : "bg-muted/50 border border-border hover:bg-muted")}>
+                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", isOwn ? "bg-white/20" : "bg-primary/10")}>
+                      <FileText className={cn("h-5 w-5", isOwn ? "text-white" : "text-primary")} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold truncate">{msg.attachment_name}</p>
+                      <p className={cn("text-[9px] font-bold opacity-60", isOwn ? "text-white" : "text-muted-foreground")}>{msg.attachment_size ? formatFileSize(msg.attachment_size) : "File"}</p>
+                    </div>
+                    <Download className={cn("h-3.5 w-3.5 shrink-0 opacity-60", isOwn ? "text-white" : "text-muted-foreground")} />
+                  </a>
+                )}
+              </div>
+            )}
+            {isEditing ? (
+              <div className="flex items-center gap-2 my-1">
+                <input ref={editInputRef as React.RefObject<HTMLInputElement>} value={editContent} onChange={(e) => onEditChange(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
+                  className="flex-1 min-w-0 rounded-lg bg-white/10 border border-white/20 px-3 py-1.5 text-sm outline-none text-white font-medium" />
+                <button onClick={onSaveEdit} className="shrink-0 rounded-lg p-1.5 bg-white text-primary hover:bg-gray-100"><Check className="h-4 w-4" /></button>
+                <button onClick={onCancelEdit} className="shrink-0 rounded-lg p-1.5 bg-white/10 hover:bg-white/20"><X className="h-4 w-4" /></button>
+              </div>
+            ) : msg.is_deleted ? (
+              <div className="flex items-center gap-2 px-1"><Ban className="h-3.5 w-3.5 opacity-50" /><p className="text-xs italic font-medium opacity-70 select-none">Message deleted</p></div>
+            ) : msg.content ? (
+              <p className={cn("text-sm sm:text-[15px] leading-relaxed font-medium break-words whitespace-pre-wrap", isOwn ? "text-white" : "text-foreground")}>{msg.content}</p>
+            ) : null}
+            <div className="flex items-center justify-end gap-1.5 mt-1 opacity-60">
+              {msg.is_edited && !msg.is_deleted && <span className="text-[8px] font-bold uppercase tracking-tight">edited</span>}
+              <span suppressHydrationWarning className="text-[9px] font-bold">{formatTime(msg.created_at)}</span>
+              {isOwn && !msg.is_deleted && <CheckCheck className="h-3 w-3" />}
+            </div>
+            {!msg.is_deleted && !isEditing && (
+              <div className={cn("absolute -top-5 flex items-center gap-1 rounded-[5px] bg-card border border-border p-0.5 opacity-0 group-hover:opacity-100 transition-all z-10", isOwn ? "right-0" : "left-0")}>
+                <div className="flex items-center gap-1 px-1 border-r border-border">
+                  <button className="hover:scale-110 transition-transform text-sm" title="Thumbs up">👍</button>
+                  <button className="hover:scale-110 transition-transform text-sm" title="Heart">❤️</button>
+                  <button className="hover:scale-110 transition-transform text-sm" title="Laugh">😂</button>
+                </div>
+                <button onClick={() => onReply(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Reply"><Reply className="h-3 w-3" /></button>
+                <button onClick={() => onPin(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-amber-500 transition-colors" title={msg.is_pinned ? "Unpin" : "Pin"}>
+                  {msg.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+                </button>
+                {isOwn && (
+                  <>
+                    <button onClick={() => onStartEdit(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Edit"><Pencil className="h-3 w-3" /></button>
+                    <button onClick={() => onDelete(msg.id)} className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 function ChatClientContent({
   channels: initialChannels,
@@ -262,6 +416,17 @@ function ChatClientContent({
   // Toast notifications for incoming messages
   type ChatToast = { id: string; senderName: string; channelName: string; content: string; channelId: string; isDm: boolean };
   const [chatToasts, setChatToasts] = useState<ChatToast[]>([]);
+
+  // ── Browser / sound / tab notifications ──
+  const {
+    permission: notifPermission,
+    muted: notifMuted,
+    totalUnread: notifTotalUnread,
+    requestPermission: requestNotifPermission,
+    notify: triggerNotification,
+    toggleMute: toggleNotifMute,
+    clearUnread: clearNotifUnread,
+  } = useChatNotifications();
 
   // Keep refs in sync
   useEffect(() => { channelsRef.current = channels; }, [channels]);
@@ -560,18 +725,19 @@ function ChatClientContent({
               return [updated, ...rest];
             });
 
-            // Show toast notification
+            // Show toast + browser notification + sound
             const channel = currentChannels.find((c) => c.id === msg.channel_id);
             if (channel) {
               const senderName = sender?.full_name ?? "Someone";
               const isDm = channel.is_direct;
               const channelName = isDm ? senderName : channel.name;
               const toastId = `toast-${msg.id}`;
+              const msgContent = msg.content || (msg.attachment_name ? `📎 ${msg.attachment_name}` : "Sent an attachment");
               const newToast: ChatToast = {
                 id: toastId,
                 senderName,
                 channelName,
-                content: msg.content || (msg.attachment_name ? `📎 ${msg.attachment_name}` : "Sent an attachment"),
+                content: msgContent,
                 channelId: msg.channel_id,
                 isDm,
               };
@@ -582,6 +748,21 @@ function ChatClientContent({
               setTimeout(() => {
                 setChatToasts((prev) => prev.filter((t) => t.id !== toastId));
               }, 6000);
+
+              // Browser notification + sound + tab badge
+              triggerNotification({
+                senderName,
+                channelName,
+                content: msgContent,
+                isDm,
+                senderAvatar: sender?.avatar_url ?? null,
+                onClick: () => {
+                  // Focus the channel when notification is clicked
+                  setActiveChannelId(msg.channel_id);
+                  setMobileShowChat(true);
+                  setActiveTab("chat");
+                },
+              });
             }
           }
         }
@@ -643,7 +824,7 @@ function ChatClientContent({
     typingTimeoutRef.current = setTimeout(() => {}, 2000);
   };
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!newMsg.trim() || !activeChannelId || sending) return;
     const content = newMsg;
     const replyId = replyTo?.id;
@@ -668,11 +849,11 @@ function ChatClientContent({
     await sendMessage(activeChannelId, content, { replyToId: replyId });
     setSending(false);
     inputRef.current?.focus();
-  };
+  }, [newMsg, activeChannelId, sending, replyTo, currentUserId, currentUserName, currentUserAvatar, currentUserRole]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
+  }, [handleSend]);
 
   const handleFileUpload = async (file: File) => {
     if (!file || !activeChannelId) return;
@@ -721,14 +902,22 @@ function ChatClientContent({
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
 
-  const handleSelectChannel = (channelId: string) => {
+  const handleSelectChannel = useCallback((channelId: string) => {
     setActiveChannelId(channelId);
     setMobileShowChat(true);
     setSearchQuery("");
     setShowSearch(false);
     setActiveTab("chat");
     setNewEventChannelId(channelId);
-  };
+    // Clear unread badge for this channel
+    setUnreadCounts((prev) => {
+      if (!prev[channelId]) return prev;
+      const next = { ...prev };
+      delete next[channelId];
+      return next;
+    });
+    clearNotifUnread();
+  }, [clearNotifUnread]);
 
   const handleCreateEvent = async () => {
     let targetChannelId = newEventChannelId || activeChannelId;
@@ -790,7 +979,11 @@ function ChatClientContent({
     }
   };
 
-  const handleMobileBack = () => { setMobileShowChat(false); setShowMemberPanel(false); setShowSearch(false); };
+  const handleMobileBack = useCallback(() => { 
+    setMobileShowChat(false); 
+    setShowMemberPanel(false); 
+    setShowSearch(false); 
+  }, []);
 
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) return;
@@ -1184,6 +1377,33 @@ function ChatClientContent({
             >
               <LayoutDashboard className="h-4 w-4" />
             </Link>
+
+            {/* Mute / Unmute notifications */}
+            <button
+              onClick={toggleNotifMute}
+              className={cn(
+                "rounded-[5px] p-2 transition-all",
+                notifMuted ? "text-muted-foreground/40 hover:text-muted-foreground" : "text-muted-foreground hover:bg-muted hover:text-primary"
+              )}
+              title={notifMuted ? "Unmute notifications" : "Mute notifications"}
+            >
+              {notifMuted ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+              {!notifMuted && notifTotalUnread > 0 && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
+              )}
+            </button>
+
+            {/* Browser notification permission prompt */}
+            {notifPermission === "default" && (
+              <button
+                onClick={requestNotifPermission}
+                className="rounded-[5px] p-2 text-amber-500 hover:bg-amber-500/10 transition-all"
+                title="Enable browser notifications"
+              >
+                <BellRing className="h-4 w-4" />
+              </button>
+            )}
+
             <button
               ref={notificationsButtonRef}
               onClick={() => setShowNotifications(!showNotifications)}
@@ -1191,7 +1411,7 @@ function ChatClientContent({
                 "relative rounded-[5px] p-2 transition-all",
                 showNotifications ? "bg-primary text-white" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
               )}
-              title="Notifications"
+              title="Activity"
             >
               <Bell className="h-4 w-4" />
               {notifications.filter((n) => !n.is_read).length > 0 && (
@@ -1926,152 +2146,31 @@ function ChatClientContent({
                           const showDate = shouldShowDate(msg, idx);
                           const prevMsg = idx > 0 ? filteredMessages[idx - 1] : null;
                           const sameAsPrev = !showDate && prevMsg?.sender_id === msg.sender_id && (new Date(msg.created_at).getTime() - new Date(prevMsg!.created_at).getTime() < 120000);
-                          const hasAttachment = !!msg.attachment_url;
-                          const isImg = isImageType(msg.attachment_type);
-
                           return (
-                            <div key={msg.id} className="msg-animate">
-                              {showDate && (
-                                <div className="flex justify-center relative my-6">
-                                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border"></div></div>
-                                  <span className="relative rounded-full bg-background px-4 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{formatDateSeparator(msg.created_at)}</span>
-                                </div>
-                              )}
-                              <div className={cn("flex flex-col mb-1", isOwn ? "items-end" : "items-start")}>
-                                {/* Sender name above bubble (Strictly for others) */}
-                                {!isOwn && !sameAsPrev && !msg.is_deleted && (
-                                  <span className="text-[11px] font-bold text-muted-foreground mb-1 ml-1">{msg.sender?.full_name ?? "Unknown"}</span>
-                                )}
-                                
-                                <div className={cn(
-                                  "flex items-end",
-                                  isOwn ? "flex-row-reverse" : "flex-row"
-                                )}>
-                                  {/* Avatar for others */}
-                                  {!isOwn && !sameAsPrev && (
-                                    <div className="relative mr-2 mb-0.5 shrink-0">
-                                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-[10px] font-black text-primary overflow-hidden">
-                                        {msg.sender?.avatar_url ? (
-                                          // eslint-disable-next-line @next/next/no-img-element
-                                          <img src={msg.sender.avatar_url} alt="" className="h-full w-full object-cover" />
-                                        ) : getInitials(msg.sender?.full_name ?? "?")}
-                                      </div>
-                                      {onlineUsers.has(msg.sender_id) && (
-                                        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background shadow-none" />
-                                      )}
-                                    </div>
-                                  )}
-                                  {!isOwn && sameAsPrev && <div className="w-10 shrink-0" />}
-
-                                  <div className={cn(
-                                    "group relative transition-all shadow-none min-w-[120px] max-w-[85%] sm:max-w-[70%]",
-                                    hasAttachment && !msg.content ? "p-1.5" : "px-3.5 py-2",
-                                    msg.is_deleted && "opacity-50 grayscale",
-                                    isOwn ? "rounded-[5px] rounded-br-[4px]" : "border border-border rounded-[5px] rounded-bl-[4px]",
-                                  )}
-                                  style={{
-                                    backgroundColor: isOwn ? 'var(--theme-chat-user-bg, hsl(var(--primary)))' : 'var(--theme-chat-bot-bg, hsl(var(--card)))',
-                                    color: isOwn ? 'var(--theme-chat-user-text, white)' : 'var(--theme-chat-bot-text, hsl(var(--foreground)))'
-                                  }}>
-                                    {/* Reply preview */}
-                                    {msg.reply_to && !msg.is_deleted && (
-                                      <div className={cn("mb-1.5 rounded-[5px] px-2.5 py-1.5 border-l-2", isOwn ? "bg-white/10 border-white/40" : "bg-primary/5 border-primary")}>
-                                        <p className={cn("text-[10px] font-bold uppercase tracking-tight", isOwn ? "text-white/80" : "text-primary")}>{msg.reply_to.sender?.full_name ?? "Unknown"}</p>
-                                        <p className={cn("text-xs truncate font-medium opacity-80", isOwn ? "text-white" : "text-muted-foreground")}>{msg.reply_to.content}</p>
-                                      </div>
-                                    )}
-
-                                    {/* Pinned indicator */}
-                                    {msg.is_pinned && !msg.is_deleted && (
-                                      <div className={cn("flex items-center gap-1.5 mb-1", isOwn ? "text-white/70" : "text-amber-600")}>
-                                        <Pin className="h-3 w-3" />
-                                        <span className="text-[9px] font-bold uppercase tracking-tight">Pinned</span>
-                                      </div>
-                                    )}
-
-                                    {/* Attachment */}
-                                    {hasAttachment && !msg.is_deleted && (
-                                      <div className={cn(hasAttachment && msg.content && "mb-1.5")}>
-                                        {isImg ? (
-                                          <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[5px]">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={msg.attachment_url!} alt={msg.attachment_name ?? "image"} loading="lazy" className="max-w-full max-h-80 object-cover hover:scale-105 transition-transform duration-300" />
-                                          </a>
-                                        ) : msg.attachment_type?.startsWith("audio/") ? (
-                                          <div className={cn("rounded-[5px] px-2 py-1.5", isOwn ? "bg-white/10" : "bg-primary/5 border border-primary/10")}>
-                                            <audio controls src={msg.attachment_url!} className="h-7 w-full max-w-[200px]" />
-                                          </div>
-                                        ) : (
-                                          <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all", isOwn ? "bg-white/10 hover:bg-white/20" : "bg-muted/50 border border-border hover:bg-muted")}>
-                                            <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", isOwn ? "bg-white/20" : "bg-primary/10")}>
-                                              <FileText className={cn("h-5 w-5", isOwn ? "text-white" : "text-primary")} />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[11px] font-bold truncate">{msg.attachment_name}</p>
-                                              <p className={cn("text-[9px] font-bold opacity-60", isOwn ? "text-white" : "text-muted-foreground")}>{msg.attachment_size ? formatFileSize(msg.attachment_size) : "File"}</p>
-                                            </div>
-                                            <Download className={cn("h-3.5 w-3.5 shrink-0 opacity-60", isOwn ? "text-white" : "text-muted-foreground")} />
-                                          </a>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Message body */}
-                                    {editingMsgId === msg.id ? (
-                                      <div className="flex items-center gap-2 my-1">
-                                        <input ref={editInputRef} value={editContent} onChange={(e) => setEditContent(e.target.value)}
-                                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") { setEditingMsgId(null); setEditContent(""); } }}
-                                          className="flex-1 min-w-0 rounded-lg bg-white/10 border border-white/20 px-3 py-1.5 text-sm outline-none text-white font-medium" />
-                                        <button onClick={handleSaveEdit} className="shrink-0 rounded-lg p-1.5 bg-white text-primary hover:bg-gray-100"><Check className="h-4 w-4" /></button>
-                                        <button onClick={() => { setEditingMsgId(null); setEditContent(""); }} className="shrink-0 rounded-lg p-1.5 bg-white/10 hover:bg-white/20"><X className="h-4 w-4" /></button>
-                                      </div>
-                                    ) : msg.is_deleted ? (
-                                      <div className="flex items-center gap-2 px-1"><Ban className="h-3.5 w-3.5 opacity-50" /><p className="text-xs italic font-medium opacity-70 select-none">Message deleted</p></div>
-                                    ) : msg.content ? (
-                                      <p className={cn(
-                                        "text-sm sm:text-[15px] leading-relaxed font-medium break-words whitespace-pre-wrap",
-                                        isOwn ? "text-white" : "text-foreground"
-                                      )}>{msg.content}</p>
-                                    ) : null}
-
-                                    {/* Time + receipts */}
-                                    <div className="flex items-center justify-end gap-1.5 mt-1 opacity-60">
-                                      {msg.is_edited && !msg.is_deleted && (
-                                        <span className="text-[8px] font-bold uppercase tracking-tight">edited</span>
-                                      )}
-                                      <span suppressHydrationWarning className="text-[9px] font-bold">{formatTime(msg.created_at)}</span>
-                                      {isOwn && !msg.is_deleted && (
-                                        <CheckCheck className="h-3 w-3" />
-                                      )}
-                                    </div>
-
-                                    {/* Hover action toolbar */}
-                                    {!msg.is_deleted && editingMsgId !== msg.id && (
-                                      <div className={cn(
-                                        "absolute -top-5 flex items-center gap-1 rounded-[5px] bg-card border border-border p-0.5 opacity-0 group-hover:opacity-100 transition-all z-10",
-                                        isOwn ? "right-0" : "left-0",
-                                      )}>
-                                        <div className="flex items-center gap-1 px-1 border-r border-border">
-                                          <button className="hover:scale-110 transition-transform text-sm" title="Thumbs up">👍</button>
-                                          <button className="hover:scale-110 transition-transform text-sm" title="Heart">❤️</button>
-                                          <button className="hover:scale-110 transition-transform text-sm" title="Laugh">😂</button>
-                                        </div>
-                                        <button onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Reply"><Reply className="h-3 w-3" /></button>
-                                        <button onClick={() => handlePin(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-amber-500 transition-colors" title={msg.is_pinned ? "Unpin" : "Pin"}>
-                                          {msg.is_pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-                                        </button>
-                                        {isOwn && (
-                                          <>
-                                              <button onClick={() => handleStartEdit(msg)} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-primary transition-colors" title="Edit"><Pencil className="h-3 w-3" /></button>
-                                              <button onClick={() => handleDelete(msg.id)} className="rounded-lg p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete"><Trash2 className="h-3 w-3" /></button>
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                            <MessageRow
+                              key={msg.id}
+                              msg={msg}
+                              isOwn={isOwn}
+                              showDate={showDate}
+                              sameAsPrev={sameAsPrev}
+                              isOnline={onlineUsers.has(msg.sender_id)}
+                              isEditing={editingMsgId === msg.id}
+                              editContent={editContent}
+                              currentUserId={currentUserId}
+                              onReply={(m) => { setReplyTo(m); inputRef.current?.focus(); }}
+                              onPin={handlePin}
+                              onStartEdit={handleStartEdit}
+                              onDelete={handleDelete}
+                              onSaveEdit={handleSaveEdit}
+                              onCancelEdit={() => { setEditingMsgId(null); setEditContent(""); }}
+                              onEditChange={setEditContent}
+                              editInputRef={editInputRef}
+                              formatTime={formatTime}
+                              formatDateSeparator={formatDateSeparator}
+                              formatFileSize={formatFileSize}
+                              getInitials={getInitials}
+                              isImageType={isImageType}
+                            />
                           );
                         })}
                         <div ref={messagesEndRef} />

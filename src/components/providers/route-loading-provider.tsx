@@ -48,15 +48,13 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const startLoading = useCallback(() => {
     clearPendingTimeout();
     
-    // Only show the loader if the request takes longer than 150ms
-    showLoaderTimeoutRef.current = setTimeout(() => {
-      setIsLoading(true);
-    }, 150);
+    // Show loader immediately for instant feedback
+    setIsLoading(true);
 
     // Safety timeout: avoid stuck loader in edge cases
     safetyTimeoutRef.current = setTimeout(() => {
       stopLoading();
-    }, 10000);
+    }, 8000); // Reduced from 10s to 8s
   }, [clearPendingTimeout, stopLoading]);
 
   useEffect(() => {
@@ -164,15 +162,18 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         className={cn(
-          "pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300",
-          isLoading ? "opacity-100" : "opacity-0"
+          "pointer-events-none fixed inset-x-0 top-0 z-[100] h-1 bg-gradient-to-r from-primary via-primary/60 to-primary transition-all duration-200",
+          isLoading ? "opacity-100 animate-pulse" : "opacity-0"
         )}
         aria-hidden={!isLoading}
       >
-        <div className="flex flex-col items-center gap-4">
-          <Spinner className="h-10 w-10" />
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40">Syncing</p>
-        </div>
+        <div className="h-full w-full bg-primary animate-[shimmer_1s_ease-in-out_infinite]" 
+          style={{
+            backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1s ease-in-out infinite'
+          }}
+        />
       </div>
     </RouteLoadingContext.Provider>
   );

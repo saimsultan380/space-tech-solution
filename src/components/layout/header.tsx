@@ -7,10 +7,11 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouteLoading } from "@/components/providers/route-loading-provider";
 import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
-import { LogOut, Menu, Bell, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "lucide-react";
+import { LogOut, Menu, Bell, BellOff, BellRing, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "lucide-react";
 import Image from "next/image";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { Notification, UserRole } from "@/lib/types";
+import { useChatNotifications } from "@/hooks/useChatNotifications";
 
 function formatEmploymentType(type: string | null | undefined): string | null {
   if (!type) return null;
@@ -133,10 +134,16 @@ export function Header({
 
   const unreadChatCount = chatNotifications.filter((n) => !n.is_read).length;
 
-  // Toast notifications for incoming chat messages (shown on dashboard pages)
-  type HeaderChatToast = { id: string; title: string; body: string };
-  const [headerChatToasts, setHeaderChatToasts] = useState<HeaderChatToast[]>([]);
-  const knownNotifIdsRef = useRef<Set<string>>(new Set());
+  // Browser notifications + sound + tab badge (dashboard pages)
+  const {
+    permission: notifPermission,
+    muted: notifMuted,
+    totalUnread: notifTotalUnread,
+    requestPermission: requestNotifPermission,
+    notify: triggerNotification,
+    toggleMute: toggleNotifMute,
+    clearUnread: clearNotifUnread,
+  } = useChatNotifications();
 
   const handleSignOut = async () => {
     startLoading();
@@ -194,20 +201,16 @@ export function Header({
           void loadNotifications();
           void loadChatNotifications();
 
-          // Show toast for new chat notifications
+          // Show toast + browser notification + sound for new chat messages
           if (payload.eventType === "INSERT" && (payload.new as { type?: string }).type === "chat") {
             const notif = payload.new as { id: string; title: string; body: string };
-            if (!knownNotifIdsRef.current.has(notif.id)) {
-              knownNotifIdsRef.current.add(notif.id);
-              const toastId = notif.id;
-              setHeaderChatToasts((prev) => {
-                if (prev.some((t) => t.id === toastId)) return prev;
-                return [{ id: toastId, title: notif.title, body: notif.body }, ...prev].slice(0, 4);
-              });
-              setTimeout(() => {
-                setHeaderChatToasts((prev) => prev.filter((t) => t.id !== toastId));
-              }, 6000);
-            }
+            triggerNotification({
+              senderName: notif.title.replace("New message from ", "").replace("New message in #", ""),
+              channelName: notif.title.replace("New message in #", ""),
+              content: notif.body,
+              isDm: notif.title.startsWith("New message from "),
+              onClick: () => { startLoading(); router.push("/chat"); },
+            });
           }
         }
       )
@@ -392,11 +395,43 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+
+        {/* Notification permission prompt — shown when not yet asked */}
+        {notifPermission === "default" && (
+          <button
+            type="button"
+            onClick={requestNotifPermission}
+            className="hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+            title="Enable browser notifications"
+          >
+            <BellRing className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Enable Alerts</span>
+          </button>
+        )}
+
+        {/* Mute toggle */}
+        <button
+          type="button"
+          onClick={toggleNotifMute}
+          className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
+          title={notifMuted ? "Unmute notifications" : "Mute notifications"}
+        >
+          {notifMuted
+            ? <BellOff className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+            : <Bell className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+          }
+          {!notifMuted && notifTotalUnread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+              {notifTotalUnread > 9 ? "9+" : notifTotalUnread}
+            </span>
+          )}
+        </button>
+
         <div className="relative">
           <button
             ref={chatNotificationsTriggerRef}
             type="button"
-            onClick={() => setChatNotificationsOpen(!chatNotificationsOpen)}
+            onClick={() => { setChatNotificationsOpen(!chatNotificationsOpen); clearNotifUnread(); }}
             className="relative rounded-lg p-2 text-[inherit] opacity-70 hover:opacity-100 hover:bg-muted/20 sm:p-2.5"
             aria-label="Open chat notifications"
           >
@@ -994,39 +1029,6 @@ export function Header({
         </div>
       </div>
     )}
-    {/* ── Chat Toast Notifications (dashboard pages) ── */}
-    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col-reverse gap-2 w-80 pointer-events-none">
-      {headerChatToasts.map((toast, idx) => (
-        <div
-          key={toast.id}
-          className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 shadow-2xl animate-slide-in-right"
-          style={{ animationDelay: `${idx * 60}ms` }}
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <MessageSquare className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-foreground truncate">{toast.title}</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">{toast.body}</p>
-          </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <button
-              onClick={() => setHeaderChatToasts((prev) => prev.filter((t) => t.id !== toast.id))}
-              className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
-              aria-label="Dismiss"
-            >
-              ×
-            </button>
-            <button
-              onClick={() => { startLoading(); router.push("/chat"); setHeaderChatToasts((prev) => prev.filter((t) => t.id !== toast.id)); }}
-              className="text-[10px] font-semibold text-primary hover:underline"
-            >
-              Open
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
     </>
   );
 }
