@@ -388,97 +388,202 @@ export function Header({
           </button>
 
           {chatNotificationsOpen && (
-            <div
-              ref={chatNotificationsPanelRef}
-              className={cn(
-                "absolute z-50 mt-2 rounded-xl border border-foreground/10 bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200",
-                isMobile 
-                  ? "fixed inset-x-4 top-20 w-auto" 
-                  : "right-0 w-[320px] origin-top-right"
-              )}
-            >
-              <div className="flex items-center justify-between border-b border-foreground/5 px-4 py-3 bg-muted/10">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Recent Messages
-                </span>
-                <button
-                  onClick={() => {
-                    startLoading();
-                    router.push("/chat");
-                    setChatNotificationsOpen(false);
-                  }}
-                  className="text-[11px] font-bold text-primary hover:underline"
+            <>
+              {isMobile ? (
+                <div className="fixed inset-0 z-50" onClick={() => setChatNotificationsOpen(false)}>
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                  <div
+                    ref={chatNotificationsPanelRef}
+                    className="absolute left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-foreground/10 bg-card shadow-xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between border-b border-foreground/5 px-3 py-2 bg-muted/5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Recent Messages
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            startLoading();
+                            router.push("/chat");
+                            setChatNotificationsOpen(false);
+                          }}
+                          className="text-[11px] font-medium text-primary hover:underline"
+                        >
+                          View All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setChatNotificationsOpen(false)}
+                          className="flex h-5 w-5 items-center justify-center rounded-full text-xs text-muted-foreground hover:bg-muted"
+                          aria-label="Close"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {loadingChatNotifications ? (
+                        <p className="py-4 text-center text-xs text-muted-foreground">Loading...</p>
+                      ) : chatNotifications.length === 0 ? (
+                        <p className="py-4 text-center text-xs text-muted-foreground">No messages yet</p>
+                      ) : (
+                        chatNotifications.map((n) => {
+                          const senderName = n.title.replace("New message from ", "").replace("New message in #", "");
+                          return (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                markAsRead(n.id);
+                                startLoading();
+                                router.push("/chat");
+                                setChatNotificationsOpen(false);
+                              }}
+                              className={cn(
+                                "w-full flex items-start gap-3 border-b border-foreground/5 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/30",
+                                !n.is_read && "bg-primary/[0.03]"
+                              )}
+                            >
+                              <div className="relative shrink-0">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-[10px] font-bold text-primary">
+                                  {getInitials(senderName)}
+                                </div>
+                                {!n.is_read && (
+                                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="truncate text-[13px] font-semibold text-foreground">
+                                    {senderName}
+                                  </span>
+                                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                                    {formatDateTime(n.created_at)}
+                                  </span>
+                                </div>
+                                <p className={cn(
+                                  "mt-0.5 line-clamp-2 text-[11px] leading-relaxed",
+                                  !n.is_read ? "text-foreground font-medium" : "text-muted-foreground"
+                                )}>
+                                  {n.body}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        startLoading();
+                        router.push("/chat");
+                        setChatNotificationsOpen(false);
+                      }}
+                      className="w-full py-3 bg-muted/5 text-center text-[11px] font-bold text-primary hover:bg-muted/10 transition-colors uppercase tracking-widest border-t border-foreground/5"
+                    >
+                      Go to Messenger
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  ref={chatNotificationsPanelRef}
+                  className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-foreground/10 bg-card shadow-lg overflow-hidden animate-in fade-in zoom-in duration-200 origin-top-right"
                 >
-                  View All
-                </button>
-              </div>
-              <div className="max-h-[380px] overflow-y-auto no-scrollbar">
-                {loadingChatNotifications ? (
-                  <div className="flex items-center justify-center py-10">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  </div>
-                ) : chatNotifications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
-                    <MessageSquare className="h-8 w-8 text-muted-foreground/20 mb-2" />
-                    <p className="text-xs text-muted-foreground font-medium">No messages yet</p>
-                  </div>
-                ) : (
-                  chatNotifications.map((n) => {
-                    const senderName = n.title.replace("New message from ", "").replace("New message in #", "");
-                    return (
+                  <div className="flex items-center justify-between border-b border-foreground/5 px-3 py-2 bg-muted/5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Recent Messages
+                    </span>
+                    <div className="flex items-center gap-2">
                       <button
-                        key={n.id}
                         onClick={() => {
-                          markAsRead(n.id);
                           startLoading();
                           router.push("/chat");
                           setChatNotificationsOpen(false);
                         }}
-                        className={cn(
-                          "w-full flex items-start gap-3 border-b border-foreground/5 px-4 py-4 text-left transition-all hover:bg-muted/30",
-                          !n.is_read && "bg-primary/[0.03]"
-                        )}
+                        className="text-[11px] font-medium text-primary hover:underline"
                       >
-                        <div className="relative shrink-0">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-primary">
-                            {getInitials(senderName)}
-                          </div>
-                          {!n.is_read && (
-                            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <span className="truncate text-sm font-bold text-foreground">
-                              {senderName}
-                            </span>
-                            <span className="shrink-0 text-[10px] text-muted-foreground font-medium">
-                              {formatDateTime(n.created_at)}
-                            </span>
-                          </div>
-                          <p className={cn(
-                            "line-clamp-2 text-[12px] leading-snug",
-                            !n.is_read ? "text-foreground font-medium" : "text-muted-foreground"
-                          )}>
-                            {n.body}
-                          </p>
-                        </div>
+                        View All
                       </button>
-                    );
-                  })
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  startLoading();
-                  router.push("/chat");
-                  setChatNotificationsOpen(false);
-                }}
-                className="w-full py-3 bg-muted/5 text-center text-[11px] font-bold text-primary hover:bg-muted/10 transition-colors uppercase tracking-widest border-t border-foreground/5"
-              >
-                Go to Messenger
-              </button>
-            </div>
+                      <button
+                        type="button"
+                        onClick={() => setChatNotificationsOpen(false)}
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-xs text-muted-foreground hover:bg-muted"
+                        aria-label="Close"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {loadingChatNotifications ? (
+                      <div className="flex items-center justify-center py-10">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      </div>
+                    ) : chatNotifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground/20 mb-2" />
+                        <p className="text-xs text-muted-foreground font-medium">No messages yet</p>
+                      </div>
+                    ) : (
+                      chatNotifications.map((n) => {
+                        const senderName = n.title.replace("New message from ", "").replace("New message in #", "");
+                        return (
+                          <button
+                            key={n.id}
+                            onClick={() => {
+                              markAsRead(n.id);
+                              startLoading();
+                              router.push("/chat");
+                              setChatNotificationsOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-start gap-3 border-b border-foreground/5 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/30",
+                              !n.is_read && "bg-primary/[0.03]"
+                            )}
+                          >
+                            <div className="relative shrink-0">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-[10px] font-bold text-primary">
+                                {getInitials(senderName)}
+                              </div>
+                              {!n.is_read && (
+                                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-card" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="truncate text-[13px] font-semibold text-foreground">
+                                  {senderName}
+                                </span>
+                                <span className="shrink-0 text-[10px] text-muted-foreground">
+                                  {formatDateTime(n.created_at)}
+                                </span>
+                              </div>
+                              <p className={cn(
+                                "mt-0.5 line-clamp-2 text-[11px] leading-relaxed",
+                                !n.is_read ? "text-foreground font-medium" : "text-muted-foreground"
+                              )}>
+                                {n.body}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      startLoading();
+                      router.push("/chat");
+                      setChatNotificationsOpen(false);
+                    }}
+                    className="w-full py-3 bg-muted/5 text-center text-[11px] font-bold text-primary hover:bg-muted/10 transition-colors uppercase tracking-widest border-t border-foreground/5"
+                  >
+                    Go to Messenger
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 

@@ -46,81 +46,60 @@ export interface ChatMessage {
   };
 }
 
+export interface ChatEvent {
+  id: string;
+  channel_id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  is_reminder_sent: boolean;
+  created_at: string;
+  creator?: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
 export async function getMyChannels(): Promise<ChatChannel[]> {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  const { data: memberships } = await supabase
-    .from("chat_channel_members")
-    .select("channel_id")
-    .eq("user_id", user.id);
+  const { data, error } = await supabase.rpc("get_my_chat_channels");
 
-  if (!memberships || memberships.length === 0) return [];
-
-  const channelIds = memberships.map((m) => m.channel_id);
-
-  const { data: channels } = await supabase
-    .from("chat_channels")
-    .select("id, name, description, is_direct, created_by, created_at, avatar_url")
-    .in("id", channelIds)
-    .order("created_at", { ascending: true });
-
-  if (!channels) return [];
-
-  const channelsWithPreview: ChatChannel[] = [];
-  for (const ch of channels) {
-    const { data: lastMsg } = await supabase
-      .from("chat_messages")
-      .select("content, created_at, sender:users!chat_messages_sender_id_fkey(full_name)")
-      .eq("channel_id", ch.id)
-      .eq("is_deleted", false)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let dmPartner: ChatChannel["dm_partner"] = null;
-    if (ch.is_direct) {
-      const { data: dmMembers } = await supabase
-        .from("chat_channel_members")
-        .select("user_id")
-        .eq("channel_id", ch.id)
-        .neq("user_id", user.id);
-
-      if (dmMembers && dmMembers.length > 0) {
-        const { data: otherUser } = await supabase
-          .from("users")
-          .select("id, full_name, avatar_url")
-          .eq("id", dmMembers[0].user_id)
-          .single();
-        if (otherUser) dmPartner = otherUser;
-      }
-    }
-
-    channelsWithPreview.push({
-      ...ch,
-      last_message: lastMsg
-        ? {
-            content: lastMsg.content,
-            sender_name: (Array.isArray(lastMsg.sender) ? lastMsg.sender[0] : (lastMsg.sender as any))?.full_name ?? "",
-            created_at: lastMsg.created_at,
-          }
-        : null,
-      dm_partner: dmPartner,
-    });
+  if (error || !data) {
+    console.error("Error fetching channels:", error);
+    return [];
   }
 
-  channelsWithPreview.sort((a, b) => {
-    const aTime = a.last_message?.created_at ?? a.created_at;
-    const bTime = b.last_message?.created_at ?? b.created_at;
-    return new Date(bTime).getTime() - new Date(aTime).getTime();
-  });
-
-  return channelsWithPreview;
+  return data.map((ch: any) => ({
+    id: ch.id,
+    name: ch.name,
+    description: ch.description,
+    is_direct: ch.is_direct,
+    created_by: ch.created_by,
+    created_at: ch.created_at,
+    avatar_url: ch.avatar_url,
+    last_message: ch.last_message_content
+      ? {
+          content: ch.last_message_content,
+          sender_name: ch.last_message_sender_name,
+          created_at: ch.last_message_created_at,
+        }
+      : null,
+    dm_partner: ch.dm_partner_id
+      ? {
+          id: ch.dm_partner_id,
+          full_name: ch.dm_partner_name,
+          avatar_url: ch.dm_partner_avatar_url,
+        }
+      : null,
+  })) as ChatChannel[];
 }
 
 export async function getChannelMessages(
   channelId: string,
-  limit = 300
+  limit = 50 // Reduced default limit for faster initial load
 ): Promise<ChatMessage[]> {
   await requireAuth();
   const supabase = await createClient();
@@ -129,12 +108,15 @@ export async function getChannelMessages(
     .from("chat_messages")
     .select("id, channel_id, sender_id, content, created_at, is_edited, is_deleted, is_pinned, updated_at, attachment_url, attachment_name, attachment_type, attachment_size, reply_to_id, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
     .eq("channel_id", channelId)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false }) // Fetch newest first for optimization
     .limit(limit);
 
   if (!data) return [];
 
-  const replyIds = data.filter((m) => m.reply_to_id).map((m) => m.reply_to_id!);
+  // Reverse back to ascending for UI
+  const sortedData = [...data].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  const replyIds = sortedData.filter((m) => m.reply_to_id).map((m) => m.reply_to_id!);
   const replyMap: Record<string, { id: string; content: string; sender_id: string; sender?: { full_name: string } | null }> = {};
 
   if (replyIds.length > 0) {
@@ -149,7 +131,7 @@ export async function getChannelMessages(
     }
   }
 
-  return data.map((m: any) => ({
+  return sortedData.map((m: any) => ({
     ...m,
     sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
     is_pinned: m.is_pinned ?? false,
@@ -218,7 +200,8 @@ export async function sendMessage(
         is_read: false,
       }));
 
-      await supabase.from("notifications").insert(notificationRows);
+      const adminSupabase = createAdminClient();
+      await adminSupabase.from("notifications").insert(notificationRows);
     }
   } catch (err) {
     console.error("Failed to create chat notifications:", err);
@@ -263,19 +246,14 @@ export async function getChannelMembers(channelId: string) {
   await requireAuth();
   const supabase = await createClient();
 
-  const { data: memberships } = await supabase
+  const { data, error } = await supabase
     .from("chat_channel_members")
-    .select("user_id")
+    .select("user:users(id, full_name, avatar_url, role, is_active)")
     .eq("channel_id", channelId);
 
-  if (!memberships || memberships.length === 0) return [];
-  const userIds = memberships.map((m) => m.user_id);
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, full_name, avatar_url, role, is_active")
-    .in("id", userIds);
+  if (error || !data) return [];
 
-  return (users ?? []) as { id: string; full_name: string; avatar_url: string | null; role: string; is_active: boolean }[];
+  return data.map((m: any) => m.user) as { id: string; full_name: string; avatar_url: string | null; role: string; is_active: boolean }[];
 }
 
 export async function createChannel(name: string, description: string, memberIds: string[]) {
@@ -313,35 +291,6 @@ export async function createDirectMessage(otherUserId: string) {
 
   if (existingChannel) {
     return { error: null, channelId: existingChannel };
-  }
-
-  // If not found via RPC or if RPC doesn't exist, fallback to manual check
-  const { data: myMemberships } = await supabase
-    .from("chat_channel_members")
-    .select("channel_id")
-    .eq("user_id", user.id);
-
-  if (myMemberships && myMemberships.length > 0) {
-    const myChannelIds = myMemberships.map((m) => m.channel_id);
-
-    const { data: directChannels } = await supabase
-      .from("chat_channels")
-      .select("id")
-      .in("id", myChannelIds)
-      .eq("is_direct", true);
-
-    if (directChannels) {
-      for (const ch of directChannels) {
-        const { data: chMembers } = await supabase
-          .from("chat_channel_members")
-          .select("user_id")
-          .eq("channel_id", ch.id);
-
-        if (chMembers && chMembers.length === 2 && chMembers.some((m) => m.user_id === otherUserId)) {
-          return { error: null, channelId: ch.id };
-        }
-      }
-    }
   }
 
   const { data: otherUser } = await supabase
@@ -572,6 +521,148 @@ export async function setChannelMembers(channelId: string, memberIds: string[]) 
     if (delErr) return { error: delErr.message };
   }
 
+  revalidatePath("/chat");
+  return { error: null };
+}
+
+export async function getChannelEvents(channelId: string): Promise<ChatEvent[]> {
+  await requireAuth();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("chat_events")
+    .select("*, creator:users(full_name, avatar_url)")
+    .eq("channel_id", channelId)
+    .order("event_date", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching chat events:", error);
+    return [];
+  }
+
+  return data as ChatEvent[];
+}
+
+export async function getAllMyEvents(): Promise<ChatEvent[]> {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  // Fetch channel IDs user belongs to
+  const { data: memberships } = await supabase
+    .from("chat_channel_members")
+    .select("channel_id")
+    .eq("user_id", user.id);
+
+  if (!memberships || memberships.length === 0) return [];
+
+  const channelIds = memberships.map((m) => m.channel_id);
+
+  const { data, error } = await supabase
+    .from("chat_events")
+    .select("*, creator:users(full_name, avatar_url)")
+    .in("channel_id", channelIds)
+    .order("event_date", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching all chat events:", error);
+    return [];
+  }
+
+  return data as ChatEvent[];
+}
+
+export async function createChatEvent(params: {
+  channel_id: string;
+  title: string;
+  description: string;
+  event_date: string;
+}): Promise<{ data?: ChatEvent; error?: any }> {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("chat_events")
+    .insert({
+      channel_id: params.channel_id,
+      creator_id: user.id,
+      title: params.title,
+      description: params.description,
+      event_date: params.event_date,
+    })
+    .select("*, creator:users(full_name, avatar_url)")
+    .single();
+
+  if (error) {
+    console.error("Error creating chat event:", error);
+    return { error };
+  }
+
+  // Create notifications for other members
+  try {
+    const { data: members } = await supabase
+      .from("chat_channel_members")
+      .select("user_id")
+      .eq("channel_id", params.channel_id)
+      .neq("user_id", user.id);
+
+    if (members && members.length > 0) {
+      const { data: channel } = await supabase
+        .from("chat_channels")
+        .select("name, is_direct")
+        .eq("id", params.channel_id)
+        .single();
+
+      const notificationTitle = `New Event: ${params.title}`;
+      const notificationBody = `A new event has been scheduled for ${new Date(params.event_date).toLocaleString()}`;
+
+      const notificationRows = members.map((m) => ({
+        user_id: m.user_id,
+        title: notificationTitle,
+        body: notificationBody,
+        type: "chat",
+        is_read: false,
+      }));
+
+      const adminSupabase = createAdminClient();
+      await adminSupabase.from("notifications").insert(notificationRows);
+    }
+  } catch (err) {
+    console.error("Failed to create event notifications:", err);
+  }
+
+  revalidatePath("/chat");
+  return { data: data as ChatEvent };
+}
+
+export async function updateChatEvent(
+  eventId: string,
+  updates: { title?: string; description?: string; event_date?: string }
+) {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("chat_events")
+    .update(updates)
+    .eq("id", eventId)
+    .eq("creator_id", user.id); // Only creator can update
+
+  if (error) return { error: error.message };
+  revalidatePath("/chat");
+  return { error: null };
+}
+
+export async function deleteChatEvent(eventId: string) {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("chat_events")
+    .delete()
+    .eq("id", eventId)
+    .eq("creator_id", user.id); // Only creator can delete
+
+  if (error) return { error: error.message };
   revalidatePath("/chat");
   return { error: null };
 }

@@ -224,6 +224,17 @@ export interface Note {
   user?: AppUser;
 }
 
+export interface PersonalNote {
+  id: string;
+  user_id: string;
+  title: string | null;
+  content: string;
+  color: string;
+  pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Notification {
   id: string;
   user_id: string;

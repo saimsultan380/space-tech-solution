@@ -21,7 +21,9 @@ import {
   Megaphone,
   MessageCircle,
   ExternalLink,
+  StickyNote,
 } from "lucide-react";
+// Removed PersonalNotepad import
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -37,6 +39,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ReceiptText,
   Megaphone,
   MessageCircle,
+  StickyNote,
 };
 
 
@@ -53,7 +56,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   super_admin: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/reports", "/chat"],
+      hrefs: ["/dashboard", "/dashboard/reports", "/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -82,7 +85,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   sales_agent: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/sales-performance", "/chat"],
+      hrefs: ["/dashboard", "/dashboard/sales-performance", "/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -109,7 +112,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   processor: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/chat"],
+      hrefs: ["/dashboard", "/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -334,6 +337,7 @@ export function Sidebar({
               </div>
             </div>
           ))}
+          
         </nav>
 
 

@@ -109,6 +109,7 @@ export const NAV_ITEMS = {
   super_admin: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
+    { href: "/dashboard/personal-notepad", label: "Personal Notepad", icon: "StickyNote" },
     { href: "/dashboard/users", label: "Users", icon: "Users" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
@@ -126,6 +127,7 @@ export const NAV_ITEMS = {
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/sales-performance", label: "Reports", icon: "BarChart3" },
     { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
+    { href: "/dashboard/personal-notepad", label: "Personal Notepad", icon: "StickyNote" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "My Sales", icon: "TrendingUp" },
@@ -138,6 +140,7 @@ export const NAV_ITEMS = {
   processor: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
+    { href: "/dashboard/personal-notepad", label: "Personal Notepad", icon: "StickyNote" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
     { href: "/dashboard/sales", label: "Sales Queue", icon: "TrendingUp" },
