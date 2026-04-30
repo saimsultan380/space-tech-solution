@@ -133,6 +133,11 @@ export function Header({
 
   const unreadChatCount = chatNotifications.filter((n) => !n.is_read).length;
 
+  // Toast notifications for incoming chat messages (shown on dashboard pages)
+  type HeaderChatToast = { id: string; title: string; body: string };
+  const [headerChatToasts, setHeaderChatToasts] = useState<HeaderChatToast[]>([]);
+  const knownNotifIdsRef = useRef<Set<string>>(new Set());
+
   const handleSignOut = async () => {
     startLoading();
     const supabase = createClient();
@@ -185,9 +190,25 @@ export function Header({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => {
+        (payload) => {
           void loadNotifications();
           void loadChatNotifications();
+
+          // Show toast for new chat notifications
+          if (payload.eventType === "INSERT" && (payload.new as { type?: string }).type === "chat") {
+            const notif = payload.new as { id: string; title: string; body: string };
+            if (!knownNotifIdsRef.current.has(notif.id)) {
+              knownNotifIdsRef.current.add(notif.id);
+              const toastId = notif.id;
+              setHeaderChatToasts((prev) => {
+                if (prev.some((t) => t.id === toastId)) return prev;
+                return [{ id: toastId, title: notif.title, body: notif.body }, ...prev].slice(0, 4);
+              });
+              setTimeout(() => {
+                setHeaderChatToasts((prev) => prev.filter((t) => t.id !== toastId));
+              }, 6000);
+            }
+          }
         }
       )
       .subscribe();
@@ -973,6 +994,39 @@ export function Header({
         </div>
       </div>
     )}
+    {/* ── Chat Toast Notifications (dashboard pages) ── */}
+    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col-reverse gap-2 w-80 pointer-events-none">
+      {headerChatToasts.map((toast, idx) => (
+        <div
+          key={toast.id}
+          className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 shadow-2xl animate-slide-in-right"
+          style={{ animationDelay: `${idx * 60}ms` }}
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <MessageSquare className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-foreground truncate">{toast.title}</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">{toast.body}</p>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <button
+              onClick={() => setHeaderChatToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+            <button
+              onClick={() => { startLoading(); router.push("/chat"); setHeaderChatToasts((prev) => prev.filter((t) => t.id !== toast.id)); }}
+              className="text-[10px] font-semibold text-primary hover:underline"
+            >
+              Open
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
     </>
   );
 }

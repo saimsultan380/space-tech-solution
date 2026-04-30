@@ -110,7 +110,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
                 rows={filteredPayslips.map((p) => [
                   `${formatDate(p.period_start)} - ${formatDate(p.period_end)}`,
                   formatDate(p.pay_date),
-                  formatCurrency(Number(p.net_pay || 0), p.currency || "PKR"),
+                  formatCurrency(Number(p.net_pay || 0), p.currency || "USD"),
                   p.status,
                 ])}
                 disabled={filteredPayslips.length === 0}
@@ -154,7 +154,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
                       </TableCell>
                       <TableCell>{formatDate(payslip.pay_date)}</TableCell>
                       <TableCell className="font-bold text-foreground">
-                        {formatCurrency(Number(payslip.net_pay || 0), payslip.currency || "PKR")}
+                        {formatCurrency(Number(payslip.net_pay || 0), payslip.currency || "USD")}
                       </TableCell>
                       <TableCell>
                         <Badge variant={payslip.status === "paid" ? "success" : "warning"}>

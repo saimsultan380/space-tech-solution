@@ -336,7 +336,7 @@ export async function createPayslip(input: CreatePayslipInput) {
       commission,
       advance,
       net_pay: netPay,
-      currency: input.currency || "PKR",
+      currency: input.currency || "USD",
       status,
       sent_at: status === "paid" ? nowIso : null,
       employee_id_display: employeeIdDisplay,
@@ -434,7 +434,7 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       commission,
       advance,
       net_pay: netPay,
-      currency: input.currency || "PKR",
+      currency: input.currency || "USD",
       status,
       sent_at: sentAt,
       employee_id_display: employeeIdDisplay,
@@ -543,7 +543,7 @@ export async function clonePayslipToNextMonth(payslipId: string, status: "proces
     allowances: Number(source.allowances || 0),
     deductions: Number(source.deductions || 0),
     bonus: Number(source.bonus || 0),
-    currency: source.currency || "PKR",
+    currency: source.currency || "USD",
     status,
   });
 }

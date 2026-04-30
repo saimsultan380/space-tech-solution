@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type ChangeEvent, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -181,6 +181,9 @@ function ChatClientContent({
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newEventChannelId, setNewEventChannelId] = useState<string | null>(activeChannelId);
+  const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day' | 'agenda'>('week');
+  const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState<ChatEvent | null>(null);
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -251,34 +254,48 @@ function ChatClientContent({
   const fetchedUrlChannelRef = useRef<string | null>(null);
   const hasLoadedInitialMessagesRef = useRef(false);
 
+  // Refs to avoid stale closures in global subscription
+  const channelsRef = useRef(initialChannels);
+  const allUsersRef = useRef(allUsers);
+  const activeChannelIdRef = useRef<string | null>(urlChannelId ?? null);
+
+  // Toast notifications for incoming messages
+  type ChatToast = { id: string; senderName: string; channelName: string; content: string; channelId: string; isDm: boolean };
+  const [chatToasts, setChatToasts] = useState<ChatToast[]>([]);
+
+  // Keep refs in sync
+  useEffect(() => { channelsRef.current = channels; }, [channels]);
+  useEffect(() => { allUsersRef.current = allUsers; }, [allUsers]);
+  useEffect(() => { activeChannelIdRef.current = activeChannelId; }, [activeChannelId]);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
-  // ─── Derived ───
+  // ─── Derived (memoized to prevent recalculation on every render) ───
 
-  const activeChannel = channels.find((c) => c.id === activeChannelId);
-  const regularChannels = channels.filter((c) => !c.is_direct);
-  const dmChannels = channels.filter((c) => c.is_direct && (c.last_message || c.id === activeChannelId));
+  const activeChannel = useMemo(() => channels.find((c) => c.id === activeChannelId), [channels, activeChannelId]);
+  const regularChannels = useMemo(() => channels.filter((c) => !c.is_direct), [channels]);
+  const dmChannels = useMemo(() => channels.filter((c) => c.is_direct && (c.last_message || c.id === activeChannelId)), [channels, activeChannelId]);
 
-  const filteredRegularChannels = (sidebarFilter === 'all' || sidebarFilter === 'channels')
+  const filteredRegularChannels = useMemo(() => (sidebarFilter === 'all' || sidebarFilter === 'channels')
     ? (sidebarSearch
         ? regularChannels.filter((c) => c.name.toLowerCase().includes(sidebarSearch.toLowerCase()))
         : regularChannels)
-    : [];
+    : [], [sidebarFilter, sidebarSearch, regularChannels]);
 
-  const filteredDmChannels = (sidebarFilter === 'all' || sidebarFilter === 'direct')
+  const filteredDmChannels = useMemo(() => (sidebarFilter === 'all' || sidebarFilter === 'direct')
     ? (sidebarSearch
         ? dmChannels.filter((c) => {
             const name = c.dm_partner?.full_name ?? c.name;
             return name.toLowerCase().includes(sidebarSearch.toLowerCase());
           })
         : dmChannels)
-    : [];
+    : [], [sidebarFilter, sidebarSearch, dmChannels]);
 
-  const filteredMessages = showSearch && searchQuery
+  const filteredMessages = useMemo(() => showSearch && searchQuery
     ? messages.filter((m) => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
-    : messages;
+    : messages, [showSearch, searchQuery, messages]);
 
   // Auto-expand accordion when a channel/DM is selected
   useEffect(() => {
@@ -290,13 +307,13 @@ function ChatClientContent({
     }
   }, [activeChannelId, regularChannels.length, dmChannels.length]);
 
-  const fileMessages = messages.filter((m) => m.attachment_url && !m.is_deleted && !m.attachment_type?.startsWith("image/"));
-  const photoMessages = messages.filter((m) => m.attachment_url && !m.is_deleted && m.attachment_type?.startsWith("image/"));
-  const linkMessages = messages.filter((m) => !m.is_deleted && m.content && /https?:\/\/[^\s]+/.test(m.content));
+  const fileMessages = useMemo(() => messages.filter((m) => m.attachment_url && !m.is_deleted && !m.attachment_type?.startsWith("image/")), [messages]);
+  const photoMessages = useMemo(() => messages.filter((m) => m.attachment_url && !m.is_deleted && m.attachment_type?.startsWith("image/")), [messages]);
+  const linkMessages = useMemo(() => messages.filter((m) => !m.is_deleted && m.content && /https?:\/\/[^\s]+/.test(m.content)), [messages]);
 
-  const channelTypingUsers = Object.entries(typingUsers)
+  const channelTypingUsers = useMemo(() => Object.entries(typingUsers)
     .filter(([uid]) => uid !== currentUserId)
-    .map(([, name]) => name);
+    .map(([, name]) => name), [typingUsers, currentUserId]);
 
   // ─── Notification Handlers ───
 
@@ -468,7 +485,7 @@ function ChatClientContent({
       .channel(`chat:${activeChannelId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `channel_id=eq.${activeChannelId}` }, (payload) => {
         const msg = payload.new as ChatMessage;
-        const sender = allUsers.find((u) => u.id === msg.sender_id) || members.find((m) => m.id === msg.sender_id);
+        const sender = allUsersRef.current.find((u) => u.id === msg.sender_id) || members.find((m) => m.id === msg.sender_id);
         if (sender) msg.sender = { id: sender.id, full_name: sender.full_name, avatar_url: sender.avatar_url, role: sender.role };
 
         setMessages((prev) => {
@@ -514,7 +531,8 @@ function ChatClientContent({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [activeChannelId, allUsers, members]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChannelId]); // intentionally omit allUsers/members — use refs to avoid re-subscribing
 
   // Global realtime for unread counts on non-active channels
   useEffect(() => {
@@ -523,11 +541,13 @@ function ChatClientContent({
       .channel("chat:global")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
         const msg = payload.new as ChatMessage;
-        if (msg.sender_id !== currentUserId && msg.channel_id !== activeChannelId) {
-          const isMyChannel = channels.some((c) => c.id === msg.channel_id);
+        const currentActiveId = activeChannelIdRef.current;
+        if (msg.sender_id !== currentUserId && msg.channel_id !== currentActiveId) {
+          const currentChannels = channelsRef.current;
+          const isMyChannel = currentChannels.some((c) => c.id === msg.channel_id);
           if (isMyChannel) {
             setUnreadCounts((prev) => ({ ...prev, [msg.channel_id]: (prev[msg.channel_id] ?? 0) + 1 }));
-            const sender = allUsers.find((u) => u.id === msg.sender_id);
+            const sender = allUsersRef.current.find((u) => u.id === msg.sender_id);
             setChannels((prev) => {
               const idx = prev.findIndex((c) => c.id === msg.channel_id);
               if (idx === -1) return prev;
@@ -539,13 +559,38 @@ function ChatClientContent({
               rest.splice(idx, 1);
               return [updated, ...rest];
             });
+
+            // Show toast notification
+            const channel = currentChannels.find((c) => c.id === msg.channel_id);
+            if (channel) {
+              const senderName = sender?.full_name ?? "Someone";
+              const isDm = channel.is_direct;
+              const channelName = isDm ? senderName : channel.name;
+              const toastId = `toast-${msg.id}`;
+              const newToast: ChatToast = {
+                id: toastId,
+                senderName,
+                channelName,
+                content: msg.content || (msg.attachment_name ? `📎 ${msg.attachment_name}` : "Sent an attachment"),
+                channelId: msg.channel_id,
+                isDm,
+              };
+              setChatToasts((prev) => {
+                if (prev.some((t) => t.id === toastId)) return prev;
+                return [newToast, ...prev].slice(0, 4);
+              });
+              setTimeout(() => {
+                setChatToasts((prev) => prev.filter((t) => t.id !== toastId));
+              }, 6000);
+            }
           }
         }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(globalChannel); };
-  }, [activeChannelId, currentUserId, channels, allUsers]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]); // intentionally only run once — uses refs for channels/activeChannelId
 
   // Presence & typing via Supabase Realtime Presence + Broadcast
   useEffect(() => {
@@ -756,7 +801,15 @@ function ChatClientContent({
     if (result.channelId) {
       setShowNewChannel(false);
       setNewChannelName(""); setNewChannelDesc(""); setSelectedMembers([]);
-      window.location.reload();
+      // Add new channel to state without a full page reload
+      const supabase = createClient();
+      const { data: newCh } = await supabase.from("chat_channels").select("*").eq("id", result.channelId).single();
+      if (newCh) {
+        const hydratedChannel: ChatChannel = { ...(newCh as ChatChannel), last_message: null, dm_partner: null };
+        setChannels((prev) => [hydratedChannel, ...prev.filter((c) => c.id !== hydratedChannel.id)]);
+        setChannelsOpen(true);
+        handleSelectChannel(result.channelId);
+      }
     }
     setCreatingChannel(false);
   };
@@ -774,28 +827,42 @@ function ChatClientContent({
         handleSelectChannel(result.channelId);
       } else {
         const supabase = createClient();
-        const [{ data: ch }, { data: dmMembers }] = await Promise.all([
+        const isSelf = userId === currentUserId;
+
+        const [{ data: ch }, dmMembersResult] = await Promise.all([
           supabase
             .from("chat_channels")
             .select("*")
             .eq("id", result.channelId)
             .single(),
-          supabase
-            .from("chat_channel_members")
-            .select("user_id")
-            .eq("channel_id", result.channelId)
-            .neq("user_id", currentUserId),
+          isSelf
+            ? Promise.resolve({ data: [] })
+            : supabase
+                .from("chat_channel_members")
+                .select("user_id")
+                .eq("channel_id", result.channelId)
+                .neq("user_id", currentUserId),
         ]);
 
         let dmPartner: ChatChannel["dm_partner"] = null;
-        const otherUserId = dmMembers?.[0]?.user_id;
-        if (otherUserId) {
-          const { data: otherUser } = await supabase
-            .from("users")
-            .select("id, full_name, avatar_url")
-            .eq("id", otherUserId)
-            .single();
-          if (otherUser) dmPartner = otherUser;
+
+        if (isSelf) {
+          // Self-chat: partner is the current user themselves
+          dmPartner = {
+            id: currentUserId,
+            full_name: currentUserName,
+            avatar_url: currentUserAvatar ?? null,
+          };
+        } else {
+          const otherMemberId = (dmMembersResult.data as { user_id: string }[] | null)?.[0]?.user_id;
+          if (otherMemberId) {
+            const { data: otherUser } = await supabase
+              .from("users")
+              .select("id, full_name, avatar_url")
+              .eq("id", otherMemberId)
+              .single();
+            if (otherUser) dmPartner = otherUser;
+          }
         }
 
         if (ch) {
@@ -984,7 +1051,7 @@ function ChatClientContent({
   };
 
   const getDmDisplayName = (ch: ChatChannel) => {
-    if (ch.is_direct && ch.dm_partner?.id === currentUserId) return "You (Message Yourself)";
+    if (ch.is_direct && ch.dm_partner?.id === currentUserId) return currentUserName;
     return ch.dm_partner?.full_name ?? ch.name;
   };
   const getDmAvatar = (ch: ChatChannel) => ch.dm_partner?.avatar_url ?? null;
@@ -994,9 +1061,78 @@ function ChatClientContent({
 
   return (
     <div className="flex h-[100dvh] w-full items-center justify-center font-[family-name:var(--font-dm-sans)] bg-background text-foreground">
+      {/* ── Chat Toast Notifications ── */}
+      <div className="fixed bottom-4 right-4 z-[9999] flex flex-col-reverse gap-2 w-80 pointer-events-none">
+        {chatToasts.map((toast, idx) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 shadow-2xl animate-slide-in-right"
+            style={{ animationDelay: `${idx * 60}ms` }}
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold">
+              {toast.isDm ? getInitials(toast.senderName) : "#"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-foreground truncate">
+                {toast.isDm ? toast.senderName : `#${toast.channelName}`}
+              </p>
+              {!toast.isDm && (
+                <p className="text-[10px] text-muted-foreground">{toast.senderName}</p>
+              )}
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">{toast.content}</p>
+            </div>
+            <button
+              onClick={() => setChatToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+              className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className="flex h-full w-full overflow-hidden bg-background shadow-none">
+
+      {/* ═══════════════════════════════ ICON RAIL (Teams-style) ═══════════════════════════════ */}
+      <div className="hidden md:flex flex-col items-center gap-2 w-[60px] shrink-0 border-r border-border bg-card/50 pt-6">
+        {/* Chat icon */}
+        <button
+          onClick={() => { setActiveTab("chat"); if (!activeChannelId) setMobileShowChat(false); }}
+          className={cn(
+            "relative flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl transition-all",
+            activeTab !== "calendar"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          title="Chat"
+        >
+          <MessageCircle className="h-5 w-5" />
+          {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white px-1">
+              {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 99 ? "99+" : Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
+            </span>
+          )}
+          <span className="text-[9px] font-bold leading-none">Chat</span>
+        </button>
+
+        {/* Calendar icon */}
+        <button
+          onClick={() => { setActiveChannelId(null); setActiveTab("calendar"); setMobileShowChat(true); }}
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 w-12 h-12 rounded-xl transition-all",
+            activeTab === "calendar"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          title="Calendar"
+        >
+          <CalendarDays className="h-5 w-5" />
+          <span className="text-[9px] font-bold leading-none">Calendar</span>
+        </button>
+      </div>
       {/* ═══════════════════════════════ LEFT SIDEBAR ═══════════════════════════════ */}
-      <div className={cn("flex w-full flex-col border-r border-border bg-card md:w-[280px] md:shrink-0", mobileShowChat && "hidden md:flex")}>
+      <div className={cn("flex w-full flex-col border-r border-border bg-card md:w-[280px] md:shrink-0", mobileShowChat && "hidden md:flex", activeTab === "calendar" && "hidden")}>
 
         {/* User header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-border">
@@ -1275,7 +1411,7 @@ function ChatClientContent({
                           <img src={dmAv} alt={dmName} className="h-full w-full object-cover" />
                         ) : <span className="text-xs font-bold">{getInitials(dmName)}</span>}
                         name={dmName}
-                        subtitle={ch.last_message ? (ch.last_message.content || "Attachment") : "Start a conversation"}
+                        subtitle={ch.dm_partner?.id === currentUserId ? (ch.last_message ? (ch.last_message.content || "Attachment") : "Notes to self") : (ch.last_message ? (ch.last_message.content || "Attachment") : "Start a conversation")}
                         time={ch.last_message ? formatRelativeTime(ch.last_message.created_at) : undefined}
                         isSubtitleItalic={!ch.last_message}
                         presenceDot={online ? "online" : "offline"}
@@ -1296,14 +1432,15 @@ function ChatClientContent({
 
         {/* Sidebar Bottom Bar */}
         <div className="p-4 border-t border-border mt-auto shrink-0">
+          {/* Mobile-only calendar button */}
           <button
             onClick={() => { 
               setActiveChannelId(null); 
               setActiveTab('calendar'); 
-              setSidebarFilter('all'); // Reset filter to show it clearly
-              setMobileShowChat(true); // Ensure it shows on mobile
+              setSidebarFilter('all');
+              setMobileShowChat(true);
             }}
-            className="flex w-full items-center justify-between rounded-[5px] px-4 py-3 text-sm font-bold transition-all border border-border shadow-sm hover:opacity-90 active:scale-95"
+            className="flex md:hidden w-full items-center justify-between rounded-[5px] px-4 py-3 text-sm font-bold transition-all border border-border shadow-sm hover:opacity-90 active:scale-95"
             style={{ 
               backgroundColor: 'var(--theme-button-color, hsl(var(--primary)))',
               color: 'var(--theme-button-text-color, white)'
@@ -1702,10 +1839,11 @@ function ChatClientContent({
               </div>
             )}
 
-            {/* Tab bar */}
+            {/* Tab bar — hidden when calendar view is active */}
+            {(activeTab as string) !== "calendar" && (
             <div className="flex items-center border-b border-border bg-background px-4 py-2.5 shrink-0 sticky top-[53px] sm:top-[57px] z-20">
               <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-[5px] no-scrollbar overflow-x-auto">
-                {(["chat", "files", "photos", "links", "calendar"] as ActiveTab[]).map((tab) => {
+                {(["chat", "files", "photos", "links"] as ActiveTab[]).map((tab) => {
                   const icons: Record<ActiveTab, React.ElementType> = { 
                     chat: MessageSquare, 
                     files: FileText, 
@@ -1740,6 +1878,7 @@ function ChatClientContent({
                 })}
               </div>
             </div>
+            )}
 
             <div className="relative flex flex-1 min-h-0 overflow-hidden" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
 
@@ -1856,7 +1995,7 @@ function ChatClientContent({
                                         {isImg ? (
                                           <a href={msg.attachment_url!} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[5px]">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={msg.attachment_url!} alt={msg.attachment_name ?? "image"} className="max-w-full max-h-80 object-cover hover:scale-105 transition-transform duration-300" />
+                                            <img src={msg.attachment_url!} alt={msg.attachment_name ?? "image"} loading="lazy" className="max-w-full max-h-80 object-cover hover:scale-105 transition-transform duration-300" />
                                           </a>
                                         ) : msg.attachment_type?.startsWith("audio/") ? (
                                           <div className={cn("rounded-[5px] px-2 py-1.5", isOwn ? "bg-white/10" : "bg-primary/5 border border-primary/10")}>
@@ -2331,6 +2470,35 @@ function ChatClientContent({
               </div>
             </div>
             <div className="max-h-80 overflow-y-auto space-y-0.5">
+              {/* Self-chat entry — always first, hidden if search doesn't match */}
+              {(!dmSearchQuery || currentUserName.toLowerCase().includes(dmSearchQuery.toLowerCase())) && (
+              <button
+                onClick={() => handleStartDM(currentUserId)}
+                disabled={creatingDM}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors text-left"
+              >
+                <div className="relative shrink-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary overflow-hidden">
+                    {currentUserAvatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={currentUserAvatar} alt={currentUserName} className="h-full w-full object-cover" />
+                    ) : getInitials(currentUserName)}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card bg-emerald-500" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">{currentUserName} <span className="text-[10px] text-primary font-semibold">(You)</span></p>
+                  <p className="text-[11px] text-muted-foreground">Notes to self</p>
+                </div>
+                <MessageCircle className="h-4 w-4 text-primary shrink-0" />
+              </button>
+              )}
+
+              {/* Divider */}
+              {(!dmSearchQuery || currentUserName.toLowerCase().includes(dmSearchQuery.toLowerCase()) === false) && (
+                <div className="my-1 border-t border-border" />
+              )}
+
               {allUsers
                 .filter((u) => u.is_active && u.id !== currentUserId)
                 .filter((u) => !dmSearchQuery || u.full_name.toLowerCase().includes(dmSearchQuery.toLowerCase()))

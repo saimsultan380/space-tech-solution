@@ -304,13 +304,63 @@ export async function createDirectMessage(otherUserId: string) {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  // First, check if a DM channel already exists between these two users
+  const isSelf = otherUserId === user.id;
+
+  if (isSelf) {
+    // For self-chat, the RPC won't work (requires two distinct member rows).
+    // Query directly for an existing self-chat channel.
+    const adminSupabase = createAdminClient();
+    const { data: existing } = await adminSupabase
+      .from("chat_channel_members")
+      .select("channel_id, chat_channels!inner(id, is_direct, deleted_at)")
+      .eq("user_id", user.id)
+      .eq("chat_channels.is_direct", true)
+      .is("chat_channels.deleted_at", null);
+
+    // A self-chat channel has exactly one member row — find it
+    if (existing && existing.length > 0) {
+      // Check which of these channels has only one member (self-chat)
+      for (const row of existing) {
+        const { count } = await adminSupabase
+          .from("chat_channel_members")
+          .select("*", { count: "exact", head: true })
+          .eq("channel_id", row.channel_id);
+        if (count === 1) {
+          return { error: null, channelId: row.channel_id as string };
+        }
+      }
+    }
+
+    // Create new self-chat channel
+    const { data: channel, error } = await adminSupabase
+      .from("chat_channels")
+      .insert({
+        name: `${user.full_name} (My Notes)`,
+        description: "Your personal notes",
+        is_direct: true,
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (error) return { error: error.message };
+    if (!channel) return { error: "Failed to create self-chat" };
+
+    await adminSupabase.from("chat_channel_members").insert([
+      { channel_id: channel.id, user_id: user.id },
+    ]);
+
+    revalidatePath("/chat");
+    return { error: null, channelId: channel.id as string };
+  }
+
+  // Regular DM between two different users
   const { data: existingChannel } = await supabase.rpc("get_direct_message_channel", {
-    other_user_id: otherUserId
+    other_user_id: otherUserId,
   });
 
   if (existingChannel) {
-    return { error: null, channelId: existingChannel };
+    return { error: null, channelId: existingChannel as string };
   }
 
   const { data: otherUser } = await supabase
@@ -319,16 +369,14 @@ export async function createDirectMessage(otherUserId: string) {
     .eq("id", otherUserId)
     .single();
 
-  const dmName = `${user.full_name}, ${otherUser?.full_name ?? "Unknown"}`;
+  const channelName = `${user.full_name}, ${otherUser?.full_name ?? "Unknown"}`;
 
-  // Use admin client to bypass RLS for channel creation and member addition
-  // since non-admins currently don't have 'insert' permission on these tables.
   const adminSupabase = createAdminClient();
 
   const { data: channel, error } = await adminSupabase
     .from("chat_channels")
     .insert({
-      name: dmName,
+      name: channelName,
       description: "Direct message",
       is_direct: true,
       created_by: user.id,
@@ -345,7 +393,7 @@ export async function createDirectMessage(otherUserId: string) {
   ]);
 
   revalidatePath("/chat");
-  return { error: null, channelId: channel.id };
+  return { error: null, channelId: channel.id as string };
 }
 
 export async function pinMessage(messageId: string) {
