@@ -408,41 +408,52 @@ function ChatClientContent({
   }, []);
 
 
-  // Load messages + members + pinned + events when channel changes
+  // Load channel data when channel changes
   useEffect(() => {
-    if (!activeChannelId) {
-      // Global View: Fetch all events if on calendar tab
-      if (activeTab === 'calendar') {
-        getAllMyEvents().then(setEvents);
-      }
-      return;
-    }
+    if (!activeChannelId) return;
+
     let cancelled = false;
     async function load() {
       hasLoadedInitialMessagesRef.current = false;
       setLoadingMsgs(true);
-      setActiveTab("chat");
-      const [msgs, mems, pinned, evts] = await Promise.all([
-        getChannelMessages(activeChannelId!),
-        getChannelMembers(activeChannelId!),
-        getPinnedMessages(activeChannelId!),
-        getChannelEvents(activeChannelId!),
-      ]);
+      
+      // Fire all requests in parallel
+      const msgsPromise = getChannelMessages(activeChannelId!);
+      const memsPromise = getChannelMembers(activeChannelId!);
+      const pinnedPromise = getPinnedMessages(activeChannelId!);
+      const evtsPromise = getChannelEvents(activeChannelId!);
+
+      // Await messages first to show chat instantly
+      const msgs = await msgsPromise;
+      
       if (!cancelled) {
         setMessages(msgs);
-        setMembers(mems as Member[]);
-        setPinnedMessages(pinned);
-        setEvents(evts);
         setLoadingMsgs(false);
         requestAnimationFrame(() => {
           scrollToBottom("auto");
           hasLoadedInitialMessagesRef.current = true;
         });
       }
+
+      // Await secondary data
+      const [mems, pinned, evts] = await Promise.all([memsPromise, pinnedPromise, evtsPromise]);
+      
+      if (!cancelled) {
+        setMembers(mems as Member[]);
+        setPinnedMessages(pinned);
+        setEvents(evts);
+      }
     }
     load();
     return () => { cancelled = true; };
-  }, [activeChannelId, activeTab, scrollToBottom]);
+  }, [activeChannelId, scrollToBottom]);
+
+  // Load global events for calendar view
+  useEffect(() => {
+    if (!activeChannelId && activeTab === 'calendar') {
+      getAllMyEvents().then(setEvents);
+    }
+  }, [activeChannelId, activeTab]);
 
   useEffect(() => {
     if (!hasLoadedInitialMessagesRef.current) return;
