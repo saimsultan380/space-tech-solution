@@ -27,7 +27,7 @@ import { NotifyAdminDialog } from "./notify-admin-dialog";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
 import type { UserRole, ProcessingAccountStatus } from "@/lib/types";
 import type { ProcessingAccountStats } from "@/lib/actions/processing-accounts";
-import { updateProcessingAccountNotes } from "@/lib/actions/processing-accounts";
+import { updateProcessingAccountNotes, updateProcessingAccountStatus } from "@/lib/actions/processing-accounts";
 import {
   Plus,
   FileUp,
@@ -87,6 +87,120 @@ const statusConfig: Record<
   reversal_issue: { label: "Reversal Issue", variant: "warning", icon: AlertOctagon },
   under_review: { label: "Under Review", variant: "default", icon: Clock },
 };
+
+// ─── Status color map for inline dropdown badge ───────────────────────────────
+const statusColors: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  active:         { bg: "bg-emerald-500/15 dark:bg-emerald-500/20", text: "text-emerald-700 dark:text-emerald-400", border: "border-emerald-500/40", dot: "bg-emerald-500" },
+  not_working:    { bg: "bg-red-500/15 dark:bg-red-500/20",         text: "text-red-700 dark:text-red-400",         border: "border-red-500/40",     dot: "bg-red-500" },
+  closed:         { bg: "bg-slate-500/15 dark:bg-slate-500/20",     text: "text-slate-600 dark:text-slate-400",     border: "border-slate-500/40",   dot: "bg-slate-500" },
+  reversal_issue: { bg: "bg-amber-500/15 dark:bg-amber-500/20",     text: "text-amber-700 dark:text-amber-400",     border: "border-amber-500/40",   dot: "bg-amber-500" },
+  under_review:   { bg: "bg-blue-500/15 dark:bg-blue-500/20",       text: "text-blue-700 dark:text-blue-400",       border: "border-blue-500/40",    dot: "bg-blue-500" },
+};
+
+// ─── Inline Status Dropdown ───────────────────────────────────────────────────
+function StatusDropdown({
+  accountId,
+  currentStatus,
+  onStatusChange,
+}: {
+  accountId: string;
+  currentStatus: ProcessingAccountStatus | null;
+  onStatusChange: (status: ProcessingAccountStatus | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleSelect = async (value: ProcessingAccountStatus | "") => {
+    setOpen(false);
+    const newStatus = value || null;
+    onStatusChange(newStatus as ProcessingAccountStatus | null);
+    setSaving(true);
+    try {
+      await updateProcessingAccountStatus(accountId, value);
+    } catch {
+      onStatusChange(currentStatus);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const current = currentStatus ? statusConfig[currentStatus] : null;
+  const colors = currentStatus ? statusColors[currentStatus] : null;
+  const CurrentIcon = current?.icon;
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={saving}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold border transition-all cursor-pointer hover:opacity-80 active:scale-95 whitespace-nowrap",
+          saving && "opacity-50 cursor-wait",
+          colors
+            ? cn(colors.bg, colors.text, colors.border)
+            : "border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary/50 hover:text-primary bg-transparent"
+        )}
+        title="Click to change status"
+      >
+        {saving ? (
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : colors ? (
+          <span className={cn("h-2 w-2 rounded-full shrink-0", colors.dot)} />
+        ) : null}
+        <span>{current?.label ?? "Set status"}</span>
+        <ChevronDown className={cn("h-3 w-3 opacity-50 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-top-left">
+          <div className="p-1">
+            {PROCESSING_ACCOUNT_STATUSES.map(({ value, label }) => {
+              const cfg = statusConfig[value as ProcessingAccountStatus];
+              const c = statusColors[value];
+              const Icon = cfg?.icon;
+              const isSelected = currentStatus === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => handleSelect(value as ProcessingAccountStatus)}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors text-left",
+                    isSelected
+                      ? cn(c.bg, c.text, "font-bold")
+                      : "hover:bg-muted text-foreground"
+                  )}
+                >
+                  <span className={cn("h-2 w-2 rounded-full shrink-0", c.dot)} />
+                  {Icon && <Icon className={cn("h-3.5 w-3.5 shrink-0", isSelected ? c.text : "text-muted-foreground")} />}
+                  {label}
+                  {isSelected && <span className={cn("ml-auto text-xs", c.text)}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="border-t border-border p-1">
+            <button
+              onClick={() => handleSelect("")}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <XCircle className="h-3.5 w-3.5 shrink-0" />
+              Clear status
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── View Account Dialog ──────────────────────────────────────────────────────
 function ViewAccountDialog({
@@ -317,12 +431,20 @@ export function ProcessingAccountsClient({
   const [notifyAccountId, setNotifyAccountId] = useState<string | null>(null);
 
   const {
-    data: accounts,
+    data: initialAccounts,
     count,
     page,
     totalPages,
     pageSize,
   } = accountsResponse;
+
+  // Local state for optimistic status updates
+  const [accounts, setAccounts] = useState(initialAccounts);
+
+  // Sync when server data changes (pagination/filter navigation)
+  useEffect(() => {
+    setAccounts(initialAccounts);
+  }, [initialAccounts]);
 
   const updateFilters = (
     updates: Record<string, string | number | undefined>
@@ -634,14 +756,17 @@ export function ProcessingAccountsClient({
                           </span>
                         </TableCell>
                         <TableCell className="align-middle">
-                          {status && StatusIcon ? (
-                            <Badge variant={status.variant} className="gap-1">
-                              <StatusIcon className="h-3 w-3" />
-                              {status.label}
-                            </Badge>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
-                          )}
+                          <StatusDropdown
+                            accountId={account.id}
+                            currentStatus={account.status}
+                            onStatusChange={(newStatus) => {
+                              setAccounts((prev) =>
+                                prev.map((a) =>
+                                  a.id === account.id ? { ...a, status: newStatus } : a
+                                )
+                              );
+                            }}
+                          />
                         </TableCell>
                         <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                           {formatDate(account.created_at)}

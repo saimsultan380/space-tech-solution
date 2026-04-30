@@ -465,3 +465,18 @@ export async function updateProcessingAccountNotes(
   revalidateProcessingAccountsPaths();
   return { success: true };
 }
+
+export async function updateProcessingAccountStatus(
+  id: string,
+  status: ProcessingAccountStatus | ""
+): Promise<{ success: boolean }> {
+  await requireAuth();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("processing_accounts")
+    .update({ status: status || null, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidateProcessingAccountsPaths();
+  return { success: true };
+}
