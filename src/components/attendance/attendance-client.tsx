@@ -63,10 +63,7 @@ interface AttendanceClientProps {
   userRole: UserRole;
   monthlySummary: MonthlySummary[];
   leaves: Leave[];
-  attendanceSettings: Pick<
-    AttendanceSettings,
-    "shift_end_time" | "checkout_latest_time" | "checkout_grace_minutes" | "allow_early_checkout" | "early_checkout_minutes"
-  >;
+  attendanceSettings: AttendanceSettings;
 }
 
 export function AttendanceClient({
@@ -208,13 +205,88 @@ export function AttendanceClient({
 
   const calculateHours = (checkIn: string, checkOut: string | null, date: string) => {
     if (!checkOut) {
-      if (date !== today) return "—";
-      return currentMinutes > latestCheckOutMinutes ? "—" : "In progress";
+      if (date !== today) return "0:00";
+      return currentMinutes > latestCheckOutMinutes ? "0:00" : "In progress";
     }
     const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
     const hours = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
-    return `${hours}h ${minutes}m`;
+    return `${hours}:${String(minutes).padStart(2, "0")}`;
+  };
+
+  const toMinutesFromTime = (time: string) => {
+    const [h = "0", m = "0"] = time.split(":");
+    return Number(h) * 60 + Number(m);
+  };
+
+  const shiftStartMinutes = toMinutesFromTime(attendanceSettings.shift_start_time);
+  const lateAfterMinutes = toMinutesFromTime(attendanceSettings.late_after_time);
+
+  const getLateStatus = (record: DailyRow) => {
+    const dayOfWeek = new Date(record.date + "T00:00:00").getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    if (isWeekend) {
+      return { label: "Weekend", variant: "secondary" as const };
+    }
+
+    if (record.leaveStatus === "rejected") {
+      return { label: "Absent", variant: "destructive" as const };
+    }
+
+    if (record.isLeaveOnly) {
+      return { label: "Absent", variant: "secondary" as const, showBot: record.leaveSource === "auto" };
+    }
+
+    if (isOnLeave(record.user?.id, record.date)) {
+      return { label: "Absent", variant: "secondary" as const };
+    }
+
+    if (!record.check_in) {
+      return { label: "Absent", variant: "destructive" as const };
+    }
+
+    const checkInTime = new Date(record.check_in);
+    const checkInMinutes = checkInTime.getHours() * 60 + checkInTime.getMinutes();
+
+    if (checkInMinutes > lateAfterMinutes) {
+      return { label: "Late", variant: "warning" as const };
+    }
+
+    return { label: "On Time", variant: "success" as const };
+  };
+
+  const getStatus = (record: DailyRow) => {
+    const dayOfWeek = new Date(record.date + "T00:00:00").getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    if (isWeekend) {
+      return { label: "Off Day", variant: "secondary" as const };
+    }
+
+    if (record.leaveStatus === "rejected" || record.isLeaveOnly || isOnLeave(record.user?.id, record.date)) {
+      return { label: "Absent", variant: "secondary" as const };
+    }
+
+    if (record.check_in) {
+      return { label: "Present", variant: "success" as const };
+    }
+
+    return { label: "Absent", variant: "destructive" as const };
+  };
+
+  const getDayName = (dateStr: string) => {
+    const date = new Date(dateStr + "T00:00:00");
+    return date.toLocaleDateString("en-US", { weekday: "long" });
+  };
+
+  const format12Hour = (time24: string) => {
+    const [h = "0", m = "00"] = time24.split(":");
+    const hour = Number(h);
+    const minutes = m.slice(0, 2);
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${hour12}:${minutes} ${suffix}`;
   };
 
   const getAttendanceStatus = (record: DailyRow) => {
@@ -495,21 +567,28 @@ export function AttendanceClient({
                   <TableDataExport
                     filenameBase={`attendance-daily-${monthParam}`}
                     headers={[
+                      "Sr#",
                       "Employee",
                       "Role",
                       "Date",
+                      "Day",
+                      "Status",
                       "Check In",
                       "Check Out",
-                      "Duration",
-                      "Status",
+                      "Shift Hours",
+                      "Late Status",
                     ]}
-                    rows={filtered.map((record) => {
+                    rows={filtered.map((record, index) => {
                       const leaveOnly = record.isLeaveOnly === true;
-                      const status = getAttendanceStatus(record);
+                      const status = getStatus(record);
+                      const lateStatus = getLateStatus(record);
                       return [
+                        String(index + 1),
                         record.user?.full_name || "N/A",
                         ROLE_LABELS[record.user?.role || ""] || "N/A",
                         formatDate(record.date),
+                        getDayName(record.date),
+                        status.label,
                         leaveOnly ? "-" : formatDateTime(record.check_in),
                         leaveOnly
                           ? "-"
@@ -517,9 +596,9 @@ export function AttendanceClient({
                             ? formatDateTime(record.check_out)
                             : "-",
                         leaveOnly
-                          ? "—"
+                          ? "0:00"
                           : calculateHours(record.check_in, record.check_out, record.date),
-                        status.label,
+                        lateStatus.label,
                       ];
                     })}
                     disabled={filtered.length === 0}
@@ -536,57 +615,60 @@ export function AttendanceClient({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Role</TableHead>
+                      <TableHead className="w-[60px]">Sr#</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Day</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Check In</TableHead>
                       <TableHead>Check Out</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Shift Hours</TableHead>
+                      <TableHead>Late Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedDailyRows.map((record) => {
+                    {paginatedDailyRows.map((record, index) => {
                       const leaveOnly = record.isLeaveOnly === true;
+                      const status = getStatus(record);
+                      const lateStatus = getLateStatus(record);
+                      const globalIndex = dailyStartIndex + index + 1;
+                      
                       return (
-                  <TableRow key={record.id}>
-                        <TableCell className="font-medium">
-                          {record.user?.full_name || "N/A"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {ROLE_LABELS[record.user?.role || ""] || "N/A"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDate(record.date)}</TableCell>
-                        <TableCell>
-                          {leaveOnly ? "-" : formatDateTime(record.check_in)}
-                        </TableCell>
-                        <TableCell>
-                          {leaveOnly
-                            ? "-"
-                            : record.check_out
-                              ? formatDateTime(record.check_out)
-                              : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {leaveOnly
-                            ? "—"
-                            : calculateHours(record.check_in, record.check_out, record.date)}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const status = getAttendanceStatus(record);
-                            return (
-                              <Badge variant={status.variant} className={status.showBot ? "gap-1" : ""}>
-                                {status.showBot && <Bot className="h-3 w-3" />}
-                                {status.label}
-                              </Badge>
-                            );
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    );
+                        <TableRow key={record.id}>
+                          <TableCell className="font-medium">{globalIndex}</TableCell>
+                          <TableCell>{formatDate(record.date)}</TableCell>
+                          <TableCell>{getDayName(record.date)}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {ROLE_LABELS[record.user?.role || ""] || "N/A"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={status.variant}>{status.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {leaveOnly ? "-" : formatDateTime(record.check_in)}
+                          </TableCell>
+                          <TableCell>
+                            {leaveOnly
+                              ? "-"
+                              : record.check_out
+                                ? formatDateTime(record.check_out)
+                                : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {leaveOnly
+                              ? "0:00"
+                              : calculateHours(record.check_in, record.check_out, record.date)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={lateStatus.variant} className={lateStatus.showBot ? "gap-1" : ""}>
+                              {lateStatus.showBot && <Bot className="h-3 w-3" />}
+                              {lateStatus.label}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
                     })}
                   </TableBody>
                 </Table>
