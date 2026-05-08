@@ -38,7 +38,7 @@ export default function Solution() {
   return (
     <section ref={sectionRef} id="solution" className="w-full py-24 px-8 bg-[var(--bg-primary)] overflow-hidden">
       <div className="max-w-6xl mx-auto flex flex-col items-center">
-        
+
         <div ref={headerRef} className="flex flex-col items-center text-center mb-20 section-heading">
           <div className="tag mb-4">THE SOLUTION</div>
           <h2 className="text-[var(--accent-white)] mb-6">
@@ -69,6 +69,7 @@ export default function Solution() {
                 width: 2px;
                 height: 40px;
                 min-height: 40px;
+                min-width: 2px;
                 margin: 16px 0;
               }
             }
@@ -114,6 +115,13 @@ export default function Solution() {
               white-space: nowrap;
               position: relative;
               z-index: 2;
+              width: 100%;
+              max-width: 200px;
+            }
+            @media (max-width: 768px) {
+              .node {
+                width: 180px;
+              }
             }
           `}</style>
 

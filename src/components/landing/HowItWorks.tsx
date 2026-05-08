@@ -79,15 +79,16 @@ export default function HowItWorks() {
           // Bounce the badge
           tl.from(badges[i], { scale: 0, duration: 0.5, ease: "elastic.out(1, 0.5)" }, "<");
 
-          // Animate the line to the next step
-          if (i < lines.length) {
-            const isMobileLine = lines[i].closest('.lg\\:hidden');
+          // Animate the lines within this step
+          const stepLines = step.querySelectorAll('.step-line-fill');
+          stepLines.forEach(line => {
+            const isMobileLine = line.closest('.lg\\:hidden');
             if (isMobileLine) {
-              tl.to(lines[i], { height: "100%", duration: 0.4, ease: "none" }, "-=0.2");
+              tl.to(line, { height: "100%", duration: 0.4, ease: "none" }, "-=0.2");
             } else {
-              tl.to(lines[i], { width: "100%", duration: 0.4, ease: "none" }, "-=0.2");
+              tl.to(line, { width: "100%", duration: 0.4, ease: "none" }, "-=0.2");
             }
-          }
+          });
         });
       }
     });
@@ -104,10 +105,10 @@ export default function HowItWorks() {
           <h2 className="text-[var(--accent-white)]">How It Works</h2>
         </div>
 
-        <div ref={stepsContainerRef} className="flex flex-col lg:flex-row items-start justify-between relative">
+        <div ref={stepsContainerRef} className="grid grid-cols-2 lg:flex lg:flex-row items-start justify-between relative gap-y-12 lg:gap-0">
           
           {steps.map((item, i) => (
-            <div key={i} className="step-item flex flex-col items-center lg:items-start text-center lg:text-left relative flex-1 mb-12 lg:mb-0 px-4">
+            <div key={i} className="step-item flex flex-col items-center lg:items-start text-center lg:text-left relative flex-1 px-2 sm:px-4">
               
               <div className="flex items-center justify-center w-full lg:justify-start relative z-10 mb-6">
                 <div className="step-badge w-14 h-14 rounded-full border border-[var(--accent-cyan)] bg-[var(--bg-primary)] flex items-center justify-center shadow-[var(--glow-subtle)] relative">
@@ -127,15 +128,8 @@ export default function HowItWorks() {
                 )}
               </div>
 
-              {/* Connecting Line (Mobile vertical, hidden on last item) */}
-              {i < steps.length - 1 && (
-                <div className="block lg:hidden absolute top-[3.5rem] left-1/2 -translate-x-1/2 h-[calc(100%-3.5rem)] w-[1px] bg-[var(--accent-border)] z-[-1] mt-4 overflow-hidden">
-                  <div className="step-line-fill w-full h-0 bg-[var(--accent-cyan)] shadow-[0_0_8px_var(--accent-cyan)]"></div>
-                </div>
-              )}
-
-              <h3 className="text-[var(--accent-white)] text-lg mb-3" style={{ fontFamily: "var(--font-poppins)" }}>{item.title}</h3>
-              <p className="body-text text-[var(--accent-dim)] text-sm max-w-[200px] leading-relaxed mx-auto lg:mx-0">
+              <h3 className="text-[var(--accent-white)] text-sm sm:text-lg mb-3 relative z-10" style={{ fontFamily: "var(--font-poppins)" }}>{item.title}</h3>
+              <p className="body-text text-[var(--accent-dim)] text-[10px] sm:text-sm max-w-[200px] leading-relaxed mx-auto lg:mx-0 relative z-10">
                 {item.description}
               </p>
 

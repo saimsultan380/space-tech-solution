@@ -95,7 +95,7 @@ export default function Results() {
             <div key={i} className="result-card bg-[var(--bg-card)] border border-[var(--accent-border)] rounded-lg p-6 flex flex-col items-center text-center flex-1 min-w-[200px] hover:shadow-[var(--glow-cyan)] hover:border-[var(--accent-cyan)] transition-all duration-300">
               <item.icon className="w-8 h-8 text-[var(--accent-cyan)] mb-4" />
               
-              <div className="text-4xl font-bold text-[var(--accent-cyan)] mb-2 whitespace-nowrap" style={{ fontFamily: "var(--font-poppins)" }}>
+              <div className="text-4xl font-semibold text-[var(--accent-cyan)] mb-2 whitespace-nowrap" style={{ fontFamily: "var(--font-poppins)" }}>
                 {item.prefix}
                 {item.isNumber ? (
                   <span className="counter-val" data-val={item.value}>0</span>

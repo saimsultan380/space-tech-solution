@@ -101,14 +101,29 @@ export default function PainPoints() {
           </p>
         </div>
 
-        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 card-grid">
+        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <style>{`
+            .pain-card {
+              transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+              position: relative;
+            }
+            .pain-card:hover {
+              transform: translateY(-8px);
+              box-shadow: 0 20px 40px rgba(239, 68, 68, 0.08);
+              border: 1px solid var(--accent-red) !important;
+            }
+            .pain-card:hover .pain-icon {
+              transform: scale(1.1) rotate(-5deg);
+              color: var(--accent-red);
+            }
+          `}</style>
           {painPoints.map((item, i) => (
             <div 
               key={i} 
-              className="pain-card bg-[var(--bg-card)] border border-[var(--accent-border)] border-l-[4px] border-l-[var(--accent-red)] p-8 rounded-lg flex flex-col"
+              className="pain-card bg-[var(--bg-card)] border border-[var(--accent-border)] p-8 rounded-xl flex flex-col group"
             >
-              <item.icon className="w-6 h-6 text-[var(--accent-red)] mb-6" />
-              <h3 className="text-[var(--accent-white)] mb-3" style={{ fontFamily: "var(--font-poppins)" }}>
+              <item.icon className="pain-icon w-8 h-8 text-[var(--accent-red)]/80 mb-6 transition-all duration-300" />
+              <h3 className="text-[var(--accent-white)] text-xl mb-4 group-hover:text-[var(--accent-red)] transition-colors duration-300" style={{ fontFamily: "var(--font-poppins)" }}>
                 {item.title}
               </h3>
               <p className="body-text text-[var(--accent-dim)] text-sm leading-relaxed">

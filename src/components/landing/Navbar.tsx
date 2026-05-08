@@ -31,7 +31,7 @@ export default function Navbar() {
   return (
     <nav
       ref={navRef}
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 transition-all duration-300 border-b border-[var(--accent-border)] bg-[var(--bg-primary)]/80 backdrop-blur-md"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 transition-all duration-300 border-b border-[var(--accent-border)] bg-white"
     >
       <style>{`
         nav.scrolled {
@@ -64,7 +64,7 @@ export default function Navbar() {
       `}</style>
 
       {/* Logo */}
-      <Link href="/" className="text-[var(--accent-cyan)] font-bold text-xl tracking-wider" style={{ fontFamily: "var(--font-poppins)" }}>
+      <Link href="/" className="text-[var(--accent-cyan)] font-bold text-lg sm:text-xl tracking-wider" style={{ fontFamily: "var(--font-poppins)" }}>
         [ Space Tech Solution ]
       </Link>
 
@@ -77,7 +77,7 @@ export default function Navbar() {
       </div>
 
       {/* CTA Buttons */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <Link
           href="/login"
           className="hidden sm:inline-flex px-4 py-2 text-sm font-bold border border-[var(--accent-cyan)] text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)] hover:text-white transition-colors duration-300"
@@ -87,7 +87,7 @@ export default function Navbar() {
         </Link>
         <Link
           href="/login"
-          className="px-4 py-2 text-sm font-bold bg-[var(--accent-cyan)] text-white hover:opacity-90 transition-opacity duration-300"
+          className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold bg-[var(--accent-cyan)] text-white hover:opacity-90 transition-opacity duration-300"
           style={{ fontFamily: "var(--font-ibm-plex-mono)" }}
         >
           Start Free Trial →
