@@ -7,7 +7,7 @@ import {
   getSalesLeaderboard,
   getRecentSalesNotifications,
 } from "@/lib/actions/sales-performance";
-import { SalesPerformanceDashboard } from "@/components/dashboard/sales-performance-dashboard";
+import { SalesPerformanceDashboard } from "@/components/dashboard/dashboard-lazy";
 
 export default async function SalesPerformancePage() {
   const user = await requireAuth();

@@ -11,9 +11,7 @@ import { getTodayAttendance } from "@/lib/actions/attendance";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { getRecentPayslips } from "@/lib/actions/payslips";
 import { getCompanySettings } from "@/lib/actions/company-settings";
-import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { AgentDashboard } from "@/components/dashboard/agent-dashboard";
-import { ProcessorDashboard } from "@/components/dashboard/processor-dashboard";
+import { DashboardClient, AgentDashboard, ProcessorDashboard } from "@/components/dashboard/dashboard-lazy";
 import type { Payslip } from "@/lib/types";
 
 const defaultStats = {

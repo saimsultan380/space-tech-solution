@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import type { SaleStatus } from "@/lib/types";
 import { sanitizeFilterValue, formatCurrency } from "@/lib/utils";
 import { notifySuperAdmins } from "./notifications";
@@ -444,6 +444,16 @@ export async function createSale(formData: CreateSaleInput) {
     type: "sale",
   });
 
+  // Revalidate cache tags
+  (revalidateTag as any)('dashboard');
+  (revalidateTag as any)('sales');
+  (revalidateTag as any)('analytics');
+  (revalidateTag as any)('revenue');
+  if (user.role === 'sales_agent') {
+    (revalidateTag as any)('agent-stats');
+    (revalidateTag as any)('agent-sales');
+  }
+
   revalidatePath("/dashboard/sales");
   return saleData?.id as string;
 }
@@ -545,6 +555,16 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
   }
 
   if (error) throw new Error(error.message);
+
+  // Revalidate cache tags
+  (revalidateTag as any)('dashboard');
+  (revalidateTag as any)('sales');
+  (revalidateTag as any)('analytics');
+  (revalidateTag as any)('revenue');
+  if (user.role === 'sales_agent') {
+    (revalidateTag as any)('agent-stats');
+    (revalidateTag as any)('agent-sales');
+  }
 
   revalidatePath("/dashboard/sales");
   revalidatePath(`/dashboard/sales/${formData.id}`);
@@ -668,6 +688,12 @@ export async function bulkUpdateSaleStatus(
     .in("id", ids);
 
   if (error) throw new Error(error.message);
+  
+  // Revalidate cache tags
+  (revalidateTag as any)('dashboard');
+  (revalidateTag as any)('sales');
+  (revalidateTag as any)('analytics');
+  
   revalidatePath("/dashboard/sales");
   revalidatePath("/dashboard");
 }
@@ -695,6 +721,13 @@ export async function deleteSale(id: string) {
   const { error } = await supabase.from("sales").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
 
+  // Revalidate cache tags
+  (revalidateTag as any)('dashboard');
+  (revalidateTag as any)('sales');
+  (revalidateTag as any)('analytics');
+  (revalidateTag as any)('revenue');
+
   revalidatePath("/dashboard/sales");
   revalidatePath("/dashboard");
 }
+

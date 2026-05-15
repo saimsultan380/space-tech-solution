@@ -27,7 +27,21 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  
+  // ✨ Optimize package imports
+  experimental: {
+    optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion', 'date-fns', '@radix-ui/react-icons'],
+  },
+  
+  // ✨ Remove console logs in production
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
+  
   images: {
+    formats: ['image/avif', 'image/webp'], // ✨ Modern image formats
     remotePatterns: [
       {
         protocol: "https",
@@ -37,11 +51,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  
   // Reduce unnecessary cache busting
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
+  
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
