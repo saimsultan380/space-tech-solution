@@ -1,0 +1,35 @@
+# Build artifacts
+.next/cache
+node_modules
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+!README.md
+BIOMETRIC_*.md
+IMPLEMENTATION_*.md
+SALES_FIELDS_*.md
+PERFORMANCE_*.md
+RUN_THIS_*.md
+
+# Development files
+.cursor
+.vscode
+.env.local
+tsconfig.tsbuildinfo
+tmp-*.css
+
+# Scripts
+scripts/
+
+# Supabase (migrations are applied separately)
+supabase/
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx

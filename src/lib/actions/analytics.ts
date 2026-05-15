@@ -2,74 +2,89 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
+import { unstable_cache } from "next/cache";
 
-export async function getDashboardStats(month?: string) {
-  await requireAuth();
-  const supabase = await createClient();
+export const getDashboardStats = unstable_cache(
+  async (month?: string) => {
+    await requireAuth();
+    const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc("get_dashboard_analytics", {
-    month_filter: month || null,
-  });
+    const { data, error } = await supabase.rpc("get_dashboard_analytics", {
+      month_filter: month || null,
+    });
 
-  if (error || !data || data.length === 0) {
+    if (error || !data || data.length === 0) {
+      return {
+        totalSales: 0,
+        totalRevenue: 0,
+        totalCustomers: 0,
+        pendingSales: 0,
+        approvedSales: 0,
+        rejectedSales: 0,
+        totalChargebacks: 0,
+        openChargebacks: 0,
+        totalCallLogs: 0,
+        totalProcessingAccounts: 0,
+        pendingLeaves: 0,
+        todayOnLeave: 0,
+        conversionRate: "0",
+      };
+    }
+
+    const stats = data[0];
+    const totalSales = Number(stats.total_sales);
+    const approvedSales = Number(stats.total_sales) - Number(stats.rejected_sales);
+
     return {
-      totalSales: 0,
-      totalRevenue: 0,
-      totalCustomers: 0,
+      totalSales,
+      totalRevenue: Number(stats.total_revenue),
+      totalCustomers: Number(stats.total_customers),
       pendingSales: 0,
-      approvedSales: 0,
-      rejectedSales: 0,
-      totalChargebacks: 0,
-      openChargebacks: 0,
-      totalCallLogs: 0,
-      totalProcessingAccounts: 0,
-      pendingLeaves: 0,
-      todayOnLeave: 0,
-      conversionRate: "0",
+      approvedSales,
+      rejectedSales: Number(stats.rejected_sales),
+      totalChargebacks: Number(stats.total_chargebacks),
+      openChargebacks: Number(stats.open_chargebacks),
+      totalCallLogs: Number(stats.total_call_logs),
+      totalProcessingAccounts: Number(stats.total_processing_accounts),
+      pendingLeaves: Number(stats.pending_leaves),
+      todayOnLeave: Number(stats.today_on_leave),
+      conversionRate:
+        totalSales > 0 ? ((approvedSales / totalSales) * 100).toFixed(1) : "0",
     };
+  },
+  ['dashboard-stats'],
+  {
+    revalidate: 300, // Cache for 5 minutes
+    tags: ['dashboard', 'sales', 'analytics']
   }
+);
 
-  const stats = data[0];
-  const totalSales = Number(stats.total_sales);
-  const approvedSales = Number(stats.total_sales) - Number(stats.rejected_sales);
+export const getSalesPerAgent = unstable_cache(
+  async (month?: string) => {
+    await requireAuth();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_sales_per_agent_stats", {
+      target_month: month || null,
+    });
 
-  return {
-    totalSales,
-    totalRevenue: Number(stats.total_revenue),
-    totalCustomers: Number(stats.total_customers),
-    pendingSales: 0,
-    approvedSales,
-    rejectedSales: Number(stats.rejected_sales),
-    totalChargebacks: Number(stats.total_chargebacks),
-    openChargebacks: Number(stats.open_chargebacks),
-    totalCallLogs: Number(stats.total_call_logs),
-    totalProcessingAccounts: Number(stats.total_processing_accounts),
-    pendingLeaves: Number(stats.pending_leaves),
-    todayOnLeave: Number(stats.today_on_leave),
-    conversionRate:
-      totalSales > 0 ? ((approvedSales / totalSales) * 100).toFixed(1) : "0",
-  };
-}
+    if (error) {
+      console.error("Error fetching sales per agent:", error);
+      return [];
+    }
 
-export async function getSalesPerAgent(month?: string) {
-  await requireAuth();
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_sales_per_agent_stats", {
-    target_month: month || null,
-  });
-
-  if (error) {
-    console.error("Error fetching sales per agent:", error);
-    return [];
+    return (data || []).map((row: any) => ({
+      name: row.name,
+      total: Number(row.total),
+      approved: Number(row.approved),
+      revenue: Number(row.revenue),
+    }));
+  },
+  ['sales-per-agent'],
+  {
+    revalidate: 300,
+    tags: ['sales', 'agents', 'analytics']
   }
-
-  return (data || []).map((row: any) => ({
-    name: row.name,
-    total: Number(row.total),
-    approved: Number(row.approved),
-    revenue: Number(row.revenue),
-  }));
-}
+);
 
 export async function getSalesPerProcessor(month?: string) {
   await requireAuth();
@@ -91,20 +106,27 @@ export async function getSalesPerProcessor(month?: string) {
   }));
 }
 
-export async function getRevenueOverTime(period: "day" | "week" | "month" = "day") {
-  await requireAuth();
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_revenue_over_time", {
-    period_type: period,
-  });
+export const getRevenueOverTime = unstable_cache(
+  async (period: "day" | "week" | "month" = "day") => {
+    await requireAuth();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_revenue_over_time", {
+      period_type: period,
+    });
 
-  if (error || !data) return [];
+    if (error || !data) return [];
 
-  return (data as Array<{ date: string; revenue: number }>).map((row) => ({
-    date: row.date,
-    revenue: Number(row.revenue),
-  }));
-}
+    return (data as Array<{ date: string; revenue: number }>).map((row) => ({
+      date: row.date,
+      revenue: Number(row.revenue),
+    }));
+  },
+  ['revenue-over-time'],
+  {
+    revalidate: 300,
+    tags: ['revenue', 'analytics']
+  }
+);
 
 export async function getChargebacksPerEmployee(month?: string) {
   await requireAuth();
