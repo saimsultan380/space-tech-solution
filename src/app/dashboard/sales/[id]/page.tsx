@@ -154,10 +154,16 @@ export default async function SaleDetailPage(props: {
             <InfoRow label="Type" value={`${sale.sale_type} / ${sale.subtype}`} />
             <InfoRow label={isInsurance ? "Insurance Company" : "Utility Company"} value={dash(sale.company_name)} />
             {!isInsurance && (
-              <InfoRow
-                label="Utility company service number"
-                value={dash(sale.utility_company_service_number)}
-              />
+              <>
+                <InfoRow
+                  label="Utility company service number"
+                  value={dash(sale.utility_company_service_number)}
+                />
+                <InfoRow
+                  label="Utility company phone"
+                  value={dash(sale.utility_company_phone)}
+                />
+              </>
             )}
             {isInsurance && (
               <InfoRow label="Vehicle Details" value={dash(sale.vehicle_details)} />
@@ -186,6 +192,14 @@ export default async function SaleDetailPage(props: {
               label="Due Date"
               value={sale.next_billing_date ? formatDate(sale.next_billing_date) : "—"}
             />
+            <InfoRow
+              label="Payment Status After Sale"
+              value={sale.payment_status_after_sale ? sale.payment_status_after_sale.charAt(0).toUpperCase() + sale.payment_status_after_sale.slice(1) : "—"}
+            />
+            <InfoRow
+              label="Expected Next Bill Date"
+              value={sale.expected_next_bill_date ? formatDate(sale.expected_next_bill_date) : "—"}
+            />
           </CardContent>
         </Card>
 
@@ -206,6 +220,34 @@ export default async function SaleDetailPage(props: {
               value={sale.payment_method ? sale.payment_method.toUpperCase() : "—"}
             />
             <InfoRow label="Merchant" value={dash(sale.merchant_name)} />
+          </CardContent>
+        </Card>
+
+        {/* Guest Pay Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Receipt className="h-4 w-4 text-purple-500" /> Guest Pay
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <InfoRow 
+              label="Guest Pay Enabled" 
+              value={sale.guest_pay_enabled ? "Yes" : "No"} 
+            />
+            {sale.guest_pay_enabled && sale.guest_pay_link && (
+              <div className="flex justify-between gap-4">
+                <span className="text-sm text-muted-foreground shrink-0">Guest Pay Link</span>
+                <a 
+                  href={sale.guest_pay_link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-right break-all text-primary hover:underline"
+                >
+                  {sale.guest_pay_link}
+                </a>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

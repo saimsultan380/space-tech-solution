@@ -29,6 +29,7 @@ import {
   Users,
   Upload,
   X,
+  Link as LinkIcon,
 } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 
@@ -57,12 +58,17 @@ const emptyForm = {
   account_no: "",
   company_name: "",
   utility_company_service_number: "",
+  utility_company_phone: "",
+  guest_pay_enabled: false,
+  guest_pay_link: "",
   dob: "",
   ssn: "",
   amount: "",
   discount: "0",
   billed_month: "",
   next_billing_date: "",
+  expected_next_bill_date: "",
+  payment_status_after_sale: "pending",
   account_status: "active",
   payment_method: "card",
   card_number: "",
@@ -357,6 +363,15 @@ export function SaleForm({
               />
             )}
           </div>
+          {isUtility && (
+            <Input
+              id="utility_company_phone"
+              label="Utility Company Phone Number"
+              placeholder="e.g. (555) 123-4567"
+              value={form.utility_company_phone}
+              onChange={(e) => set("utility_company_phone", e.target.value)}
+            />
+          )}
           {isInsurance && (
             <Textarea
               id="vehicle_details"
@@ -364,6 +379,53 @@ export function SaleForm({
               placeholder="Year, make, model, VIN, etc."
               value={form.vehicle_details}
               onChange={(e) => set("vehicle_details", e.target.value)}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Guest Pay Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LinkIcon className="h-4 w-4 text-purple-500" />
+            Guest Pay
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/10 p-4">
+            <div className="flex-1">
+              <label htmlFor="guest_pay_enabled" className="text-sm font-medium text-foreground cursor-pointer">
+                Enable Guest Pay
+              </label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Allow customers to pay through a guest payment link
+              </p>
+            </div>
+            <button
+              type="button"
+              id="guest_pay_enabled"
+              role="switch"
+              aria-checked={form.guest_pay_enabled}
+              onClick={() => setForm((f) => ({ ...f, guest_pay_enabled: !f.guest_pay_enabled }))}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                form.guest_pay_enabled ? "bg-primary" : "bg-muted-foreground/30"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  form.guest_pay_enabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          {form.guest_pay_enabled && (
+            <Input
+              id="guest_pay_link"
+              label="Guest Pay Link"
+              placeholder="https://payment.example.com/guest/..."
+              value={form.guest_pay_link}
+              onChange={(e) => set("guest_pay_link", e.target.value)}
             />
           )}
         </CardContent>
@@ -423,6 +485,29 @@ export function SaleForm({
               type="date"
               value={form.next_billing_date}
               onChange={(e) => set("next_billing_date", e.target.value)}
+              className="h-11 py-0 leading-none"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+            <Select
+              id="payment_status_after_sale"
+              label="Payment Status After Sale"
+              options={[
+                { value: "pending", label: "Pending" },
+                { value: "completed", label: "Completed" },
+                { value: "failed", label: "Failed" },
+                { value: "refunded", label: "Refunded" },
+                { value: "cancelled", label: "Cancelled" },
+              ]}
+              value={form.payment_status_after_sale}
+              onChange={(e) => set("payment_status_after_sale", e.target.value)}
+            />
+            <Input
+              id="expected_next_bill_date"
+              label="Expected Next Bill Date"
+              type="date"
+              value={form.expected_next_bill_date}
+              onChange={(e) => set("expected_next_bill_date", e.target.value)}
               className="h-11 py-0 leading-none"
             />
           </div>

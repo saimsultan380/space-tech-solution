@@ -196,10 +196,15 @@ export interface CreateSaleInput {
   agent_name?: string;
   company_name: string;
   utility_company_service_number: string;
+  utility_company_phone: string;
+  guest_pay_enabled: boolean;
+  guest_pay_link: string;
   amount: number;
   discount: number;
   billed_month: string;
   next_billing_date: string;
+  expected_next_bill_date: string;
+  payment_status_after_sale: string;
   sales_notes: string;
   sale_date: string;
   customer_phone: string;
@@ -315,11 +320,16 @@ export async function createSale(formData: CreateSaleInput) {
     agent_name: formData.agent_name || null,
     company_name: formData.company_name,
     utility_company_service_number: formData.utility_company_service_number?.trim() || "",
+    utility_company_phone: formData.utility_company_phone?.trim() || null,
+    guest_pay_enabled: formData.guest_pay_enabled || false,
+    guest_pay_link: formData.guest_pay_link?.trim() || null,
     amount: formData.amount,
     discount: formData.discount,
     charged_amount: chargedAmount,
     billed_month: formData.billed_month,
     next_billing_date: formData.next_billing_date || null,
+    expected_next_bill_date: formData.expected_next_bill_date || null,
+    payment_status_after_sale: formData.payment_status_after_sale || "pending",
     sales_notes: formData.sales_notes,
     sale_date: formData.sale_date || null,
     customer_phone: formData.customer_phone,
@@ -483,11 +493,16 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     agent_name: agentName,
     company_name: formData.company_name,
     utility_company_service_number: formData.utility_company_service_number?.trim() || "",
+    utility_company_phone: formData.utility_company_phone?.trim() || null,
+    guest_pay_enabled: formData.guest_pay_enabled || false,
+    guest_pay_link: formData.guest_pay_link?.trim() || null,
     amount: formData.amount,
     discount: formData.discount,
     charged_amount: chargedAmount,
     billed_month: formData.billed_month,
     next_billing_date: formData.next_billing_date || null,
+    expected_next_bill_date: formData.expected_next_bill_date || null,
+    payment_status_after_sale: formData.payment_status_after_sale || "pending",
     sales_notes: formData.sales_notes,
     sale_date: formData.sale_date || null,
     customer_phone: formData.customer_phone,
