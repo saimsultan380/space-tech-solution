@@ -10,7 +10,7 @@ import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
 import { LogOut, Menu, Bell, BellOff, BellRing, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "@/components/ui/icons";
 import Image from "next/image";
 import { ROLE_LABELS } from "@/lib/constants";
-import type { Notification, UserRole } from "@/lib/types";
+import type { Notification, UserRole, RealtimePayload } from "@/lib/types";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
 
 function formatEmploymentType(type: string | null | undefined): string | null {
@@ -202,15 +202,17 @@ export function Header({
           void loadChatNotifications();
 
           // Show toast + browser notification + sound for new chat messages
-          if (payload.eventType === "INSERT" && (payload.new as { type?: string }).type === "chat") {
-            const notif = payload.new as { id: string; title: string; body: string };
-            triggerNotification({
-              senderName: notif.title.replace("New message from ", "").replace("New message in #", ""),
-              channelName: notif.title.replace("New message in #", ""),
-              content: notif.body,
-              isDm: notif.title.startsWith("New message from "),
-              onClick: () => { startLoading(); router.push("/chat"); },
-            });
+          if (payload.eventType === "INSERT") {
+            const notif = payload.new as unknown as Notification;
+            if (notif.type === "chat") {
+              triggerNotification({
+                senderName: notif.title.replace("New message from ", "").replace("New message in #", ""),
+                channelName: notif.title.replace("New message in #", ""),
+                content: notif.body,
+                isDm: notif.title.startsWith("New message from "),
+                onClick: () => { startLoading(); router.push("/chat"); },
+              });
+            }
           }
         }
       )

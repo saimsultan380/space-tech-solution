@@ -12,6 +12,8 @@ import { getSaleAttachments } from "@/lib/actions/sale-attachments";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { SaleDetailNoteFields } from "@/components/sales/sale-detail-note-fields";
 import Link from "next/link";
+import type { Sale } from "@/lib/types";
+
 import {
   ArrowLeft,
   User,
@@ -22,6 +24,14 @@ import {
   LayoutGrid,
   Receipt,
 } from "@/components/ui/icons";
+
+type SaleWithExtraDetails = Sale & {
+  utility_company_phone?: string | null;
+  payment_status_after_sale?: string | null;
+  expected_next_bill_date?: string | null;
+  guest_pay_enabled?: boolean | null;
+  guest_pay_link?: string | null;
+};
 
 const KARACHI_TIMEZONE = "Asia/Karachi";
 
@@ -53,12 +63,13 @@ export default async function SaleDetailPage(props: {
   const params = await props.params;
   const user = await requireAuth();
   const currency = user.preferred_currency || "USD";
-  const [sale, notes, attachments, payments] = await Promise.all([
+  const [saleData, notes, attachments, payments] = await Promise.all([
     getSale(params.id),
     getNotes({ sale_id: params.id }),
     getSaleAttachments(params.id),
     getPaymentsBySaleId(params.id),
   ]);
+  const sale = saleData as unknown as SaleWithExtraDetails;
   const ssnValue = sale.ssn_encrypted ? decrypt(sale.ssn_encrypted) || "N/A" : "N/A";
   const customer = sale.customer as { name?: string; email?: string; account_no?: string } | null | undefined;
   const agentName =
@@ -350,7 +361,20 @@ export default async function SaleDetailPage(props: {
         userRole={user.role}
       />
 
-      <NotesSection notes={notes} saleId={params.id} />
+      {(() => {
+        const formattedNotes = notes.map((n) => ({
+          id: n.id,
+          content: n.content,
+          is_important: n.is_important,
+          created_at: n.created_at,
+          user: n.user ? {
+            id: n.user.id,
+            full_name: n.user.full_name,
+            role: n.user.role,
+          } : null,
+        }));
+        return <NotesSection notes={formattedNotes} saleId={params.id} />;
+      })()}
     </div>
   );
 }

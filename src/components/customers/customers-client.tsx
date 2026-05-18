@@ -20,7 +20,7 @@ import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
-import type { UserRole } from "@/lib/types";
+import type { UserRole, CustomerListItem } from "@/lib/types";
 import { BarChart3, ChevronDown, ChevronUp, Filter, PieChart as PieChartIcon, Plus, Search, Eye, Users } from "@/components/ui/icons";
 import Link from "next/link";
 
@@ -41,7 +41,7 @@ import { useTheme } from "next-themes";
 
 interface CustomersClientProps {
   customersResponse: {
-    data: any[];
+    data: CustomerListItem[];
     count: number;
     page: number;
     pageSize: number;

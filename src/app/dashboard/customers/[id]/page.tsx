@@ -25,6 +25,18 @@ export default async function CustomerDetailPage(props: {
     getNotes({ customer_id: params.id }),
   ]);
 
+  const formattedNotes = notes.map((n) => ({
+    id: n.id,
+    content: n.content,
+    is_important: n.is_important,
+    created_at: n.created_at,
+    user: n.user ? {
+      id: n.user.id,
+      full_name: n.user.full_name,
+      role: n.user.role,
+    } : null,
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -45,8 +57,8 @@ export default async function CustomerDetailPage(props: {
             <CardTitle className="text-lg">Contact Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow label="Email" value={customer.email} />
-            <InfoRow label="Phone" value={customer.phone} />
+            <InfoRow label="Email" value={customer.email || "N/A"} />
+            <InfoRow label="Phone" value={customer.phone || "N/A"} />
             <InfoRow label="Address" value={customer.address || "N/A"} />
           </CardContent>
         </Card>
@@ -66,7 +78,7 @@ export default async function CustomerDetailPage(props: {
         </Card>
       </div>
 
-      <NotesSection notes={notes} customerId={params.id} />
+      <NotesSection notes={formattedNotes} customerId={params.id} />
     </div>
   );
 }

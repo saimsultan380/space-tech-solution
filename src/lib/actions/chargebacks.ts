@@ -72,8 +72,19 @@ interface ChargebackSearchContext {
   assigneeIds: string[];
 }
 
-function applyChargebackFilters(query: any, filters?: ChargebackFilters, searchContext?: ChargebackSearchContext) {
-  let scopedQuery = query;
+// ─── Internal query-builder type ──────────────────────────────────────────────
+// Supabase query builders share a common chainable interface. Using a minimal
+// structural type avoids importing private Supabase generics while still
+// providing full type safety for the filter helper.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseFilterBuilder = any;
+
+function applyChargebackFilters(
+  query: SupabaseFilterBuilder,
+  filters?: ChargebackFilters,
+  searchContext?: ChargebackSearchContext,
+): SupabaseFilterBuilder {
+  let scopedQuery: SupabaseFilterBuilder = query;
 
   if (searchContext) {
     const orParts = [`reason.ilike.%${searchContext.search}%`, `status.ilike.%${searchContext.search}%`];
@@ -147,7 +158,7 @@ export async function getChargebacks(filters?: {
     }
     const { data: amountFilteredSales, error: amountError } = await amountQuery.limit(5000);
     if (amountError) throw new Error(amountError.message);
-    amountFilteredSaleIds = (amountFilteredSales || []).map((row) => row.id);
+    amountFilteredSaleIds = (amountFilteredSales || []).map((row: { id: string }) => row.id);
   }
 
   let searchContext: ChargebackSearchContext | undefined;
@@ -163,7 +174,7 @@ export async function getChargebacks(filters?: {
       .ilike("full_name", `%${safe}%`)
       .limit(50);
     if (peopleError) throw new Error(peopleError.message);
-    const personIds = (peopleMatch || []).map((row) => row.id);
+    const personIds = (peopleMatch || []).map((row: { id: string }) => row.id);
     const agentMatchOr = personIds.length > 0 ? `,agent_id.in.(${personIds.join(",")})` : "";
 
     const [salesResult, assigneesResult] = await Promise.all([
@@ -177,8 +188,8 @@ export async function getChargebacks(filters?: {
       Promise.resolve({ data: peopleMatch || [] }),
     ]);
 
-    const saleIds = (salesResult.data || []).map((row) => row.id);
-    const assigneeIds = (assigneesResult.data || []).map((row) => row.id);
+    const saleIds = (salesResult.data || []).map((row: { id: string }) => row.id);
+    const assigneeIds = (assigneesResult.data || []).map((row: { id: string }) => row.id);
 
     searchContext = {
       search,

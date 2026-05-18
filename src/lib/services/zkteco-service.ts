@@ -170,7 +170,7 @@ export class ZKTecoService {
       // Process each log
       for (const log of logs) {
         try {
-          const systemUserId = userMap.get(String(log.deviceUserId));
+          const systemUserId = userMap.get(Number(log.deviceUserId));
 
           if (!systemUserId) {
             result.errors.push(

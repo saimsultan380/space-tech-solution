@@ -22,7 +22,7 @@ interface CustomerFormDialogProps {
     phone: string;
     email: string;
     address: string;
-    dob: string;
+    dob: string | null;
     account_no?: string;
   };
   open?: boolean;

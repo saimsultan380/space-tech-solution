@@ -81,7 +81,7 @@ export const getAttendanceSettings = unstable_cache(
       late_after_12h: format12Hour(settings.late_after_time),
       shift_end_12h: format12Hour(settings.shift_end_time),
       checkout_latest_12h: format12Hour(settings.checkout_latest_time),
-    };
+    } as any;
   },
   ["attendance-settings"],
   { revalidate: 3600, tags: ["settings", "attendance-settings"] }

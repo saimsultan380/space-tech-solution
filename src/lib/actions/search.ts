@@ -27,7 +27,7 @@ export async function globalSearch(term: string) {
     .select("id")
     .or(`name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
     .limit(100);
-  const saleCustomerIds = saleCustomerMatches?.map((r) => r.id) ?? [];
+  const saleCustomerIds = saleCustomerMatches?.map((r: { id: string }) => r.id) ?? [];
   const salesSearchOr =
     saleCustomerIds.length > 0
       ? `company_name.ilike.${like},customer_id.in.(${saleCustomerIds.join(",")})`

@@ -5,6 +5,43 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { MarketingTransactionType, MarketingEntryCampaign } from "@/lib/types";
 
+// ─── Internal row shapes ───────────────────────────────────────────────────────
+
+interface CallLogRow {
+  campaign_id: string;
+  log_date: string;
+  total_daily_cost: number | null;
+}
+
+interface DailyBudgetRow {
+  campaign_id: string;
+  budget_date: string;
+  daily_spent_manual: number | null;
+}
+
+interface CampaignRow {
+  id: string;
+  name: string;
+  total_budget: number | null;
+  status: string | null;
+  amount_spent?: number;
+}
+
+interface DailyBudgetDetailRow {
+  campaign_id: string;
+  budget_date: string;
+  daily_budget_allocated: number | null;
+  daily_spent_manual: number | null;
+  [key: string]: unknown;
+}
+
+interface CampaignMonthlyTotalRow {
+  campaign_id: string;
+  daily_spent?: number;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 interface CampaignInput {
   name: string;
   type: "call" | "digital" | "other";
@@ -105,13 +142,13 @@ export async function getMarketingCampaigns() {
   if (dailyBudgetsError) throw new Error(dailyBudgetsError.message);
 
   const callLogMap = new Map<string, number>();
-  (callLogs || []).forEach((row) => {
+  (callLogs || []).forEach((row: CallLogRow) => {
     const key = `${row.campaign_id}:${row.log_date}`;
     callLogMap.set(key, (callLogMap.get(key) || 0) + Number(row.total_daily_cost || 0));
   });
 
   const budgetOverrides = new Map<string, number>();
-  (dailyBudgets || []).forEach((row) => {
+  (dailyBudgets || []).forEach((row: DailyBudgetRow) => {
     if (row.daily_spent_manual === null || row.daily_spent_manual === undefined) return;
     const key = `${row.campaign_id}:${row.budget_date}`;
     budgetOverrides.set(key, Number(row.daily_spent_manual || 0));
@@ -129,7 +166,7 @@ export async function getMarketingCampaigns() {
     campaignSpent.set(campaignId, (campaignSpent.get(campaignId) || 0) - autoValue + manualValue);
   });
 
-  return (campaigns || []).map((campaign) => {
+  return (campaigns || []).map((campaign: CampaignRow) => {
     const amountSpent = Number(campaignSpent.get(campaign.id) || 0);
     const remaining = Number(campaign.total_budget || 0) - amountSpent;
     const overBudget = remaining < 0;
@@ -149,12 +186,15 @@ export async function getMarketingOverview(month?: string) {
   const range = getMonthRange(selectedMonth);
 
   const campaigns = await getMarketingCampaigns();
-  const totalBudgetAllocated = campaigns.reduce((sum, campaign) => sum + Number(campaign.total_budget || 0), 0);
-  const totalSpent = campaigns.reduce((sum, campaign) => sum + Number(campaign.amount_spent || 0), 0);
+
+  type CampaignWithSpend = (typeof campaigns)[number];
+
+  const totalBudgetAllocated = campaigns.reduce((sum: number, campaign: CampaignWithSpend) => sum + Number(campaign.total_budget || 0), 0);
+  const totalSpent = campaigns.reduce((sum: number, campaign: CampaignWithSpend) => sum + Number(campaign.amount_spent || 0), 0);
   const remainingBudget = totalBudgetAllocated - totalSpent;
   const utilizationPercent =
     totalBudgetAllocated > 0 ? Math.min(100, Math.max(0, (totalSpent / totalBudgetAllocated) * 100)) : 0;
-  const activeCampaigns = campaigns.filter((item) => item.status === "active").length;
+  const activeCampaigns = campaigns.filter((item: CampaignWithSpend) => item.status === "active").length;
 
   const { data: callLogs, error: callLogsError } = await supabase
     .from("marketing_daily_call_logs")
@@ -171,15 +211,15 @@ export async function getMarketingOverview(month?: string) {
   if (budgetsError) throw new Error(budgetsError.message);
 
   const chartMap = new Map<string, number>();
-  (callLogs || []).forEach((row) => {
+  (callLogs || []).forEach((row: CallLogRow) => {
     chartMap.set(row.log_date, (chartMap.get(row.log_date) || 0) + Number(row.total_daily_cost || 0));
   });
 
-  (budgetRows || []).forEach((row) => {
+  (budgetRows || []).forEach((row: DailyBudgetRow) => {
     if (row.daily_spent_manual === null || row.daily_spent_manual === undefined) return;
     const callLogSpentForDateCampaign = (callLogs || [])
-      .filter((log) => log.log_date === row.budget_date && log.campaign_id === row.campaign_id)
-      .reduce((sum, log) => sum + Number(log.total_daily_cost || 0), 0);
+      .filter((log: CallLogRow) => log.log_date === row.budget_date && log.campaign_id === row.campaign_id)
+      .reduce((sum: number, log: CallLogRow) => sum + Number(log.total_daily_cost || 0), 0);
     chartMap.set(
       row.budget_date,
       (chartMap.get(row.budget_date) || 0) - callLogSpentForDateCampaign + Number(row.daily_spent_manual || 0)
@@ -257,12 +297,12 @@ export async function getMarketingDailyCampaignBudgets(month?: string) {
   if (callLogsError) throw new Error(callLogsError.message);
 
   const autoSpent = new Map<string, number>();
-  (callLogs || []).forEach((item) => {
+  (callLogs || []).forEach((item: CallLogRow) => {
     const key = `${item.campaign_id}:${item.log_date}`;
     autoSpent.set(key, (autoSpent.get(key) || 0) + Number(item.total_daily_cost || 0));
   });
 
-  const rows = (budgets || []).map((budget) => {
+  const rows = (budgets || []).map((budget: DailyBudgetDetailRow) => {
     const key = `${budget.campaign_id}:${budget.budget_date}`;
     const autoValue = Number(autoSpent.get(key) || 0);
     const spent = budget.daily_spent_manual === null || budget.daily_spent_manual === undefined
@@ -287,11 +327,11 @@ export async function getMarketingCampaignMonthlyTotals(month?: string) {
   const dailyBudgets = await getMarketingDailyCampaignBudgets(selectedMonth);
 
   const totalsMap = new Map<string, number>();
-  dailyBudgets.forEach((row) => {
+  dailyBudgets.forEach((row: CampaignMonthlyTotalRow) => {
     totalsMap.set(row.campaign_id, (totalsMap.get(row.campaign_id) || 0) + Number(row.daily_spent || 0));
   });
 
-  return campaigns.map((campaign) => ({
+  return campaigns.map((campaign: CampaignRow) => ({
     campaign_id: campaign.id,
     campaign_name: campaign.name,
     total_spent: Number(totalsMap.get(campaign.id) || 0),
@@ -611,7 +651,7 @@ export async function getMarketingEntries(filters?: {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  return (data || []).map((entry) => mapMarketingEntryRow(entry as Record<string, unknown>));
+  return (data || []).map((entry: Record<string, unknown>) => mapMarketingEntryRow(entry));
 }
 
 export async function getMarketingEntriesPage(filters?: {
@@ -661,7 +701,7 @@ export async function getMarketingEntriesPage(filters?: {
   if (error) throw new Error(error.message);
 
   return {
-    data: (data || []).map((entry) => mapMarketingEntryRow(entry as Record<string, unknown>)),
+    data: (data || []).map((entry: Record<string, unknown>) => mapMarketingEntryRow(entry)),
     count: total,
     page,
     pageSize,

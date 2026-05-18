@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { MessageButton } from "@/components/chat/message-button";
+import type { Customer, Sale, Payment, AppUser, Chargeback } from "@/lib/types";
 
 interface SearchPageProps {
   searchParams?: Promise<{ q?: string }>;
@@ -52,6 +53,11 @@ function SearchResults({
   }
 
   const { customers, sales, payments, users, chargebacks } = results;
+  const customersList = customers as unknown as Customer[];
+  const salesList = sales as unknown as Sale[];
+  const paymentsList = payments as unknown as Payment[];
+  const usersList = users as unknown as AppUser[];
+  const chargebacksList = chargebacks as unknown as Chargeback[];
 
   const hasAny =
     customers.length || sales.length || payments.length || users.length || chargebacks.length;
@@ -81,7 +87,7 @@ function SearchResults({
             <CardTitle className="text-sm font-semibold">Call Logs Responses</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {customers.map((c) => (
+            {customersList.map((c: Customer) => (
               <Link
                 key={c.id}
                 href={`/dashboard/call-logs-responses/${c.id}`}
@@ -108,7 +114,7 @@ function SearchResults({
             <CardTitle className="text-sm font-semibold">Sales</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {sales.map((s) => (
+            {salesList.map((s: Sale) => (
               <Link
                 key={s.id}
                 href={`/dashboard/sales/${s.id}`}
@@ -149,7 +155,7 @@ function SearchResults({
             <CardTitle className="text-sm font-semibold">Payments</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {payments.map((p) => (
+            {paymentsList.map((p: Payment) => (
               <div
                 key={p.id}
                 className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
@@ -180,7 +186,7 @@ function SearchResults({
             <CardTitle className="text-sm font-semibold">Users</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {users.map((u) => (
+            {usersList.map((u: AppUser) => (
               <div
                 key={u.id}
                 className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
@@ -217,7 +223,7 @@ function SearchResults({
             <CardTitle className="text-sm font-semibold">Chargebacks</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {chargebacks.map((c) => (
+            {chargebacksList.map((c: Chargeback) => (
               <div
                 key={c.id}
                 className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"

@@ -34,9 +34,27 @@ export default async function ProcessingAccountsPage(props: {
     getProcessingAccountStats({ search, from_date, to_date, account_type }),
   ]);
 
+  const formattedAccounts = {
+    ...accountsResponse,
+    data: accountsResponse.data.map((row) => ({
+      id: row.id,
+      account_type: row.account_type,
+      account_holder_name: row.account_holder_name ?? "",
+      routing_number: row.routing_number,
+      account_number: row.account_number,
+      card_number: row.card_number,
+      expiration_date: row.expiration_date,
+      cvv: row.cvv,
+      billing_address: row.billing_address ?? "",
+      status: row.status,
+      notes: row.notes,
+      created_at: String(row.created_at || ""),
+    })),
+  };
+
   return (
     <ProcessingAccountsClient
-      accountsResponse={accountsResponse}
+      accountsResponse={formattedAccounts}
       stats={stats}
       userRole={user.role}
     />

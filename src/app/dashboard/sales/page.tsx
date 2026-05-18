@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/auth";
 import { getSales } from "@/lib/actions/sales";
 import { getUsers } from "@/lib/actions/users";
 import { SalesClient } from "@/components/sales/sales-client";
+import type { AppUser } from "@/lib/types";
 
 export default async function SalesPage(props: {
   searchParams: Promise<{
@@ -35,11 +36,11 @@ export default async function SalesPage(props: {
 
   const [salesResponse, usersResponse] = await Promise.all([getSales(salesFilters), getUsers()]);
 
-  const agents = usersResponse.data.filter((u: any) => u.role === "sales_agent");
+  const agents = (usersResponse.data as any[]).filter((u) => u.role === "sales_agent");
 
   return (
     <SalesClient 
-      salesResponse={salesResponse} 
+      salesResponse={salesResponse as any} 
       agents={agents} 
       userRole={user.role} 
       userId={user.id} 

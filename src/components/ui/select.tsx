@@ -20,7 +20,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       <select
         id={id}
         className={cn(
-          "flex h-12 w-full rounded-md border border-input bg-background px-3.5 py-2 text-base shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:text-sm",
+          "flex h-12 w-full rounded-md border border-input bg-background px-3.5 py-2 text-base shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-100 disabled:bg-secondary/40 disabled:text-foreground/75 disabled:border-input/70 sm:h-11 sm:text-sm",
           error && "border-destructive focus:ring-destructive/20",
           className
         )}

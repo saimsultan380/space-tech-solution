@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import type { Note } from "@/lib/types";
 
 export async function getNotes(params: { sale_id?: string; customer_id?: string; type?: string }) {
   await requireAuth();
@@ -27,10 +28,10 @@ export async function getNotes(params: { sale_id?: string; customer_id?: string;
   if (error) throw new Error(error.message);
   
   // Normalize the user field from array to object
-  return (data || []).map((note: any) => ({
+  return (data || []).map((note) => ({
     ...note,
-    user: Array.isArray(note.user) ? note.user[0] : note.user,
-  }));
+    user: Array.isArray(note.user) ? note.user[0] ?? null : note.user ?? null,
+  })) as Note[];
 }
 
 export async function createNote(formData: {

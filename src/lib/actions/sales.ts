@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath, revalidateTag } from "next/cache";
-import type { SaleStatus } from "@/lib/types";
+import type { SaleStatus, Sale } from "@/lib/types";
 import { sanitizeFilterValue, formatCurrency } from "@/lib/utils";
 import { notifySuperAdmins } from "./notifications";
 
@@ -173,7 +173,7 @@ export async function getSales(filters?: {
   };
 }
 
-export async function getSale(id: string) {
+export async function getSale(id: string): Promise<Sale> {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -185,7 +185,7 @@ export async function getSale(id: string) {
     .single();
 
   if (error) throw new Error(error.message);
-  return data;
+  return data as unknown as Sale;
 }
 
 export interface CreateSaleInput {

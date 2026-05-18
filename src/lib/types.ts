@@ -33,7 +33,7 @@ export type ProcessingAccountImportPayload = {
 export type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 export type PaidThrough = "Bank" | "Cash" | "Cheque";
 
-export type EmployeeCategory = "Permanent" | "Contract";
+export type EmployeeCategory = "Permanent" | "Contract" | "Contractual" | "Intern";
 
 export interface AppUser {
   id: string;
@@ -82,6 +82,20 @@ export interface Customer {
   updated_at: string;
 }
 
+export interface CustomerListItem {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  account_no: string;
+  address: string;
+  created_at: string;
+  dob: string | null;
+  created_by_user?: Pick<AppUser, "id" | "full_name"> | null;
+  recent_note?: string | null;
+  recent_note_created_at?: string | null;
+}
+
 export interface Sale {
   id: string;
   sale_type: SaleType;
@@ -118,6 +132,11 @@ export interface Sale {
   payment_method: string;
   merchant_name: string;
   card_last_four?: string | null;
+  utility_company_phone?: string | null;
+  payment_status_after_sale?: string | null;
+  expected_next_bill_date?: string | null;
+  guest_pay_enabled?: boolean | null;
+  guest_pay_link?: string | null;
   customer?: Customer;
   agent?: AppUser;
   processor?: AppUser;
@@ -382,4 +401,27 @@ export interface ProcessingAccount {
   created_at: string;
   updated_at: string;
   creator?: Pick<AppUser, "id" | "full_name"> | null;
+}
+
+// Supabase Realtime Payload Types
+export interface RealtimePayload<T = Record<string, unknown>> {
+  schema: string;
+  table: string;
+  commit_timestamp: string;
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: T;
+  old: Partial<T>;
+  errors: string[] | null;
+}
+
+export interface BroadcastPayload<T = Record<string, unknown>> {
+  type: "broadcast";
+  event: string;
+  payload: T;
+}
+
+export interface PresencePayload {
+  type: "presence";
+  event: "sync" | "join" | "leave";
+  payload: Record<string, unknown>;
 }

@@ -26,6 +26,8 @@ import { Search, Trash2 } from "@/components/ui/icons";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
+import type { AppUser } from "@/lib/types";
+
 const roleVariant: Record<string, "default" | "secondary" | "outline"> = {
   super_admin: "default",
   sales_agent: "secondary",
@@ -34,7 +36,7 @@ const roleVariant: Record<string, "default" | "secondary" | "outline"> = {
 
 interface UsersClientProps {
   usersResponse: {
-    data: any[];
+    data: AppUser[];
     count: number;
     page: number;
     pageSize: number;

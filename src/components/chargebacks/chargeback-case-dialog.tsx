@@ -14,6 +14,21 @@ interface ChargebackCaseDialogProps {
   onClose: () => void;
 }
 
+interface ChargebackDetailsNote {
+  id: string;
+  content: string;
+  created_at: string;
+  user?: { id?: string; full_name?: string } | { id?: string; full_name?: string }[] | null;
+}
+
+interface ChargebackDetailsActivity {
+  id: string;
+  event_type: string;
+  details: string | null;
+  created_at: string;
+  actor?: { id?: string; full_name?: string } | { id?: string; full_name?: string }[] | null;
+}
+
 interface ChargebackNoteRow {
   id: string;
   content: string;
@@ -55,7 +70,7 @@ export function ChargebackCaseDialog({ open, chargebackId, onClose }: Chargeback
       try {
         const details = await getChargebackCaseDetails(chargebackId);
         setNotes(
-          (details.notes || []).map((note: any) => ({
+          ((details.notes as unknown as ChargebackDetailsNote[]) || []).map((note: ChargebackDetailsNote) => ({
             id: note.id,
             content: note.content,
             created_at: note.created_at,
@@ -63,7 +78,7 @@ export function ChargebackCaseDialog({ open, chargebackId, onClose }: Chargeback
           })),
         );
         setActivity(
-          (details.activity || []).map((event: any) => ({
+          ((details.activity as unknown as ChargebackDetailsActivity[]) || []).map((event: ChargebackDetailsActivity) => ({
             id: event.id,
             event_type: event.event_type,
             details: event.details,
@@ -83,7 +98,7 @@ export function ChargebackCaseDialog({ open, chargebackId, onClose }: Chargeback
     if (!chargebackId) return;
     const details = await getChargebackCaseDetails(chargebackId);
     setNotes(
-      (details.notes || []).map((note: any) => ({
+      ((details.notes as unknown as ChargebackDetailsNote[]) || []).map((note: ChargebackDetailsNote) => ({
         id: note.id,
         content: note.content,
         created_at: note.created_at,
@@ -91,7 +106,7 @@ export function ChargebackCaseDialog({ open, chargebackId, onClose }: Chargeback
       })),
     );
     setActivity(
-      (details.activity || []).map((event: any) => ({
+      ((details.activity as unknown as ChargebackDetailsActivity[]) || []).map((event: ChargebackDetailsActivity) => ({
         id: event.id,
         event_type: event.event_type,
         details: event.details,

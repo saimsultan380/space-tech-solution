@@ -3,6 +3,94 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 
+// ─── RPC row shapes ────────────────────────────────────────────────────────────
+
+interface DashboardAnalyticsRow {
+  total_sales: number;
+  rejected_sales: number;
+  total_revenue: number;
+  total_customers: number;
+  total_chargebacks: number;
+  open_chargebacks: number;
+  total_call_logs: number;
+  total_processing_accounts: number;
+  pending_leaves: number;
+  today_on_leave: number;
+}
+
+interface SalesPerAgentRow {
+  name: string;
+  total: number;
+  approved: number;
+  revenue: number;
+}
+
+interface SalesPerProcessorRow {
+  name: string;
+  total: number;
+  approved: number;
+  rejected: number;
+}
+
+interface ChargebacksPerEmployeeRow {
+  name: string;
+  count: number;
+}
+
+interface AttendanceRow {
+  user_id: string;
+  date: string;
+}
+
+interface SalesAgentRow {
+  agent_id: string;
+  status: string;
+  agent: { full_name: string } | null;
+}
+
+interface AgentSaleRow {
+  id: string;
+  status: string;
+  charged_amount: number;
+  created_at: string;
+}
+
+interface AgentRecentSaleRow {
+  id: string;
+  company_name: string;
+  charged_amount: number;
+  created_at: string;
+  customer: { name: string } | null;
+}
+
+interface WeekSaleRow {
+  charged_amount: number;
+  status: string;
+}
+
+interface EmployeeSaleRow {
+  agent_id: string;
+  status: string;
+  charged_amount: number;
+  sale_date: string | null;
+  created_at: string;
+}
+
+interface EmployeeAttendanceRow {
+  user_id: string;
+  date: string;
+  check_in: string;
+  check_out: string | null;
+}
+
+interface EmployeeUserRow {
+  id: string;
+  full_name: string;
+  role: string;
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
 export async function getDashboardStats(month?: string) {
   await requireAuth();
   const supabase = await createClient();
@@ -63,7 +151,7 @@ export async function getSalesPerAgent(month?: string) {
     return [];
   }
 
-  return (data || []).map((row: any) => ({
+  return (data || []).map((row: SalesPerAgentRow) => ({
     name: row.name,
     total: Number(row.total),
     approved: Number(row.approved),
@@ -83,7 +171,7 @@ export async function getSalesPerProcessor(month?: string) {
     return [];
   }
 
-  return (data || []).map((row: any) => ({
+  return (data || []).map((row: SalesPerProcessorRow) => ({
     name: row.name,
     total: Number(row.total),
     approved: Number(row.approved),
@@ -118,7 +206,7 @@ export async function getChargebacksPerEmployee(month?: string) {
     return [];
   }
 
-  return (data || []).map((row: any) => ({
+  return (data || []).map((row: ChargebacksPerEmployeeRow) => ({
     name: row.name,
     count: Number(row.count),
   }));
@@ -149,13 +237,13 @@ export async function getAttendanceVsPerformance(month?: string) {
   ]);
 
   const attendanceMap = new Map<string, number>();
-  (attendanceRes.data || []).forEach((a) => {
+  (attendanceRes.data || []).forEach((a: AttendanceRow) => {
     attendanceMap.set(a.user_id, (attendanceMap.get(a.user_id) || 0) + 1);
   });
 
   const salesMap = new Map<string, { name: string; sales: number }>();
-  (salesRes.data || []).forEach((s) => {
-    const agent = s.agent as unknown as { full_name: string } | null;
+  (salesRes.data || []).forEach((s: any) => {
+    const agent = s.agent as { full_name: string } | null;
     const name = agent?.full_name || "Unknown";
     const existing = salesMap.get(s.agent_id) || { name, sales: 0 };
     existing.sales += 1;
@@ -206,30 +294,30 @@ export async function getAgentDashboardStats(month?: string) {
       .eq("created_by", user.id),
   ]);
 
-  const allSales = allSalesRes.data || [];
-  const todaySales = todaySalesRes.data || [];
+  const allSales = (allSalesRes.data || []) as AgentSaleRow[];
+  const todaySales = (todaySalesRes.data || []) as AgentSaleRow[];
   const monthlySales = allSales;
 
-  const nonRejected = <T extends { status: string; charged_amount: unknown }>(rows: T[]) =>
+  const nonRejected = (rows: AgentSaleRow[]) =>
     rows.filter((s) => s.status !== "rejected");
 
   return {
     totalSales: allSales.length,
     todaySales: todaySales.length,
     todayRevenue: nonRejected(todaySales).reduce(
-      (sum, s) => sum + Number(s.charged_amount),
+      (sum: number, s: AgentSaleRow) => sum + Number(s.charged_amount),
       0,
     ),
     monthSales: monthlySales.length,
     monthRevenue: nonRejected(monthlySales).reduce(
-      (sum, s) => sum + Number(s.charged_amount),
+      (sum: number, s: AgentSaleRow) => sum + Number(s.charged_amount),
       0,
     ),
     pendingSales: 0,
     approvedSales: allSales.filter((s) => s.status !== "rejected").length,
     rejectedSales: allSales.filter((s) => s.status === "rejected").length,
     totalRevenue: nonRejected(allSales).reduce(
-      (sum, s) => sum + Number(s.charged_amount),
+      (sum: number, s: AgentSaleRow) => sum + Number(s.charged_amount),
       0,
     ),
     totalCustomers: customersRes.count || 0,
@@ -256,9 +344,9 @@ export async function getAgentRecentSales(month?: string) {
     .order("created_at", { ascending: false })
     .limit(10);
 
-  return (data || []).map((s) => ({
+  return (data || []).map((s: any) => ({
     ...s,
-    customer_name: (s.customer as unknown as { name: string } | null)?.name || "N/A",
+    customer_name: s.customer?.name || "N/A",
   }));
 }
 
@@ -277,7 +365,7 @@ export async function getProcessorDashboardStats() {
       .gte("created_at", weekStart.toISOString()),
   ]);
 
-  const weekRows = weekRes.data || [];
+  const weekRows = (weekRes.data || []) as WeekSaleRow[];
   const weekRecordedRevenue = weekRows
     .filter((s) => s.status !== "rejected")
     .reduce((sum, s) => sum + Number(s.charged_amount), 0);
@@ -313,14 +401,14 @@ export async function getEmployeeMonthlyStats(month?: string) {
     supabase.from("users").select("id, full_name, role").eq("is_active", true),
   ]);
 
-  const users = usersRes.data || [];
-  const sales = salesRes.data || [];
-  const attendance = attendanceRes.data || [];
+  const users = (usersRes.data || []) as EmployeeUserRow[];
+  const sales = (salesRes.data || []) as EmployeeSaleRow[];
+  const attendance = (attendanceRes.data || []) as EmployeeAttendanceRow[];
 
-  return users.map((u) => {
+  return users.map((u: EmployeeUserRow) => {
     const userSales = sales.filter((s) => s.agent_id === u.id);
     const userAttendance = attendance.filter((a) => a.user_id === u.id);
-    const totalHours = userAttendance.reduce((sum, a) => {
+    const totalHours = userAttendance.reduce((sum: number, a: EmployeeAttendanceRow) => {
       if (!a.check_out) return sum;
       return sum + (new Date(a.check_out).getTime() - new Date(a.check_in).getTime()) / 3600000;
     }, 0);
@@ -334,7 +422,7 @@ export async function getEmployeeMonthlyStats(month?: string) {
       rejectedSales: userSales.filter((s) => s.status === "rejected").length,
       revenue: userSales
         .filter((s) => s.status !== "rejected")
-        .reduce((sum, s) => sum + Number(s.charged_amount), 0),
+        .reduce((sum: number, s: EmployeeSaleRow) => sum + Number(s.charged_amount), 0),
       daysPresent: userAttendance.length,
       totalHours: Math.round(totalHours * 10) / 10,
     };

@@ -1,0 +1,656 @@
+﻿src/app/dashboard/customers/[id]/page.tsx(37,56): error TS2339: Property 'name' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(48,52): error TS2339: Property 'email' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(49,52): error TS2339: Property 'phone' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(50,54): error TS2339: Property 'address' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(61,31): error TS2339: Property 'dob' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(61,57): error TS2339: Property 'dob' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(63,50): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(63,83): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(64,65): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/app/dashboard/customers/[id]/page.tsx(69,21): error TS2322: Type '{ user: { id: string; full_name: string; role: string; } | null; }[]' is not assignable to type 'Note[]'.
+  Type '{ user: { id: string; full_name: string; role: string; } | null; }' is missing the following properties from type 'Note': id, content, is_important, created_at
+src/app/dashboard/processing-accounts/page.tsx(39,7): error TS2322: Type '{ data: NormalisedProcessingAccountRow[]; count: number; page: number; pageSize: number; totalPages: number; }' is not assignable to type '{ data: ProcessingAccountRow[]; count: number; page: number; pageSize: number; totalPages: number; }'.
+  Types of property 'data' are incompatible.
+    Type 'NormalisedProcessingAccountRow[]' is not assignable to type 'ProcessingAccountRow[]'.
+      Property 'created_at' is missing in type 'NormalisedProcessingAccountRow' but required in type 'ProcessingAccountRow'.
+src/app/dashboard/sales/[id]/edit/page.tsx(46,29): error TS2339: Property 'payment_method' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(51,28): error TS2339: Property 'merchant_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(58,36): error TS2339: Property 'merchant_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(59,23): error TS2339: Property 'method' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(63,42): error TS2339: Property 'encrypted_details' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(64,43): error TS2339: Property 'card_cvv_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(69,33): error TS2339: Property 'card_exp' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(70,45): error TS2339: Property 'billing_address' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(71,30): error TS2339: Property 'method' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(75,42): error TS2339: Property 'encrypted_details' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(76,49): error TS2339: Property 'routing_number_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(79,49): error TS2339: Property 'account_number_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(86,24): error TS2339: Property 'account_holder_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(87,34): error TS2339: Property 'bank_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(92,21): error TS2339: Property 'sale_type' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(93,19): error TS2339: Property 'subtype' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(94,23): error TS2339: Property 'customer_id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(95,20): error TS2339: Property 'agent_id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(97,12): error TS2339: Property 'agent_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(98,13): error TS2339: Property 'agent' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(101,29): error TS2339: Property 'sale_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(103,26): error TS2339: Property 'customer_phone' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(105,12): error TS2339: Property 'customer_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(106,13): error TS2339: Property 'customer' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(109,12): error TS2339: Property 'customer_email' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(110,13): error TS2339: Property 'customer' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(113,12): error TS2339: Property 'service_address' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(114,13): error TS2339: Property 'customer' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(116,31): error TS2339: Property 'account_holder_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(118,13): error TS2339: Property 'customer' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(119,24): error TS2339: Property 'company_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(121,12): error TS2339: Property 'utility_company_service_number' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(122,33): error TS2339: Property 'utility_company_phone' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(123,29): error TS2339: Property 'guest_pay_enabled' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(124,26): error TS2339: Property 'guest_pay_link' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(125,32): error TS2339: Property 'dob' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(126,15): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(126,44): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(127,25): error TS2339: Property 'amount' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(128,27): error TS2339: Property 'discount' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(129,42): error TS2339: Property 'billed_month' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(130,46): error TS2339: Property 'next_billing_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(131,52): error TS2339: Property 'expected_next_bill_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(132,37): error TS2339: Property 'payment_status_after_sale' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(133,26): error TS2339: Property 'account_status' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(144,27): error TS2339: Property 'other_sale_data' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(145,23): error TS2339: Property 'sales_notes' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(146,30): error TS2339: Property 'policy_holder_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(147,27): error TS2339: Property 'vehicle_details' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/edit/page.tsx(166,22): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(63,25): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(63,54): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(64,25): error TS2339: Property 'customer' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(66,10): error TS2339: Property 'agent_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(67,11): error TS2339: Property 'agent' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(72,42): error TS2339: Property 'agent_id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(73,28): error TS2339: Property 'sale_type' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(85,54): error TS2339: Property 'company_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(88,19): error TS2339: Property 'sale_type' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(88,38): error TS2339: Property 'subtype' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(89,19): error TS2339: Property 'sale_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(89,60): error TS2339: Property 'sale_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(93,48): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(111,59): error TS2339: Property 'customer_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(112,56): error TS2339: Property 'customer_email' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(113,58): error TS2339: Property 'company_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(114,53): error TS2339: Property 'sale_type' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(114,73): error TS2339: Property 'subtype' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(115,75): error TS2339: Property 'charged_amount' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(117,75): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(118,53): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(131,61): error TS2339: Property 'customer_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(132,53): error TS2339: Property 'customer_phone' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(133,53): error TS2339: Property 'customer_email' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(134,63): error TS2339: Property 'service_address' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(138,36): error TS2339: Property 'policy_holder_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(138,62): error TS2339: Property 'account_holder_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(142,61): error TS2339: Property 'dob' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(155,50): error TS2339: Property 'sale_type' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(155,70): error TS2339: Property 'subtype' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(156,101): error TS2339: Property 'company_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(161,36): error TS2339: Property 'utility_company_service_number' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(165,36): error TS2339: Property 'utility_company_phone' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(170,65): error TS2339: Property 'vehicle_details' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(172,62): error TS2339: Property 'account_status' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(173,68): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(174,73): error TS2339: Property 'updated_at' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(187,42): error TS2339: Property 'amount' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(189,66): error TS2339: Property 'discount' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(190,72): error TS2339: Property 'charged_amount' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(191,73): error TS2339: Property 'billed_month' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(194,27): error TS2339: Property 'next_billing_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(194,63): error TS2339: Property 'next_billing_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(198,27): error TS2339: Property 'payment_status_after_sale' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(198,60): error TS2339: Property 'payment_status_after_sale' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(198,117): error TS2339: Property 'payment_status_after_sale' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(202,27): error TS2339: Property 'expected_next_bill_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(202,69): error TS2339: Property 'expected_next_bill_date' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(217,33): error TS2339: Property 'processor' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(221,27): error TS2339: Property 'payment_method' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(221,49): error TS2339: Property 'payment_method' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(223,56): error TS2339: Property 'merchant_name' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(237,27): error TS2339: Property 'guest_pay_enabled' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(239,19): error TS2339: Property 'guest_pay_enabled' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(239,45): error TS2339: Property 'guest_pay_link' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(243,30): error TS2339: Property 'guest_pay_link' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(248,25): error TS2339: Property 'guest_pay_link' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(343,22): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(344,9): error TS2322: Type '{ user: { id: string; full_name: string; role: string; } | null; }[]' is not assignable to type 'Note[]'.
+  Type '{ user: { id: string; full_name: string; role: string; } | null; }' is missing the following properties from type 'Note': id, sale_id, customer_id, user_id, and 3 more.
+src/app/dashboard/sales/[id]/page.tsx(348,22): error TS2339: Property 'id' does not exist on type 'never'.
+src/app/dashboard/sales/[id]/page.tsx(354,21): error TS2322: Type '{ user: { id: string; full_name: string; role: string; } | null; }[]' is not assignable to type 'Note[]'.
+  Type '{ user: { id: string; full_name: string; role: string; } | null; }' is missing the following properties from type 'Note': id, content, is_important, created_at
+src/lib/actions/agent-names.ts(28,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "agent_names", never, "POST">', gave the following error.
+    Argument of type '{ name: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "agent_names", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/lib/actions/analytics.ts(98,73): error TS2345: Argument of type '{ month_filter: string | null; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/analytics.ts(102,30): error TS2339: Property 'length' does not exist on type 'never'.
+src/lib/actions/analytics.ts(121,35): error TS2339: Property 'total_sales' does not exist on type 'never'.
+src/lib/actions/analytics.ts(122,38): error TS2339: Property 'total_sales' does not exist on type 'never'.
+src/lib/actions/analytics.ts(122,66): error TS2339: Property 'rejected_sales' does not exist on type 'never'.
+src/lib/actions/analytics.ts(126,32): error TS2339: Property 'total_revenue' does not exist on type 'never'.
+src/lib/actions/analytics.ts(127,34): error TS2339: Property 'total_customers' does not exist on type 'never'.
+src/lib/actions/analytics.ts(130,33): error TS2339: Property 'rejected_sales' does not exist on type 'never'.
+src/lib/actions/analytics.ts(131,36): error TS2339: Property 'total_chargebacks' does not exist on type 'never'.
+src/lib/actions/analytics.ts(132,35): error TS2339: Property 'open_chargebacks' does not exist on type 'never'.
+src/lib/actions/analytics.ts(133,33): error TS2339: Property 'total_call_logs' does not exist on type 'never'.
+src/lib/actions/analytics.ts(134,43): error TS2339: Property 'total_processing_accounts' does not exist on type 'never'.
+src/lib/actions/analytics.ts(135,33): error TS2339: Property 'pending_leaves' does not exist on type 'never'.
+src/lib/actions/analytics.ts(136,32): error TS2339: Property 'today_on_leave' does not exist on type 'never'.
+src/lib/actions/analytics.ts(145,75): error TS2345: Argument of type '{ target_month: string | null; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/analytics.ts(154,23): error TS2339: Property 'map' does not exist on type 'never'.
+src/lib/actions/analytics.ts(165,79): error TS2345: Argument of type '{ target_month: string | null; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/analytics.ts(174,23): error TS2339: Property 'map' does not exist on type 'never'.
+src/lib/actions/analytics.ts(185,71): error TS2345: Argument of type '{ period_type: "month" | "day" | "week"; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/analytics.ts(200,84): error TS2345: Argument of type '{ target_month: string | null; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/analytics.ts(209,23): error TS2339: Property 'map' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(162,73): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(177,24): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(177,51): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(178,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(193,24): error TS2339: Property 'notification_type' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(194,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(198,24): error TS2339: Property 'notification_type' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(199,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(222,57): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "attendance_notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; date: string; notification_type: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "attendance_notifications", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/attendance-auto.ts(240,69): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "leaves", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; start_date: string; end_date: string; type: string; reason: string; status: string; approver_notes: string; source: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "leaves", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/attendance-auto.ts(263,57): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "attendance_notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; date: string; notification_type: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "attendance_notifications", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/attendance-auto.ts(314,73): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(317,24): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(317,51): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(318,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(323,24): error TS2339: Property 'notification_type' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(324,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(328,24): error TS2339: Property 'notification_type' does not exist on type 'never'.
+src/lib/actions/attendance-auto.ts(329,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/attendance-settings.ts(196,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { onConflict?: string | undefined; ignoreDuplicates?: boolean | undefined; count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ ...; }, ... 5 more ..., "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { onConflict?: string | undefined; ignoreDuplicates?: boolean | undefined; count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/attendance.ts(152,57): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "attendance", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; date: string; check_in: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "attendance", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/attendance.ts(216,16): error TS2339: Property 'check_out' does not exist on type 'never'.
+src/lib/actions/attendance.ts(222,15): error TS2345: Argument of type '{ check_out: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/attendance.ts(223,24): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/banks.ts(21,56): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "banks", never, "POST">', gave the following error.
+    Argument of type '{ name: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "banks", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/lib/actions/biometric-mapping.ts(98,69): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "biometric_user_mapping", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; machine_user_id: string; machine_id: string; is_active: boolean; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "biometric_user_mapping", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/biometric-mapping.ts(147,15): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/lib/actions/chargebacks.ts(61,53): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chargeback_activity", never, "POST">', gave the following error.
+    Argument of type '{ chargeback_id: string; actor_id: string | null; event_type: string; details: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chargeback_activity", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'chargeback_id' does not exist in type 'never[]'.
+src/lib/actions/chargebacks.ts(210,5): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "chargebacks", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "chargebacks", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/chargebacks.ts(222,5): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "chargebacks", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "chargebacks", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/chargebacks.ts(355,72): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chargebacks", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: string; date: string; reason: string; assigned_to: string; priority: ChargebackPriority; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chargebacks", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'sale_id' does not exist in type 'never[]'.
+src/lib/actions/chargebacks.ts(365,17): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chargebacks.ts(368,30): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chargebacks.ts(392,13): error TS2345: Argument of type '{ status: ChargebackStatus; }' is not assignable to parameter of type 'never'.
+src/lib/actions/chargebacks.ts(412,13): error TS2345: Argument of type '{ priority: ChargebackPriority; }' is not assignable to parameter of type 'never'.
+src/lib/actions/chargebacks.ts(433,61): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chargeback_notes", never, "POST">', gave the following error.
+    Argument of type '{ chargeback_id: string; user_id: string; content: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chargeback_notes", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'chargeback_id' does not exist in type 'never[]'.
+src/lib/actions/chat.ts(157,15): error TS2339: Property 'map' does not exist on type 'never'.
+src/lib/actions/chat.ts(199,58): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/lib/actions/chat.ts(199,93): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/lib/actions/chat.ts(201,47): error TS2339: Property 'reply_to_id' does not exist on type 'never'.
+src/lib/actions/chat.ts(201,73): error TS2339: Property 'reply_to_id' does not exist on type 'never'.
+src/lib/actions/chat.ts(211,20): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(211,34): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(211,49): error TS2339: Property 'content' does not exist on type 'never'.
+src/lib/actions/chat.ts(211,71): error TS2339: Property 'sender_id' does not exist on type 'never'.
+src/lib/actions/chat.ts(211,92): error TS2339: Property 'sender' does not exist on type 'never'.
+src/lib/actions/chat.ts(263,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_messages", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: string; sender_id: string; content: string; attachment_url: string | null; attachment_name: string | null; attachment_type: string | null; attachment_size: number | null; reply_to_id: string | null; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_messages", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'channel_id' does not exist in type 'never[]'.
+src/lib/actions/chat.ts(293,42): error TS2339: Property 'is_direct' does not exist on type 'never'.
+src/lib/actions/chat.ts(295,39): error TS2339: Property 'name' does not exist on type 'never'.
+src/lib/actions/chat.ts(306,56): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }' is not assignable to type 'never'.
+src/lib/actions/chat.ts(313,42): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(325,13): error TS2345: Argument of type '{ content: string; is_edited: boolean; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/chat.ts(339,13): error TS2345: Argument of type '{ is_deleted: boolean; content: string; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/chat.ts(373,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channels", never, "POST">', gave the following error.
+    Argument of type '{ name: string; description: string; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channels", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/lib/actions/chat.ts(381,70): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(382,85): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: any; user_id: string; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: any; user_id: string; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ channel_id: any; user_id: string; }' is not assignable to type 'never'.
+src/lib/actions/chat.ts(386,44): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(413,33): error TS2339: Property 'channel_id' does not exist on type 'never'.
+src/lib/actions/chat.ts(415,48): error TS2339: Property 'channel_id' does not exist on type 'never'.
+src/lib/actions/chat.ts(423,8): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channels", never, "POST">', gave the following error.
+    Argument of type '{ name: string; description: string; is_direct: boolean; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channels", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/lib/actions/chat.ts(435,54): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: any; user_id: string; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Type '{ channel_id: any; user_id: string; }' is not assignable to type 'never'.
+src/lib/actions/chat.ts(436,29): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(440,46): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(444,86): error TS2345: Argument of type '{ other_user_id: string; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/chat.ts(458,56): error TS2339: Property 'full_name' does not exist on type 'never'.
+src/lib/actions/chat.ts(464,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channels", never, "POST">', gave the following error.
+    Argument of type '{ name: string; description: string; is_direct: boolean; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channels", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/lib/actions/chat.ts(476,59): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: any; user_id: string; }[]' is not assignable to parameter of type 'never'.
+src/lib/actions/chat.ts(477,27): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(478,27): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(482,44): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/chat.ts(490,13): error TS2345: Argument of type '{ is_pinned: boolean; }' is not assignable to parameter of type 'never'.
+src/lib/actions/chat.ts(501,13): error TS2345: Argument of type '{ is_pinned: boolean; }' is not assignable to parameter of type 'never'.
+src/lib/actions/chat.ts(576,13): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+src/lib/actions/chat.ts(596,31): error TS2339: Property 'is_direct' does not exist on type 'never'.
+src/lib/actions/chat.ts(598,18): error TS2339: Property 'created_by' does not exist on type 'never'.
+src/lib/actions/chat.ts(625,18): error TS2339: Property 'is_direct' does not exist on type 'never'.
+src/lib/actions/chat.ts(636,20): error TS2339: Property 'created_by' does not exist on type 'never'.
+src/lib/actions/chat.ts(701,82): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: string; user_id: string; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_channel_members", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: string; user_id: string; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ channel_id: string; user_id: string; }' is not assignable to type 'never'.
+src/lib/actions/chat.ts(784,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_events", never, "POST">', gave the following error.
+    Argument of type '{ channel_id: string; creator_id: string; title: string; description: string; event_date: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "chat_events", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'channel_id' does not exist in type 'never[]'.
+src/lib/actions/chat.ts(826,56): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }' is not assignable to type 'never'.
+src/lib/actions/chat.ts(845,13): error TS2345: Argument of type '{ title?: string | undefined; description?: string | undefined; event_date?: string | undefined; }' is not assignable to parameter of type 'never'.
+src/lib/actions/company-settings.ts(58,26): error TS2339: Property 'company_name' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(59,26): error TS2339: Property 'address_line' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(60,27): error TS2339: Property 'contact_email' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(61,22): error TS2339: Property 'logo_url' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(62,28): error TS2339: Property 'shell_bg_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(63,30): error TS2339: Property 'shell_text_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(64,27): error TS2339: Property 'sidebar_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(65,32): error TS2339: Property 'sidebar_text_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(66,26): error TS2339: Property 'button_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(67,31): error TS2339: Property 'button_text_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(68,30): error TS2339: Property 'active_tab_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(69,35): error TS2339: Property 'active_tab_text_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(70,36): error TS2339: Property 'chat_user_bubble_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(71,41): error TS2339: Property 'chat_user_bubble_text_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(72,35): error TS2339: Property 'chat_bot_bubble_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(73,40): error TS2339: Property 'chat_bot_bubble_text_color' does not exist on type 'never'.
+src/lib/actions/company-settings.ts(87,13): error TS2345: Argument of type '{ company_name: string; address_line: string; contact_email: string; logo_url: string | null; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/company-settings.ts(112,13): error TS2345: Argument of type '{ shell_bg_color: string | null; shell_text_color: string | null; sidebar_color: string | null; sidebar_text_color: string | null; button_color: string | null; button_text_color: string | null; ... 6 more ...; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/customers.ts(98,5): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "customers", never, "GET">' is not assignable to parameter of type 'CustomerFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "customers", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => CustomerFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/customers.ts(118,7): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "customers", never, "GET">' is not assignable to parameter of type 'CustomerFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "customers", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => CustomerFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/customers.ts(125,37): error TS2339: Property 'not' does not exist on type 'CustomerFilterBuilder'.
+src/lib/actions/customers.ts(199,44): error TS2339: Property 'created_by' does not exist on type 'never'.
+src/lib/actions/customers.ts(203,16): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/lib/actions/customers.ts(203,45): error TS2339: Property 'ssn_encrypted' does not exist on type 'never'.
+src/lib/actions/customers.ts(232,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type '{ source: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type '{ source: string; }' is not assignable to parameter of type 'never[]'.
+      Type '{ source: string; }' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/customers.ts(239,15): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/customers.ts(247,14): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/customers.ts(256,15): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/customers.ts(281,30): error TS2339: Property 'created_by' does not exist on type 'never'.
+src/lib/actions/customers.ts(301,13): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+src/lib/actions/customers.ts(319,30): error TS2339: Property 'created_by' does not exist on type 'never'.
+src/lib/actions/customers.ts(324,61): error TS2345: Argument of type '{ deleted_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/leaves.ts(126,51): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "leaves", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; start_date: string; end_date: string; type: string; reason: string; status: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "leaves", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/leaves.ts(165,13): error TS2345: Argument of type '{ status: LeaveStatus; approver_id: string; approver_notes: string | null; }' is not assignable to parameter of type 'never'.
+src/lib/actions/marketing-budget.ts(370,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_campaigns", never, "POST">', gave the following error.
+    Argument of type '{ name: string; type: "call" | "digital" | "other"; total_budget: number; start_date: string; end_date: string; assigned_to: string | null; status: "completed" | "active" | "paused"; notes: string; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_campaigns", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(387,58): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_budget_transactions", never, "POST">', gave the following error.
+    Argument of type '{ transaction_date: string; type: string; campaign_id: any; amount: number; performed_by: string; note: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_budget_transactions", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'transaction_date' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(390,25): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/marketing-budget.ts(415,13): error TS2345: Argument of type '{ name: string; type: "call" | "digital" | "other"; total_budget: number; start_date: string; end_date: string; assigned_to: string | null; status: "completed" | "active" | "paused"; notes: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/marketing-budget.ts(452,70): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_daily_call_logs", never, "POST">', gave the following error.
+    Argument of type '{ log_date: string; campaign_id: string; user_id: string; calls_made: number; cost_per_call: number; notes: string; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_daily_call_logs", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'log_date' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(473,56): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_budget_transactions", never, "POST">', gave the following error.
+    Argument of type '{ transaction_date: string; type: string; campaign_id: string; amount: number; performed_by: string; note: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_budget_transactions", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'transaction_date' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(477,32): error TS2339: Property 'total_daily_cost' does not exist on type 'never'.
+src/lib/actions/marketing-budget.ts(493,77): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { onConflict?: string | undefined; ignoreDuplicates?: boolean | undefined; count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ ...; }, ... 5 more ..., "POST">', gave the following error.
+    Argument of type '{ budget_date: string; campaign_id: string; daily_budget_allocated: number; daily_spent_manual: number | null; notes: string; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { onConflict?: string | undefined; ignoreDuplicates?: boolean | undefined; count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Object literal may only specify known properties, and 'budget_date' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(533,38): error TS2339: Property 'total_budget' does not exist on type 'never'.
+src/lib/actions/marketing-budget.ts(538,13): error TS2345: Argument of type '{ total_budget: number; }' is not assignable to parameter of type 'never'.
+src/lib/actions/marketing-budget.ts(542,74): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_budget_transactions", never, "POST">', gave the following error.
+    Argument of type '{ transaction_date: string; type: MarketingTransactionType; campaign_id: string; amount: number; performed_by: string; note: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_budget_transactions", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'transaction_date' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(791,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_entries", never, "POST">', gave the following error.
+    Argument of type '{ entry_date: string; campaign: MarketingEntryCampaign; budget_assigned: number; calls_landed: number; dropped_calls: number; sales_acquired: number; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "marketing_entries", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'entry_date' does not exist in type 'never[]'.
+src/lib/actions/marketing-budget.ts(805,15): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/marketing-budget.ts(818,13): error TS2345: Argument of type '{ entry_date: string; campaign: MarketingEntryCampaign; budget_assigned: number; calls_landed: number; dropped_calls: number; sales_acquired: number; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/notes.ts(46,50): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Argument of type '{ content: string; sale_id: string | null; customer_id: string | null; user_id: string; is_important: boolean; type: string | null; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'content' does not exist in type 'never[]'.
+src/lib/actions/notes.ts(70,13): error TS2345: Argument of type '{ is_important: boolean; }' is not assignable to parameter of type 'never'.
+src/lib/actions/notes.ts(90,13): error TS2345: Argument of type '{ content: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/notifications.ts(19,60): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/notifications.ts(57,18): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/notifications.ts(64,80): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: any; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: any; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ user_id: any; title: string; body: string; type: string; is_read: boolean; }' is not assignable to type 'never'.
+src/lib/actions/notifications.ts(86,30): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/notifications.ts(88,12): error TS2339: Property 'start_date' does not exist on type 'never'.
+src/lib/actions/notifications.ts(88,32): error TS2339: Property 'end_date' does not exist on type 'never'.
+src/lib/actions/notifications.ts(88,50): error TS2339: Property 'end_date' does not exist on type 'never'.
+src/lib/actions/notifications.ts(89,16): error TS2339: Property 'start_date' does not exist on type 'never'.
+src/lib/actions/notifications.ts(90,19): error TS2339: Property 'start_date' does not exist on type 'never'.
+src/lib/actions/notifications.ts(90,41): error TS2339: Property 'end_date' does not exist on type 'never'.
+src/lib/actions/notifications.ts(93,12): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/notifications.ts(95,16): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/notifications.ts(100,12): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/notifications.ts(101,24): error TS2339: Property 'type' does not exist on type 'never'.
+src/lib/actions/notifications.ts(102,16): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/notifications.ts(103,24): error TS2339: Property 'type' does not exist on type 'never'.
+src/lib/actions/notifications.ts(104,24): error TS2339: Property 'type' does not exist on type 'never'.
+src/lib/actions/notifications.ts(150,15): error TS2345: Argument of type '{ is_read: boolean; }' is not assignable to parameter of type 'never'.
+src/lib/actions/payments.ts(94,53): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "payments", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: string; customer_id: string; method: string; amount: number; card_last_four: string | null; bank_name: string | null; encrypted_details: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "payments", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'sale_id' does not exist in type 'never[]'.
+src/lib/actions/payslips.ts(88,25): error TS2339: Property 'employee_id' does not exist on type 'never'.
+src/lib/actions/payslips.ts(92,80): error TS2345: Argument of type '{ p_user_id: string; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/payslips.ts(96,48): error TS2339: Property 'trim' does not exist on type 'never'.
+src/lib/actions/payslips.ts(96,72): error TS2339: Property 'trim' does not exist on type 'never'.
+src/lib/actions/payslips.ts(335,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "payslips", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; generated_by: string; period_start: string; period_end: string; pay_date: string; basic_salary: number; allowances: number; deductions: number; bonus: number; commission: number; ... 23 more ...; bank_branch: string | undefined; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "payslips", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/payslips.ts(433,13): error TS2345: Argument of type '{ user_id: string; generated_by: string; period_start: string; period_end: string; pay_date: string; basic_salary: number; allowances: number; deductions: number; bonus: number; commission: number; ... 23 more ...; bank_branch: string | undefined; }' is not assignable to parameter of type 'never'.
+src/lib/actions/payslips.ts(501,13): error TS2345: Argument of type '{ status: string; sent_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/payslips.ts(507,22): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/payslips.ts(509,39): error TS2339: Property 'period_start' does not exist on type 'never'.
+src/lib/actions/payslips.ts(509,66): error TS2339: Property 'period_end' does not exist on type 'never'.
+src/lib/actions/payslips.ts(531,48): error TS2339: Property 'period_start' does not exist on type 'never'.
+src/lib/actions/payslips.ts(532,46): error TS2339: Property 'period_end' does not exist on type 'never'.
+src/lib/actions/payslips.ts(533,44): error TS2339: Property 'pay_date' does not exist on type 'never'.
+src/lib/actions/payslips.ts(538,27): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/payslips.ts(547,21): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/actions/payslips.ts(551,33): error TS2339: Property 'basic_salary' does not exist on type 'never'.
+src/lib/actions/payslips.ts(552,31): error TS2339: Property 'allowances' does not exist on type 'never'.
+src/lib/actions/payslips.ts(553,31): error TS2339: Property 'deductions' does not exist on type 'never'.
+src/lib/actions/payslips.ts(554,26): error TS2339: Property 'bonus' does not exist on type 'never'.
+src/lib/actions/payslips.ts(555,22): error TS2339: Property 'currency' does not exist on type 'never'.
+src/lib/actions/personal-notes.ts(38,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "personal_notes", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string | null; content: string; color: string; pinned: boolean; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "personal_notes", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'user_id' does not exist in type 'never[]'.
+src/lib/actions/personal-notes.ts(66,13): error TS2345: Argument of type 'Partial<Omit<PersonalNote, "user_id" | "id" | "created_at" | "updated_at">>' is not assignable to parameter of type 'never'.
+src/lib/actions/processing-accounts.ts(109,5): error TS2740: Type 'SupabaseFilterBuilder' is missing the following properties from type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">': neq, gt, lt, like, and 46 more.
+src/lib/actions/processing-accounts.ts(109,32): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(142,28): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(144,30): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(212,5): error TS2740: Type 'SupabaseFilterBuilder' is missing the following properties from type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">': neq, gt, lt, like, and 46 more.
+src/lib/actions/processing-accounts.ts(212,25): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(246,3): error TS2740: Type 'SupabaseFilterBuilder' is missing the following properties from type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">': neq, gt, lt, like, and 46 more.
+src/lib/actions/processing-accounts.ts(246,27): error TS2345: Argument of type 'PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">' is not assignable to parameter of type 'SupabaseFilterBuilder'.
+  Types of property 'gte' are incompatible.
+    Type '{ <ColumnName extends string>(column: ColumnName, value: never[ColumnName]): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, never[], "processing_accounts", never, "GET">; (column: string, value: unknown): PostgrestFilterBuilder<...>; }' is not assignable to type '(column: string, value: string) => SupabaseFilterBuilder'.
+      Types of parameters 'value' and 'value' are incompatible.
+        Type 'string' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(274,5): error TS2698: Spread types may only be created from object types.
+src/lib/actions/processing-accounts.ts(275,38): error TS2339: Property 'routing_number_encrypted' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(276,38): error TS2339: Property 'account_number_encrypted' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(277,35): error TS2339: Property 'card_number_encrypted' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(278,27): error TS2339: Property 'cvv_encrypted' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(279,27): error TS2339: Property 'expiration_date' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(280,25): error TS2339: Property 'account_type' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(303,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "processing_accounts", never, "POST">', gave the following error.
+    Argument of type '{ account_type: ProcessingAccountType; account_holder_name: string; routing_number_encrypted: string; account_number_encrypted: string; card_number_encrypted: string | null; ... 5 more ...; created_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "processing_accounts", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'account_type' does not exist in type 'never[]'.
+src/lib/actions/processing-accounts.ts(321,15): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(375,73): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "processing_accounts", never, "POST">', gave the following error.
+    Argument of type '{ account_type: ProcessingAccountType; account_holder_name: string; routing_number_encrypted: string; account_number_encrypted: string; card_number_encrypted: string | null; ... 5 more ...; created_by: string; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "processing_accounts", never, "POST">', gave the following error.
+    Argument of type '{ account_type: ProcessingAccountType; account_holder_name: string; routing_number_encrypted: string; account_number_encrypted: string; card_number_encrypted: string | null; ... 5 more ...; created_by: string; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ account_type: ProcessingAccountType; account_holder_name: string; routing_number_encrypted: string; account_number_encrypted: string; card_number_encrypted: string | null; ... 5 more ...; created_by: string; }' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(441,13): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+src/lib/actions/processing-accounts.ts(483,57): error TS2339: Property 'account_holder_name' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(483,90): error TS2339: Property 'status' does not exist on type 'never'.
+src/lib/actions/processing-accounts.ts(491,15): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notifications", never, "POST">', gave the following error.
+    Argument of type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ user_id: string; title: string; body: string; type: string; is_read: boolean; }' is not assignable to type 'never'.
+src/lib/actions/processing-accounts.ts(508,13): error TS2345: Argument of type '{ notes: string | null; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/processing-accounts.ts(523,13): error TS2345: Argument of type '{ status: ProcessingAccountStatus | null; updated_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/profile.ts(87,13): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+src/lib/actions/profile.ts(121,13): error TS2345: Argument of type '{ preferred_currency: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/sale-attachments.ts(35,6): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sale_attachments", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: string; file_name: string; file_path: string; file_url: string; mime_type: string; size_bytes: number; uploaded_by: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sale_attachments", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'sale_id' does not exist in type 'never[]'.
+src/lib/actions/sales.ts(148,58): error TS2339: Property 'sale_id' does not exist on type 'never'.
+src/lib/actions/sales.ts(261,38): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(270,38): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(290,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type '{ source: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type '{ source: string; }' is not assignable to parameter of type 'never[]'.
+      Type '{ source: string; }' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/sales.ts(297,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "customers", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/sales.ts(305,26): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(306,33): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(355,13): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sales", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sales", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/sales.ts(366,8): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sales", never, "POST">', gave the following error.
+    Argument of type '{ subtype: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "sales", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'subtype' does not exist in type 'never[]'.
+src/lib/actions/sales.ts(375,17): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(379,27): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(387,27): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(395,43): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: any; user_id: string; content: string; type: string; }[]' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: any; user_id: string; content: string; type: string; }[]' is not assignable to parameter of type 'never[]'.
+      Type '{ sale_id: any; user_id: string; content: string; type: string; }' is not assignable to type 'never'.
+src/lib/actions/sales.ts(401,25): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(436,46): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "payments", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "payments", never, "POST">', gave the following error.
+    Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never[]'.
+      Type 'Record<string, unknown>' is missing the following properties from type 'never[]': length, pop, push, concat, and 35 more.
+src/lib/actions/sales.ts(458,20): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/actions/sales.ts(477,51): error TS2339: Property 'agent_id' does not exist on type 'never'.
+src/lib/actions/sales.ts(481,30): error TS2339: Property 'agent_id' does not exist on type 'never'.
+src/lib/actions/sales.ts(495,20): error TS2339: Property 'full_name' does not exist on type 'never'.
+src/lib/actions/sales.ts(495,53): error TS2339: Property 'full_name' does not exist on type 'never'.
+src/lib/actions/sales.ts(542,13): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+src/lib/actions/sales.ts(552,15): error TS2345: Argument of type '{ subtype: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/sales.ts(600,57): error TS2345: Argument of type 'Record<string, string>' is not assignable to parameter of type 'never'.
+src/lib/actions/sales.ts(618,13): error TS2345: Argument of type '{ status: SaleStatus; processing_notes: string; processor_id: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/sales.ts(628,34): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: string; user_id: string; content: string; type: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'sale_id' does not exist in type 'never[]'.
+src/lib/actions/sales.ts(651,13): error TS2345: Argument of type '{ chargeback_status: string; processing_notes: string; processor_id: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/sales.ts(661,34): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Argument of type '{ sale_id: string; user_id: string; content: string; type: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "notes", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'sale_id' does not exist in type 'never[]'.
+src/lib/actions/sales.ts(683,13): error TS2345: Argument of type '{ status: SaleStatus; processing_notes: string; processor_id: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/sales.ts(716,14): error TS2339: Property 'agent_id' does not exist on type 'never'.
+src/lib/actions/sales.ts(721,57): error TS2345: Argument of type '{ deleted_at: string; }' is not assignable to parameter of type 'never'.
+src/lib/actions/users.ts(97,63): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "users", never, "POST">', gave the following error.
+    Argument of type '{ id: string; email: string; full_name: string; role: UserRole; preferred_currency: string; allowed_modules: string[] | null; joining_date: string | null; category: EmployeeCategory; ... 12 more ...; bank_name: string | null; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "users", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'id' does not exist in type 'never[]'.
+src/lib/actions/users.ts(127,83): error TS2345: Argument of type '{ p_user_id: string; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/users.ts(156,70): error TS2345: Argument of type '{ p_user_id: string; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/users.ts(160,46): error TS2339: Property 'trim' does not exist on type 'never'.
+src/lib/actions/users.ts(206,35): error TS2339: Property 'employee_id' does not exist on type 'never'.
+src/lib/actions/users.ts(210,18): error TS2339: Property 'email' does not exist on type 'never'.
+src/lib/actions/users.ts(264,74): error TS2345: Argument of type '{ p_user_id: string; }' is not assignable to parameter of type 'undefined'.
+src/lib/actions/users.ts(272,13): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+src/lib/actions/users.ts(289,13): error TS2345: Argument of type '{ is_active: boolean; }' is not assignable to parameter of type 'never'.
+src/lib/actions/users.ts(310,44): error TS2339: Property 'role' does not exist on type 'never'.
+src/lib/actions/users.ts(324,13): error TS2345: Argument of type '{ allowed_modules: string[] | null; }' is not assignable to parameter of type 'never'.
+src/lib/services/zkteco-service.ts(138,8): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "biometric_sync_log", never, "POST">', gave the following error.
+    Argument of type '{ machine_id: string; sync_started_at: string; status: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "biometric_sync_log", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'machine_id' does not exist in type 'never[]'.
+src/lib/services/zkteco-service.ts(167,32): error TS2339: Property 'machine_user_id' does not exist on type 'never'.
+src/lib/services/zkteco-service.ts(167,51): error TS2339: Property 'user_id' does not exist on type 'never'.
+src/lib/services/zkteco-service.ts(206,19): error TS2345: Argument of type '{ sync_completed_at: string; records_fetched: number; records_processed: number; records_failed: number; status: string; error_message: string | null; }' is not assignable to parameter of type 'never'.
+src/lib/services/zkteco-service.ts(214,29): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/services/zkteco-service.ts(228,19): error TS2345: Argument of type '{ sync_completed_at: string; records_fetched: number; records_processed: number; records_failed: number; status: string; error_message: string; }' is not assignable to parameter of type 'never'.
+src/lib/services/zkteco-service.ts(236,29): error TS2339: Property 'id' does not exist on type 'never'.
+src/lib/supabase/client.ts(1,31): error TS2305: Module '"@supabase/ssr"' has no exported member 'SupabaseClient'.

@@ -29,9 +29,12 @@ export function AttendanceWidget({ todayAttendance, attendanceSettings }: Attend
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
+  type AttendanceState = { id: string; check_in: string; check_out: string | null } | null;
+  type AttendanceAction = { type: "check-in" | "check-out"; time: string };
+
   const [optimisticAttendance, setOptimisticAttendance] = useOptimistic(
     todayAttendance,
-    (state: any, action: { type: "check-in" | "check-out"; time: string }) => {
+    (state: AttendanceState, action: AttendanceAction) => {
       if (action.type === "check-in") {
         return { id: "temp", check_in: action.time, check_out: null };
       }

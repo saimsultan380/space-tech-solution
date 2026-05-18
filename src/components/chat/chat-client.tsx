@@ -31,6 +31,7 @@ import {
   type ChatMessage,
   type ChatEvent,
 } from "@/lib/actions/chat";
+import type { RealtimePayload, BroadcastPayload } from "@/lib/types";
 import {
   getNotifications,
   markNotificationsAsRead,
@@ -530,7 +531,12 @@ function ChatClientContent({
     const fetchInitialNotifications = async () => {
       setLoadingNotifications(true);
       const data = await getNotifications("chat");
-      setNotifications(data);
+      const mapped = data.map((n) => ({
+        ...n,
+        body: n.body || "",
+        type: n.type || "",
+      }));
+      setNotifications(mapped);
       setLoadingNotifications(false);
     };
 
@@ -592,7 +598,7 @@ function ChatClientContent({
         .single();
       if (!data) return;
       setChannels((prev) =>
-        prev.some((c) => c.id === urlChannelId) ? prev : [{ ...(data as ChatChannel), last_message: null, dm_partner: null }, ...prev]
+        prev.some((c) => c.id === urlChannelId) ? prev : [{ ...(data as unknown as ChatChannel), last_message: null, dm_partner: null }, ...prev]
       );
     };
 
@@ -673,7 +679,7 @@ function ChatClientContent({
     const channel = supabase
       .channel(`chat:${activeChannelId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `channel_id=eq.${activeChannelId}` }, (payload) => {
-        const msg = payload.new as ChatMessage;
+        const msg = payload.new as unknown as ChatMessage;
         const sender = allUsersRef.current.find((u) => u.id === msg.sender_id) || members.find((m) => m.id === msg.sender_id);
         if (sender) msg.sender = { id: sender.id, full_name: sender.full_name, avatar_url: sender.avatar_url, role: sender.role };
 
@@ -701,7 +707,7 @@ function ChatClientContent({
         });
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages", filter: `channel_id=eq.${activeChannelId}` }, (payload) => {
-        const updated = payload.new as ChatMessage;
+        const updated = payload.new as unknown as ChatMessage;
         setMessages((prev) => prev.map((m) => m.id !== updated.id ? m : { ...m, content: updated.content, is_edited: updated.is_edited, is_deleted: updated.is_deleted, is_pinned: updated.is_pinned ?? m.is_pinned, updated_at: updated.updated_at }));
         if (updated.is_pinned !== undefined) {
           setPinnedMessages((prev) => {
@@ -714,7 +720,7 @@ function ChatClientContent({
         }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages", filter: `channel_id=eq.${activeChannelId}` }, (payload) => {
-        const old = payload.old as { id: string };
+        const old = payload.old as unknown as { id: string };
         setMessages((prev) => prev.filter((m) => m.id !== old.id));
       })
       .subscribe();
@@ -729,7 +735,7 @@ function ChatClientContent({
     const globalChannel = supabase
       .channel("chat:global")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-        const msg = payload.new as ChatMessage;
+        const msg = payload.new as unknown as ChatMessage;
         const currentActiveId = activeChannelIdRef.current;
         if (msg.sender_id !== currentUserId && msg.channel_id !== currentActiveId) {
           const currentChannels = channelsRef.current;
@@ -809,7 +815,7 @@ function ChatClientContent({
         for (const key of Object.keys(state)) ids.add(key);
         setOnlineUsers(ids);
       })
-      .on("broadcast", { event: "typing" }, ({ payload }) => {
+      .on("broadcast", { event: "typing" }, ({ payload }: BroadcastPayload<{ user_id: string; user_name: string; channel_id: string }>) => {
         if (payload.user_id === currentUserId || payload.channel_id !== activeChannelId) return;
         setTypingUsers((prev) => ({ ...prev, [payload.user_id]: payload.user_name }));
         setTimeout(() => {
@@ -820,7 +826,7 @@ function ChatClientContent({
           });
         }, 3000);
       })
-      .subscribe(async (status) => {
+      .subscribe(async (status: string) => {
         if (status === "SUBSCRIBED") {
           await presenceCh.track({ user_id: currentUserId, online_at: new Date().toISOString() });
         }
@@ -1031,7 +1037,7 @@ function ChatClientContent({
       const supabase = createClient();
       const { data: newCh } = await supabase.from("chat_channels").select("*").eq("id", result.channelId).single();
       if (newCh) {
-        const hydratedChannel: ChatChannel = { ...(newCh as ChatChannel), last_message: null, dm_partner: null };
+        const hydratedChannel: ChatChannel = { ...(newCh as unknown as ChatChannel), last_message: null, dm_partner: null };
         setChannels((prev) => [hydratedChannel, ...prev.filter((c) => c.id !== hydratedChannel.id)]);
         setChannelsOpen(true);
         handleSelectChannel(result.channelId);
@@ -1093,7 +1099,7 @@ function ChatClientContent({
 
         if (ch) {
           const hydratedChannel: ChatChannel = {
-            ...(ch as ChatChannel),
+            ...(ch as unknown as ChatChannel),
             last_message: null,
             dm_partner: dmPartner,
           };

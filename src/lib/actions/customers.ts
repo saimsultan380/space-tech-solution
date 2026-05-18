@@ -6,6 +6,7 @@ import { decrypt, encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import { sanitizeFilterValue } from "@/lib/utils";
 import { notifySuperAdmins } from "./notifications";
+import type { CustomerListItem, Customer } from "@/lib/types";
 
 function revalidateCallLogsResponsesPaths() {
   revalidatePath("/dashboard/call-logs-responses");
@@ -45,14 +46,23 @@ export async function getCustomers(filters?: {
   createdFromDate?: string;
   /** Filter by record created to date (UTC day), format YYYY-MM-DD */
   createdToDate?: string;
-}) {
+}): Promise<{
+  data: CustomerListItem[];
+  count: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}> {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
-  const applySharedFilters = (query: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type CustomerFilterBuilder = any;
+
+  const applySharedFilters = (query: CustomerFilterBuilder): CustomerFilterBuilder => {
     let next = query;
     if (filters?.search) {
       const safe = sanitizeFilterValue(filters.search);
@@ -79,7 +89,7 @@ export async function getCustomers(filters?: {
   const query = applySharedFilters(
     supabase
       .from("customers")
-      .select("id, name, email, phone, account_no, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+      .select("id, name, email, phone, address, account_no, dob, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
       .eq("source", "call_log")
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
@@ -99,7 +109,7 @@ export async function getCustomers(filters?: {
     let fallbackQuery = applySharedFilters(
       supabase
         .from("customers")
-        .select("id, name, email, phone, account_no, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+        .select("id, name, email, phone, address, account_no, dob, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
     );
@@ -136,13 +146,13 @@ export async function getCustomers(filters?: {
     });
   }
 
-  const enriched = customers.map((c) => {
+  const enriched: CustomerListItem[] = customers.map((c) => {
     const recent = recentNoteByCustomerId.get(c.id) || null;
     return {
       ...c,
       recent_note: recent?.content || null,
       recent_note_created_at: recent?.created_at || null,
-    };
+    } as CustomerListItem;
   });
 
   return {
@@ -154,17 +164,17 @@ export async function getCustomers(filters?: {
   };
 }
 
-export async function getCustomer(id: string) {
+export async function getCustomer(id: string): Promise<Customer> {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("customers")
-    .select("id, name, phone, email, address, dob, ssn_encrypted, account_no, created_by, created_at, source, cnic")
+    .select("id, name, phone, email, address, dob, ssn_encrypted, account_no, created_by, created_at, source, cnic, updated_at")
     .eq("id", id)
     .single();
 
   if (error) throw new Error(error.message);
-  return data;
+  return data as unknown as Customer;
 }
 
 export async function getCustomerSsnForEdit(id: string) {
@@ -182,7 +192,7 @@ export async function getCustomerSsnForEdit(id: string) {
     throw new Error("You don't have permission to view this SSN");
   }
 
-  return data?.ssn_encrypted ? decrypt(data.ssn_encrypted) || "" : "";
+  return data?.ssn_encrypted ? decrypt(data.ssn_encrypted as string) || "" : "";
 }
 
 export async function createCustomer(formData: {

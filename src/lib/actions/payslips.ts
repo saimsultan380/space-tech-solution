@@ -9,6 +9,26 @@ import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { formatCnic } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 
+// Raw Supabase row — joined user/generator fields may come back as array or object
+interface RawPayslipRow extends Record<string, unknown> {
+  user: Payslip["user"] | Payslip["user"][] | null;
+  generator: Payslip["generator"] | Payslip["generator"][] | null;
+  employee_id_display?: string | null;
+}
+
+function normalisePayslipRow(payslip: RawPayslipRow): Payslip {
+  const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
+  const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
+  const userEmployeeId = (user as { employee_id?: string | null } | null)?.employee_id?.trim() || "";
+  const storedEmployeeId = payslip.employee_id_display?.trim() || "";
+  return {
+    ...(payslip as unknown as Payslip),
+    user: user ?? null,
+    generator: generator ?? null,
+    employee_id_display: storedEmployeeId || userEmployeeId || null,
+  };
+}
+
 interface CreatePayslipInput {
   user_id: string;
   period_start: string;
@@ -103,18 +123,7 @@ export async function getPayslips(filters?: {
 
   if (error) throw new Error(error.message);
 
-  const payslips: Payslip[] = (data || []).map((payslip: any) => {
-    const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
-    const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
-    const userEmployeeId = user?.employee_id?.trim() || "";
-    const storedEmployeeId = payslip.employee_id_display?.trim() || "";
-    return {
-      ...payslip,
-      user,
-      generator,
-      employee_id_display: storedEmployeeId || userEmployeeId || null,
-    };
-  });
+  const payslips: Payslip[] = (data as unknown as RawPayslipRow[] || []).map((payslip) => normalisePayslipRow(payslip));
   
   return {
     data: payslips,
@@ -228,7 +237,7 @@ async function computePayslipAttendanceSummary(
   if (attendanceError) throw new Error(attendanceError.message);
 
   let lateCount = 0;
-  (attendanceRows || []).forEach((row) => {
+  (attendanceRows || []).forEach((row: { check_in: string | null }) => {
     if (!row.check_in) return;
     const checkIn = new Date(row.check_in);
     const checkInMinutes = checkIn.getHours() * 60 + checkIn.getMinutes();
@@ -248,7 +257,7 @@ async function computePayslipAttendanceSummary(
   const endBoundary = new Date(`${input.period_end}T00:00:00`);
   let leaveDays = 0;
 
-  (leaveRows || []).forEach((leave) => {
+  (leaveRows || []).forEach((leave: { start_date: string; end_date: string | null }) => {
     const start = new Date(`${leave.start_date}T00:00:00`);
     const end = new Date(`${leave.end_date || leave.start_date}T00:00:00`);
     const overlapStart = start > startBoundary ? start : startBoundary;

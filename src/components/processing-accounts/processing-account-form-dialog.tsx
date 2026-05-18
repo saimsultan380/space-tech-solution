@@ -78,7 +78,7 @@ export function ProcessingAccountFormDialog({
             expiration_date: full.expiration_date || "",
             cvv: isAdmin ? (full.cvv || "") : (full.cvv ? "***" : ""),
             billing_address: full.billing_address || "",
-            status: full.status,
+            status: (full.status || "") as ProcessingAccountStatus | "",
             notes: full.notes || "",
           });
         })

@@ -6,6 +6,44 @@ import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { ProcessingAccountImportPayload, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
 
+// ─── Internal row shapes ───────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseFilterBuilder = any;
+
+
+interface RawProcessingAccountRow {
+  id: string;
+  status: ProcessingAccountStatus | null;
+  account_holder_name: string | null;
+  billing_address: string | null;
+  notes: string | null;
+  expiration_date: string | null;
+  account_type: ProcessingAccountType | null;
+  routing_number_encrypted: string | null;
+  account_number_encrypted: string | null;
+  card_number_encrypted: string | null;
+  cvv_encrypted: string | null;
+  [key: string]: unknown;
+}
+
+interface NormalisedProcessingAccountRow {
+  id: string;
+  status: ProcessingAccountStatus | null;
+  account_holder_name: string | null;
+  billing_address: string | null;
+  notes: string | null;
+  expiration_date: string;
+  account_type: ProcessingAccountType;
+  routing_number: string;
+  account_number: string;
+  card_number: string;
+  cvv: string;
+  [key: string]: unknown;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 function safeDecrypt(ciphertext: string | null | undefined): string {
   if (!ciphertext?.trim()) return "";
@@ -41,7 +79,7 @@ export async function getProcessingAccountStats(filters?: {
   const statuses = ["active", "not_working", "closed", "reversal_issue", "under_review"] as const;
 
   // Helper: apply structural (non-text) filters
-  const applyStructuralFilters = (query: any) => {
+  const applyStructuralFilters = (query: SupabaseFilterBuilder): SupabaseFilterBuilder => {
     let next = query;
     if (filters?.account_type && filters.account_type !== "all") {
       next = next.eq("account_type", filters.account_type);
@@ -65,7 +103,7 @@ export async function getProcessingAccountStats(filters?: {
     q = applyStructuralFilters(q);
     const { data } = await q;
 
-    const filtered = (data || []).filter((a) => {
+    const filtered = (data as unknown as RawProcessingAccountRow[] || []).filter((a) => {
       const routing   = safeDecrypt(a.routing_number_encrypted);
       const accountNo = safeDecrypt(a.account_number_encrypted);
       const cardNo    = safeDecrypt(a.card_number_encrypted);
@@ -82,7 +120,7 @@ export async function getProcessingAccountStats(filters?: {
       );
     });
 
-    const countByStatus = (s: string) => filtered.filter((a) => a.status === s).length;
+    const countByStatus = (s: string) => filtered.filter((a: RawProcessingAccountRow) => a.status === s).length;
     return {
       total:          filtered.length,
       active:         countByStatus("active"),
@@ -129,18 +167,18 @@ export async function getProcessingAccounts(filters?: {
   const offset = (page - 1) * pageSize;
 
   // Helper: decrypt & normalize a raw DB row
-  const normalizeRow = (account: any) => ({
+  const normalizeRow = (account: RawProcessingAccountRow): NormalisedProcessingAccountRow => ({
     ...account,
-    routing_number:  safeDecrypt(account.routing_number_encrypted  as string),
-    account_number:  safeDecrypt(account.account_number_encrypted  as string),
-    card_number:     safeDecrypt(account.card_number_encrypted     as string),
-    cvv:             safeDecrypt(account.cvv_encrypted             as string),
+    routing_number:  safeDecrypt(account.routing_number_encrypted),
+    account_number:  safeDecrypt(account.account_number_encrypted),
+    card_number:     safeDecrypt(account.card_number_encrypted),
+    cvv:             safeDecrypt(account.cvv_encrypted),
     expiration_date: account.expiration_date || "",
     account_type:    (account.account_type as ProcessingAccountType) || "checkin",
   });
 
   // Helper: apply structural (non-text) filters in SQL
-  const applyStructural = (q: any) => {
+  const applyStructural = (q: SupabaseFilterBuilder) => {
     if (filters?.account_type && filters.account_type !== "all") {
       q = q.eq("account_type", filters.account_type);
     }
@@ -170,9 +208,9 @@ export async function getProcessingAccounts(filters?: {
     const { data, error } = await q;
     if (error) throw new Error(error.message);
 
-    const all = (data || []).map(normalizeRow);
+    const all = (data as unknown as RawProcessingAccountRow[] || []).map(normalizeRow);
 
-    const filtered = all.filter((a) =>
+    const filtered = all.filter((a: NormalisedProcessingAccountRow) =>
       (a.account_holder_name || "").toLowerCase().includes(searchLower) ||
       (a.billing_address     || "").toLowerCase().includes(searchLower) ||
       (a.notes               || "").toLowerCase().includes(searchLower) ||
@@ -204,7 +242,7 @@ export async function getProcessingAccounts(filters?: {
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
   if (error) throw new Error(error.message);
 
-  const accounts = (data || []).map(normalizeRow);
+  const accounts = (data as unknown as RawProcessingAccountRow[] || []).map(normalizeRow);
 
   return {
     data: accounts,
@@ -433,7 +471,7 @@ export async function notifyAdminAboutAccount(
 
   if (!account) throw new Error("Account not found");
 
-  const notifications = (admins || []).map((admin) => ({
+  const notifications = (admins || []).map((admin: { id: string }) => ({
     user_id: admin.id,
     title: "Processing Account Alert",
     body: `${user.full_name} flagged account "${account.account_holder_name}" (${account.status}): ${message}`,

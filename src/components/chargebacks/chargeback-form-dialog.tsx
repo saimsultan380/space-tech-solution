@@ -18,39 +18,28 @@ interface ChargebackFormDialogProps {
   onClose: () => void;
 }
 
+interface SaleSearchResult {
+  id: string;
+  company_name: string;
+  agent_id: string | null;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  amount: number | null;
+  charged_amount: number | null;
+  created_at: string;
+}
+
 export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sales, setSales] = useState<
-    Array<{
-      id: string;
-      company_name: string;
-      agent_id: string | null;
-      customer_id: string | null;
-      customer_name: string | null;
-      customer_phone: string | null;
-      customer_email: string | null;
-      amount: number | null;
-      charged_amount: number | null;
-      created_at: string;
-    }>
-  >([]);
+  const [sales, setSales] = useState<SaleSearchResult[]>([]);
   const [saleCardLastFourById, setSaleCardLastFourById] = useState<Record<string, string>>({});
   const [saleSearch, setSaleSearch] = useState("");
   const [salesLoading, setSalesLoading] = useState(false);
   const [showSaleOptions, setShowSaleOptions] = useState(false);
-  const [selectedSaleSnapshot, setSelectedSaleSnapshot] = useState<{
-    id: string;
-    company_name: string;
-    agent_id: string | null;
-    customer_id: string | null;
-    customer_name: string | null;
-    customer_phone: string | null;
-    customer_email: string | null;
-    amount: number | null;
-    charged_amount: number | null;
-      created_at: string;
-  } | null>(null);
+  const [selectedSaleSnapshot, setSelectedSaleSnapshot] = useState<SaleSearchResult | null>(null);
   const [assignableUsers, setAssignableUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
 
   const [form, setForm] = useState({
@@ -132,16 +121,16 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           : Promise.resolve({ data: [] as Array<{ sale_id: string }> }),
       ]);
 
-      const initialSales = salesData || [];
+      const initialSales = (salesData || []) as SaleSearchResult[];
       const paymentMatchedSaleIds = Array.from(
-        new Set((paymentMatches || []).map((row) => row.sale_id).filter(Boolean)),
+        new Set((paymentMatches || []).map((row: { sale_id: string }) => row.sale_id).filter(Boolean)),
       );
 
       const missingSaleIds = paymentMatchedSaleIds.filter(
         (id) => !initialSales.some((sale) => sale.id === id),
       );
 
-      let mergedSales = initialSales;
+      let mergedSales: SaleSearchResult[] = initialSales;
       if (missingSaleIds.length > 0) {
         const { data: additionalSales } = await supabase
           .from("sales")
@@ -151,10 +140,12 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           .neq("status", "rejected")
           .in("id", missingSaleIds)
           .order("created_at", { ascending: false });
-        mergedSales = [...initialSales, ...(additionalSales || [])];
+        mergedSales = [...initialSales, ...((additionalSales || []) as SaleSearchResult[])];
       }
 
-      const dedupedSales = Array.from(new Map(mergedSales.map((sale) => [sale.id, sale])).values()).slice(0, 100);
+      const dedupedSales = Array.from(
+        new Map(mergedSales.map((sale) => [sale.id, sale])).values()
+      ).slice(0, 100);
       setSales(dedupedSales);
 
       if (dedupedSales.length > 0) {
@@ -193,7 +184,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     ? "Select a sale first"
     : selectedSale.customer_name?.trim() || selectedSale.company_name || "—";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");

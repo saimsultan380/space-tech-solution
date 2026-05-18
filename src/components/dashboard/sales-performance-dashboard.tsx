@@ -48,6 +48,7 @@ import type {
   PerformanceTarget,
   SalesNotification,
 } from "@/lib/actions/sales-performance";
+import type { RealtimePayload } from "@/lib/types";
 
 interface SalesPerformanceDashboardProps {
   currentUserId: string;
@@ -124,7 +125,7 @@ export function SalesPerformanceDashboard({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "sales" },
         async (payload) => {
-          const newSale = payload.new as { id: string; agent_id: string; charged_amount: number; company_name: string; status: string; created_at: string };
+          const newSale = payload.new as unknown as { id: string; agent_id: string; charged_amount: number; company_name: string; status: string; created_at: string };
           if (lastProcessedRef.current === newSale.id) return;
           lastProcessedRef.current = newSale.id;
 

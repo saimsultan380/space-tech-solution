@@ -20,7 +20,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_TYPES } from "@/lib/constants";
 import { deleteSale } from "@/lib/actions/sales";
-import type { UserRole } from "@/lib/types";
+import type { UserRole, Sale } from "@/lib/types";
 import { Plus, Search, Eye, Pencil, Trash2, Database, Wallet, Target, Zap, Shield } from "@/components/ui/icons";
 import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 import Link from "next/link";
@@ -49,7 +49,7 @@ function formatDateKarachi(date: string | Date): string {
 
 interface SalesClientProps {
   salesResponse: {
-    data: any[];
+    data: Sale[];
     count: number;
     page: number;
     pageSize: number;

@@ -5,6 +5,88 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+// ─── Internal row shapes for Supabase query results ───────────────────────────
+
+interface ChannelMemberRow {
+  user_id: string;
+}
+
+interface ChannelIdRow {
+  channel_id: string;
+}
+
+interface RpcChannelRow {
+  id: string;
+  name: string;
+  description: string;
+  is_direct: boolean;
+  created_by: string | null;
+  created_at: string;
+  avatar_url: string | null;
+  last_message_content: string | null;
+  last_message_sender_name: string | null;
+  last_message_created_at: string | null;
+  dm_partner_id: string | null;
+  dm_partner_name: string | null;
+  dm_partner_avatar_url: string | null;
+}
+
+interface RawChatMessageRow {
+  id: string;
+  channel_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  is_edited: boolean;
+  is_deleted: boolean;
+  is_pinned: boolean | null;
+  updated_at: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  attachment_type: string | null;
+  attachment_size: number | null;
+  reply_to_id: string | null;
+  sender:
+    | { id: string; full_name: string; avatar_url: string | null; role: string }
+    | { id: string; full_name: string; avatar_url: string | null; role: string }[]
+    | null;
+}
+
+interface RawChatEventRow {
+  id: string;
+  channel_id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  is_reminder_sent: boolean;
+  created_at: string;
+  creator:
+    | { full_name: string; avatar_url: string | null }
+    | { full_name: string; avatar_url: string | null }[]
+    | null;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normaliseSender(
+  raw: RawChatMessageRow,
+): ChatMessage["sender"] {
+  const s = raw.sender;
+  if (!s) return undefined;
+  return Array.isArray(s) ? s[0] : s;
+}
+
+function normaliseCreator(
+  raw: RawChatEventRow,
+): ChatEvent["creator"] {
+  const c = raw.creator;
+  if (!c) return undefined;
+  return Array.isArray(c) ? c[0] : c;
+}
+
+// ─── Exported actions ─────────────────────────────────────────────────────────
+
 export interface ChatChannel {
   id: string;
   name: string;
@@ -72,7 +154,7 @@ export async function getMyChannels(): Promise<ChatChannel[]> {
     return [];
   }
 
-  return data.map((ch: any) => ({
+  return (data as unknown as RpcChannelRow[]).map((ch) => ({
     id: ch.id,
     name: ch.name,
     description: ch.description,
@@ -83,14 +165,14 @@ export async function getMyChannels(): Promise<ChatChannel[]> {
     last_message: ch.last_message_content
       ? {
           content: ch.last_message_content,
-          sender_name: ch.last_message_sender_name,
-          created_at: ch.last_message_created_at,
+          sender_name: ch.last_message_sender_name ?? "",
+          created_at: ch.last_message_created_at ?? "",
         }
       : null,
     dm_partner: ch.dm_partner_id
       ? {
           id: ch.dm_partner_id,
-          full_name: ch.dm_partner_name,
+          full_name: ch.dm_partner_name ?? "",
           avatar_url: ch.dm_partner_avatar_url,
         }
       : null,
@@ -116,7 +198,7 @@ export async function getChannelMessages(
   // Reverse back to ascending for UI
   const sortedData = [...data].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-  const replyIds = sortedData.filter((m) => m.reply_to_id).map((m) => m.reply_to_id!);
+  const replyIds = sortedData.filter((m) => m.reply_to_id).map((m) => m.reply_to_id as string);
   const replyMap: Record<string, { id: string; content: string; sender_id: string; sender?: { full_name: string } | null }> = {};
 
   if (replyIds.length > 0) {
@@ -131,9 +213,9 @@ export async function getChannelMessages(
     }
   }
 
-  return sortedData.map((m: any) => ({
+  return (sortedData as unknown as RawChatMessageRow[]).map((m) => ({
     ...m,
-    sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
+    sender: normaliseSender(m),
     is_pinned: m.is_pinned ?? false,
     reply_to: m.reply_to_id ? replyMap[m.reply_to_id] ?? null : null,
   })) as ChatMessage[];
@@ -212,7 +294,7 @@ export async function sendMessage(
         ? `New message from ${user.full_name}`
         : `New message in #${channel?.name}`;
 
-      const notificationRows = members.map((m) => ({
+      const notificationRows = members.map((m: ChannelMemberRow) => ({
         user_id: m.user_id,
         title: notificationTitle,
         body: content.length > 100 ? content.substring(0, 97) + "..." : content,
@@ -273,7 +355,11 @@ export async function getChannelMembers(channelId: string) {
 
   if (error || !data) return [];
 
-  return data.map((m: any) => m.user) as { id: string; full_name: string; avatar_url: string | null; role: string; is_active: boolean }[];
+  type MemberUserRow = { user: { id: string; full_name: string; avatar_url: string | null; role: string; is_active: boolean } | null };
+  type MemberUser = NonNullable<MemberUserRow["user"]>;
+  return (data as unknown as MemberUserRow[])
+    .map((m) => m.user)
+    .filter((u): u is MemberUser => u !== null);
 }
 
 export async function createChannel(name: string, description: string, memberIds: string[]) {
@@ -359,8 +445,8 @@ export async function createDirectMessage(otherUserId: string) {
     other_user_id: otherUserId,
   });
 
-  if (existingChannel) {
-    return { error: null, channelId: existingChannel as string };
+  if (existingChannel && existingChannel.length > 0) {
+    return { error: null, channelId: (existingChannel[0] as { channel_id: string }).channel_id };
   }
 
   const { data: otherUser } = await supabase
@@ -380,7 +466,7 @@ export async function createDirectMessage(otherUserId: string) {
       description: "Direct message",
       is_direct: true,
       created_by: user.id,
-    })
+    } as Record<string, unknown>)
     .select("id")
     .single();
 
@@ -429,10 +515,10 @@ export async function getPinnedMessages(channelId: string): Promise<ChatMessage[
     .eq("is_deleted", false)
     .order("created_at", { ascending: false })
     .limit(50);
-  return (data ?? []).map((m: any) => ({ 
+  return (data ?? [] as unknown as RawChatMessageRow[]).map((m) => ({ 
     ...m, 
     is_pinned: true,
-    sender: Array.isArray(m.sender) ? m.sender[0] : m.sender 
+    sender: normaliseSender(m as unknown as RawChatMessageRow),
   })) as ChatMessage[];
 }
 
@@ -448,7 +534,7 @@ export async function searchMessages(query: string): Promise<{ messages: ChatMes
 
   if (!memberships || memberships.length === 0) return { messages: [], channels: [] };
 
-  const channelIds = memberships.map((m) => m.channel_id);
+  const channelIds = memberships.map((m: ChannelIdRow) => m.channel_id);
 
   const { data: msgs } = await supabase
     .from("chat_messages")
@@ -466,10 +552,10 @@ export async function searchMessages(query: string): Promise<{ messages: ChatMes
     .ilike("name", `%${query}%`);
 
   return {
-    messages: (msgs ?? []).map((m: any) => ({
+    messages: (msgs ?? [] as unknown as RawChatMessageRow[]).map((m) => ({
       ...m,
-      sender: Array.isArray(m.sender) ? m.sender[0] : m.sender,
-      is_pinned: m.is_pinned ?? false,
+      sender: normaliseSender(m as unknown as RawChatMessageRow),
+      is_pinned: (m as unknown as RawChatMessageRow).is_pinned ?? false,
     })) as ChatMessage[],
     channels: (chs ?? []) as ChatChannel[],
   };
@@ -602,13 +688,13 @@ export async function setChannelMembers(channelId: string, memberIds: string[]) 
     .select("user_id")
     .eq("channel_id", channelId);
 
-  const currentIds = new Set((current ?? []).map((m) => m.user_id as string));
+  const currentIds = new Set((current ?? []).map((m: ChannelMemberRow) => m.user_id));
   const nextIds = new Set(memberIds);
 
-  const toAdd = memberIds.filter((id) => !currentIds.has(id));
+  const toAdd = memberIds.filter((id: string) => !currentIds.has(id));
   const toRemove = (current ?? [])
-    .map((m) => m.user_id as string)
-    .filter((id) => !nextIds.has(id));
+    .map((m: ChannelMemberRow) => m.user_id)
+    .filter((id: string) => !nextIds.has(id));
 
   if (toAdd.length > 0) {
     const rows = toAdd.map((uid) => ({ channel_id: channelId, user_id: uid }));
@@ -645,9 +731,9 @@ export async function getChannelEvents(channelId: string): Promise<ChatEvent[]> 
     return [];
   }
 
-  return (data || []).map((event: any) => ({
+  return (data || [] as unknown as RawChatEventRow[]).map((event) => ({
     ...event,
-    creator: Array.isArray(event.creator) ? event.creator[0] : event.creator,
+    creator: normaliseCreator(event as unknown as RawChatEventRow),
   })) as ChatEvent[];
 }
 
@@ -664,7 +750,7 @@ export async function getAllMyEvents(): Promise<ChatEvent[]> {
 
   if (!memberships || memberships.length === 0) return [];
 
-  const channelIds = memberships.map((m) => m.channel_id);
+  const channelIds = memberships.map((m: ChannelIdRow) => m.channel_id);
 
   const { data, error } = await supabase
     .from("chat_events")
@@ -678,9 +764,9 @@ export async function getAllMyEvents(): Promise<ChatEvent[]> {
     return [];
   }
 
-  return (data || []).map((event: any) => ({
+  return (data || [] as unknown as RawChatEventRow[]).map((event) => ({
     ...event,
-    creator: Array.isArray(event.creator) ? event.creator[0] : event.creator,
+    creator: normaliseCreator(event as unknown as RawChatEventRow),
   })) as ChatEvent[];
 }
 
@@ -689,7 +775,7 @@ export async function createChatEvent(params: {
   title: string;
   description: string;
   event_date: string;
-}): Promise<{ data?: ChatEvent; error?: any }> {
+}): Promise<{ data?: ChatEvent; error?: unknown }> {
   const user = await requireAuth();
   const supabase = await createClient();
 
@@ -728,7 +814,7 @@ export async function createChatEvent(params: {
       const notificationTitle = `New Event: ${params.title}`;
       const notificationBody = `A new event has been scheduled for ${new Date(params.event_date).toLocaleString()}`;
 
-      const notificationRows = members.map((m) => ({
+      const notificationRows = members.map((m: ChannelMemberRow) => ({
         user_id: m.user_id,
         title: notificationTitle,
         body: notificationBody,
@@ -744,7 +830,7 @@ export async function createChatEvent(params: {
   }
 
   revalidatePath("/chat");
-  return { data: data as ChatEvent };
+  return { data: data as unknown as ChatEvent };
 }
 
 export async function updateChatEvent(

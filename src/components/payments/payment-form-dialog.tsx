@@ -36,7 +36,14 @@ export function PaymentFormDialog({ open, onClose }: PaymentFormDialogProps) {
         .from("sales")
         .select("id, company_name, customer_id, charged_amount")
         .eq("status", "approved");
-      setSales(data || []);
+      
+      const mappedSales = (data || []).map((s) => ({
+        id: s.id,
+        company_name: s.company_name || "",
+        customer_id: s.customer_id || "",
+        charged_amount: Number(s.charged_amount || 0),
+      }));
+      setSales(mappedSales);
     };
     if (open) fetchSales();
   }, [open]);

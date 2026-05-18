@@ -6,6 +6,17 @@ import { revalidatePath } from "next/cache";
 import { cache } from "react";
 import { notifySuperAdmins, createNotification } from "@/lib/actions/notifications";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
+import type { AppUser } from "@/lib/types";
+
+interface RawAttendanceRow {
+  id: string;
+  user_id: string;
+  date: string;
+  check_in: string;
+  check_out: string | null;
+  created_at: string;
+  user: Pick<AppUser, "id" | "full_name" | "role"> | Pick<AppUser, "id" | "full_name" | "role">[] | null;
+}
 
 
 
