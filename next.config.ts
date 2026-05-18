@@ -26,8 +26,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  reactCompiler: true,
-  
   // ✨ Optimize package imports
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion', 'date-fns', '@radix-ui/react-icons'],
