@@ -1,4 +1,7 @@
-import * as XLSX from "xlsx";
+/**
+ * Table export utilities with lazy-loaded xlsx
+ * Only loads the xlsx library when actually exporting
+ */
 
 export type TableExportCell = string | number | boolean | null | undefined;
 
@@ -45,11 +48,14 @@ export function downloadTableCsv(
   triggerDownload(blob, `${filenameBase}.csv`);
 }
 
-export function downloadTableXlsx(
+export async function downloadTableXlsx(
   headers: string[],
   rows: TableExportCell[][],
   filenameBase: string,
 ) {
+  // Dynamically import xlsx only when needed
+  const XLSX = await import("xlsx");
+  
   const aoa: string[][] = [
     headers,
     ...rows.map((r) => r.map((c) => cellToString(c))),

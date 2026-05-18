@@ -8,7 +8,7 @@ import {
   CheckSquare, 
   RefreshCcw, 
   Monitor 
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const steps = [
   {

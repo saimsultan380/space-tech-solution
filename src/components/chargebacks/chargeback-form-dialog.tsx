@@ -7,7 +7,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/icons";
 import { createChargeback } from "@/lib/actions/chargebacks";
 import { createClient } from "@/lib/supabase/client";
 import { CHARGEBACK_PRIORITIES } from "@/lib/constants";

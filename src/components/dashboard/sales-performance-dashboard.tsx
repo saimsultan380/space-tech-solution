@@ -40,7 +40,7 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
   Activity,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import type {
   LeaderboardEntry,
   MonthlySalesTrend,

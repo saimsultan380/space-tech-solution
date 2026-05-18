@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/ui/icons";
+
+// ✅ No client-side features - safe to be server component
 
 export function Spinner({ className }: { className?: string }) {
   return (

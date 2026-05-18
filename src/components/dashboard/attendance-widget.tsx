@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/loading";
 import { checkIn, checkOut } from "@/lib/actions/attendance";
 import { formatDateTime } from "@/lib/utils";
-import { Clock, LogIn, LogOut, CheckCircle2 } from "lucide-react";
+import { Clock, LogIn, LogOut, CheckCircle2 } from "@/components/ui/icons";
 
 interface AttendanceWidgetProps {
   todayAttendance: {

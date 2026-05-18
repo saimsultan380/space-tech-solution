@@ -73,17 +73,20 @@ export async function getAgentPerformanceStats(agentId?: string) {
     supabase
       .from("sales")
       .select("id, status, charged_amount, sale_type, subtype, created_at")
-      .eq("agent_id", targetAgentId),
+      .eq("agent_id", targetAgentId)
+      .limit(1000),
     supabase
       .from("sales")
       .select("id, status, charged_amount")
       .eq("agent_id", targetAgentId)
-      .gte("created_at", `${monthStart}T00:00:00`),
+      .gte("created_at", `${monthStart}T00:00:00`)
+      .limit(500),
     supabase
       .from("sales")
       .select("id, status, charged_amount")
       .eq("agent_id", targetAgentId)
-      .gte("created_at", `${quarterStart}T00:00:00`),
+      .gte("created_at", `${quarterStart}T00:00:00`)
+      .limit(500),
     supabase
       .from("chargebacks")
       .select("id, sale:sales!inner(agent_id)")
@@ -268,10 +271,13 @@ export async function getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
     }));
   }
 
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
   const [salesRes, usersRes, chargebackRes] = await Promise.all([
-    supabase.from("sales").select("agent_id, status, charged_amount"),
-    supabase.from("users").select("id, full_name, avatar_url, role").eq("role", "sales_agent").eq("is_active", true),
-    supabase.from("chargebacks").select("id, sale:sales!inner(agent_id)"),
+    supabase.from("sales").select("agent_id, status, charged_amount").gte("created_at", sixMonthsAgo.toISOString()).limit(5000),
+    supabase.from("users").select("id, full_name, avatar_url, role").eq("role", "sales_agent").eq("is_active", true).limit(200),
+    supabase.from("chargebacks").select("id, sale:sales!inner(agent_id)").limit(1000),
   ]);
 
   const agents = usersRes.data || [];

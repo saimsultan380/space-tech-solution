@@ -19,7 +19,7 @@ import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatDate } from "@/lib/utils";
 import type { Leave, UserRole } from "@/lib/types";
 import { LeaveFormDialog } from "./leave-form-dialog";
-import { CalendarDays, Bot } from "lucide-react";
+import { CalendarDays, Bot } from "@/components/ui/icons";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 interface MyLeavesClientProps {

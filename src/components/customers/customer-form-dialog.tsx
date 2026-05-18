@@ -13,7 +13,7 @@ import {
 import { Spinner } from "@/components/ui/loading";
 import { createCustomer, getCustomerSsnForEdit, updateCustomer } from "@/lib/actions/customers";
 import { createNote } from "@/lib/actions/notes";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@/components/ui/icons";
 
 interface CustomerFormDialogProps {
   customer?: {

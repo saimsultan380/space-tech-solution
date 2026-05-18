@@ -43,7 +43,8 @@ export async function notifySuperAdmins(payload: {
       .from("users")
       .select("id")
       .eq("role", "super_admin")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .limit(50);
 
     if (error) {
       console.error("Failed to fetch super admins:", error.message);

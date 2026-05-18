@@ -21,7 +21,7 @@ import { EditUserDialog } from "./edit-user-dialog";
 import { toggleUserStatus, deleteUser } from "@/lib/actions/users";
 import { formatDate } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "@/components/ui/icons";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";

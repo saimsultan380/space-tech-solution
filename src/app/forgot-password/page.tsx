@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 import { Spinner } from "@/components/ui/loading";
-import { Mail, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Mail, ArrowLeft, AlertCircle, CheckCircle2 } from "@/components/ui/icons";
 import { requestPasswordReset } from "@/lib/actions/profile";
 
 export default function ForgotPasswordPage() {

@@ -37,7 +37,7 @@ import {
   BarChart3,
   Check,
   ChevronDown,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import Link from "next/link";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
@@ -423,7 +423,7 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
               size="sm"
               disabled={chargebacks.length === 0}
               onClick={() =>
-                downloadTableXlsx(
+                void downloadTableXlsx(
                   [
                     "Customer",
                     "Company",

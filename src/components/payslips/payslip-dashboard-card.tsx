@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
-import { Download, Eye } from "lucide-react";
+import { Download, Eye } from "@/components/ui/icons";
 import Link from "next/link";
 import { previewPayslipPdf } from "@/lib/payslip-pdf";
 import { useState } from "react";

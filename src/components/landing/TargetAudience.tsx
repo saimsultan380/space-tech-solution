@@ -7,7 +7,7 @@ import {
   Zap, 
   Headphones, 
   Gauge 
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const audiences = [
   {

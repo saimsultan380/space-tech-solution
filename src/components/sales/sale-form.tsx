@@ -30,7 +30,7 @@ import {
   Upload,
   X,
   Link as LinkIcon,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import type { UserRole } from "@/lib/types";
 
 interface SaleFormProps {

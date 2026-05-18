@@ -33,7 +33,7 @@ import {
   MoreHorizontal,
   Trash2,
   Eye,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { PayslipFormDialog } from "./payslip-form-dialog";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";

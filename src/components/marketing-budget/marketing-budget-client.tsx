@@ -36,7 +36,7 @@ import {
   Trash2,
   BarChart3,
   Search,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useCurrency } from "@/components/providers/currency-provider";
 import {
   BarChart,

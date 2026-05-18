@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/loading";
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn, formatDateTime } from "@/lib/utils";
-import { FileText, Image as ImageIcon, Upload, Eye, Download, Trash2 } from "lucide-react";
+import { FileText, Image as ImageIcon, Upload, Eye, Download, Trash2 } from "@/components/ui/icons";
 
 function humanSize(bytes: number) {
   const b = Number(bytes || 0);

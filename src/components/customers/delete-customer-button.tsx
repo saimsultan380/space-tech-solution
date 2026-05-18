@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
 import { deleteCustomer } from "@/lib/actions/customers";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@/components/ui/icons";
 
 export function DeleteCustomerButton({
   id,

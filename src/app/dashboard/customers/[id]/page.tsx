@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/utils";
 import { decrypt } from "@/lib/encryption";
 import { NotesSection } from "@/components/shared/notes-section";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 
 export default async function CustomerDetailPage(props: {

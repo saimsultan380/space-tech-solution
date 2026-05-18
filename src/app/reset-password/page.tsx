@@ -13,7 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ShieldAlert,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { createClient } from "@/lib/supabase/client";
 
 type PageState = "verifying" | "ready" | "success" | "invalid";

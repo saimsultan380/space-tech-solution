@@ -8,7 +8,7 @@ import {
   PieChart, 
   Users, 
   Timer 
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const results = [
   { icon: Zap, value: 3, prefix: "", suffix: "× Faster", label: "Operations Speed", isNumber: true },

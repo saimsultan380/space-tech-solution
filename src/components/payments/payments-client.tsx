@@ -18,7 +18,7 @@ import { PaymentFormDialog } from "./payment-form-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import type { UserRole } from "@/lib/types";
-import { Plus, CreditCard, Building2 } from "lucide-react";
+import { Plus, CreditCard, Building2 } from "@/components/ui/icons";
 
 interface PaymentsClientProps {
   payments: Array<{

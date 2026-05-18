@@ -51,7 +51,8 @@ export async function getSalesAgentUserOptions() {
     .select("id, full_name")
     .eq("role", "sales_agent")
     .eq("is_active", true)
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .limit(200);
 
   if (error) throw new Error(error.message);
   return (data || []) as Array<{ id: string; full_name: string }>;

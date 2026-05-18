@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/constants";
 import type { UserRole } from "@/lib/types";
+import { useRouteLoading } from "@/components/providers/route-loading-provider";
 import {
   LayoutDashboard,
   Users,
@@ -22,7 +23,7 @@ import {
   MessageCircle,
   ExternalLink,
   StickyNote,
-} from "lucide-react";
+} from "@/components/ui/icons";
 // Removed PersonalNotepad import
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -147,7 +148,17 @@ export function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const pathname = usePathname();
-  const isActiveHref = (href: string) => pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+  const { isLoading, targetPath } = useRouteLoading();
+  
+  // During navigation, only highlight the target route, not the current one
+  const isActiveHref = (href: string) => {
+    // If we're navigating, only show active state for the target
+    if (isLoading && targetPath) {
+      return targetPath === href || (href !== "/dashboard" && targetPath.startsWith(`${href}/`));
+    }
+    // Otherwise use current pathname
+    return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+  };
   const fullRoleItems = NAV_ITEMS[role] || [];
   const legacyModuleAliases: Record<string, string[]> = {
     "/dashboard/call-logs-responses": ["/dashboard/customers"],

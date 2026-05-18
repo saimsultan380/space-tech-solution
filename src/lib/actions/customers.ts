@@ -123,7 +123,8 @@ export async function getCustomers(filters?: {
       .from("notes")
       .select("customer_id, content, created_at")
       .in("customer_id", ids)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (notesError) throw new Error(notesError.message);
 

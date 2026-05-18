@@ -11,7 +11,7 @@ import {
 } from "@/lib/payment-secrets";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/ui/icons";
 
 function toDateInputValue(v: string | null | undefined): string {
   if (!v) return "";

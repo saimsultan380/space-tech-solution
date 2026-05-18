@@ -21,7 +21,7 @@ import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
 import type { UserRole } from "@/lib/types";
-import { BarChart3, ChevronDown, ChevronUp, Filter, PieChart as PieChartIcon, Plus, Search, Eye, Users } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronUp, Filter, PieChart as PieChartIcon, Plus, Search, Eye, Users } from "@/components/ui/icons";
 import Link from "next/link";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";

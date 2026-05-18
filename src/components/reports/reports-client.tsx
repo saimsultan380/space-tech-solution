@@ -36,7 +36,7 @@ import {
   BarChart3,
   Award,
   MessageSquare,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useCurrency } from "@/components/providers/currency-provider";
 
 interface EmployeeStat {

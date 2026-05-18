@@ -9,7 +9,7 @@ import {
   ShieldX, 
   UserX, 
   Clock 
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const painPoints = [
   {

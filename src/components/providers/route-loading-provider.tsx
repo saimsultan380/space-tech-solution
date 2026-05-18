@@ -10,6 +10,7 @@ type RouteLoadingContextValue = {
   startLoading: () => void;
   stopLoading: () => void;
   isLoading: boolean;
+  targetPath: string | null;
 };
 
 const RouteLoadingContext = createContext<RouteLoadingContextValue | null>(null);
@@ -25,6 +26,7 @@ export function useRouteLoading() {
 export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(false);
+  const [targetPath, setTargetPath] = useState<string | null>(null);
   const [locationKey, setLocationKey] = useState(pathname);
   const showLoaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,6 +45,7 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
   const stopLoading = useCallback(() => {
     clearPendingTimeout();
     setIsLoading(false);
+    setTargetPath(null);
   }, [clearPendingTimeout]);
 
   const startLoading = useCallback(() => {
@@ -132,6 +135,9 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
         const isSameOrigin = destination.origin === current.origin;
 
         if (!isSameOrigin || isSamePage) return;
+        
+        // Set target path before starting loading
+        setTargetPath(destination.pathname);
         startLoading();
       } catch {
         // Ignore malformed URLs.
@@ -153,8 +159,9 @@ export function RouteLoadingProvider({ children }: { children: ReactNode }) {
       startLoading,
       stopLoading,
       isLoading,
+      targetPath,
     }),
-    [startLoading, stopLoading, isLoading]
+    [startLoading, stopLoading, isLoading, targetPath]
   );
 
   return (

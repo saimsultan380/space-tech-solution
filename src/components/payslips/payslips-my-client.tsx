@@ -11,7 +11,7 @@ import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
-import { Download, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, Eye } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";

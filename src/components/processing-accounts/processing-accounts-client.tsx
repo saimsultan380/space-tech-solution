@@ -44,7 +44,7 @@ import {
   StickyNote,
   Save,
   ChevronDown,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { formatDate } from "@/lib/utils";

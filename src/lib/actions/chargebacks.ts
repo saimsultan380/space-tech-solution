@@ -161,7 +161,7 @@ export async function getChargebacks(filters?: {
       .from("users")
       .select("id")
       .ilike("full_name", `%${safe}%`)
-      .limit(500);
+      .limit(50);
     if (peopleError) throw new Error(peopleError.message);
     const personIds = (peopleMatch || []).map((row) => row.id);
     const agentMatchOr = personIds.length > 0 ? `,agent_id.in.(${personIds.join(",")})` : "";
@@ -173,7 +173,7 @@ export async function getChargebacks(filters?: {
         .or(
           `company_name.ilike.%${safe}%,customer_name.ilike.%${safe}%,customer_email.ilike.%${safe}%,sale_type.ilike.%${safe}%,subtype.ilike.%${safe}%${amountOr}${agentMatchOr}`,
         )
-        .limit(500),
+        .limit(100),
       Promise.resolve({ data: peopleMatch || [] }),
     ]);
 

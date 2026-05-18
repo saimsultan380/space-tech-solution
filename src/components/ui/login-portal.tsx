@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Eye, EyeOff, Mail, Lock, Chrome, Twitter, Gamepad2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Chrome, Twitter, Gamepad2 } from '@/components/ui/icons';
 
 interface LoginFormProps {
     onSubmit: (email: string, password: string, remember: boolean) => void;

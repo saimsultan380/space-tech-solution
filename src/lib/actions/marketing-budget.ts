@@ -67,7 +67,8 @@ export async function getMarketingUsers() {
   const { data, error } = await supabase
     .from("users")
     .select("id, full_name, role, email")
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .limit(500);
 
   if (error) throw new Error(error.message);
   return data || [];
@@ -80,18 +81,27 @@ export async function getMarketingCampaigns() {
   const { data: campaigns, error } = await supabase
     .from("marketing_campaigns")
     .select("*, assigned_user:users!marketing_campaigns_assigned_to_fkey(id, full_name, role, email)")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
 
   if (error) throw new Error(error.message);
 
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
+
   const { data: callLogs, error: callLogsError } = await supabase
     .from("marketing_daily_call_logs")
-    .select("campaign_id, log_date, total_daily_cost");
+    .select("campaign_id, log_date, total_daily_cost")
+    .gte("log_date", sixMonthsAgoStr)
+    .limit(1000);
   if (callLogsError) throw new Error(callLogsError.message);
 
   const { data: dailyBudgets, error: dailyBudgetsError } = await supabase
     .from("marketing_daily_campaign_budgets")
-    .select("campaign_id, budget_date, daily_spent_manual");
+    .select("campaign_id, budget_date, daily_spent_manual")
+    .gte("budget_date", sixMonthsAgoStr)
+    .limit(1000);
   if (dailyBudgetsError) throw new Error(dailyBudgetsError.message);
 
   const callLogMap = new Map<string, number>();

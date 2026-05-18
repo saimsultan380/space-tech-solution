@@ -16,7 +16,7 @@ import {
 } from "@/lib/nav-access";
 import type { AppUser, Payslip } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
-import { DollarSign, ShoppingCart, CalendarDays, TrendingUp, Contact, ArrowRight } from "lucide-react";
+import { DollarSign, ShoppingCart, CalendarDays, TrendingUp, Contact, ArrowRight } from "@/components/ui/icons";
 import Link from "next/link";
 
 interface ProcessorDashboardProps {

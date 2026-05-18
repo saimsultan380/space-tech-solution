@@ -92,7 +92,7 @@ import {
   MoreVertical,
   Sun,
   Moon,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import type { UserRole, Notification } from "@/lib/types";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });

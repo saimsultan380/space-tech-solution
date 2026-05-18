@@ -123,7 +123,7 @@ export async function getChannelMessages(
     const { data: replies } = await supabase
       .from("chat_messages")
       .select("id, content, sender_id, sender:users!chat_messages_sender_id_fkey(full_name)")
-      .in("id", replyIds);
+      .in("id", replyIds.slice(0, 50));
     if (replies) {
       for (const r of replies) {
         replyMap[r.id] = { id: r.id, content: r.content, sender_id: r.sender_id, sender: r.sender as unknown as { full_name: string } | null };
@@ -423,12 +423,17 @@ export async function getPinnedMessages(channelId: string): Promise<ChatMessage[
   const supabase = await createClient();
   const { data } = await supabase
     .from("chat_messages")
-    .select("*, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
+    .select("id, channel_id, sender_id, content, created_at, is_edited, is_deleted, is_pinned, updated_at, attachment_url, attachment_name, attachment_type, attachment_size, reply_to_id, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
     .eq("channel_id", channelId)
     .eq("is_pinned", true)
     .eq("is_deleted", false)
-    .order("created_at", { ascending: false });
-  return (data ?? []).map((m) => ({ ...m, is_pinned: true })) as ChatMessage[];
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data ?? []).map((m: any) => ({ 
+    ...m, 
+    is_pinned: true,
+    sender: Array.isArray(m.sender) ? m.sender[0] : m.sender 
+  })) as ChatMessage[];
 }
 
 export async function searchMessages(query: string): Promise<{ messages: ChatMessage[]; channels: ChatChannel[] }> {
@@ -438,7 +443,8 @@ export async function searchMessages(query: string): Promise<{ messages: ChatMes
   const { data: memberships } = await supabase
     .from("chat_channel_members")
     .select("channel_id")
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .limit(100);
 
   if (!memberships || memberships.length === 0) return { messages: [], channels: [] };
 
@@ -629,16 +635,20 @@ export async function getChannelEvents(channelId: string): Promise<ChatEvent[]> 
 
   const { data, error } = await supabase
     .from("chat_events")
-    .select("*, creator:users(full_name, avatar_url)")
+    .select("id, channel_id, creator_id, title, description, event_date, is_reminder_sent, created_at, creator:users(full_name, avatar_url)")
     .eq("channel_id", channelId)
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: true })
+    .limit(100);
 
   if (error) {
     console.error("Error fetching chat events:", error);
     return [];
   }
 
-  return data as ChatEvent[];
+  return (data || []).map((event: any) => ({
+    ...event,
+    creator: Array.isArray(event.creator) ? event.creator[0] : event.creator,
+  })) as ChatEvent[];
 }
 
 export async function getAllMyEvents(): Promise<ChatEvent[]> {
@@ -649,7 +659,8 @@ export async function getAllMyEvents(): Promise<ChatEvent[]> {
   const { data: memberships } = await supabase
     .from("chat_channel_members")
     .select("channel_id")
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .limit(100);
 
   if (!memberships || memberships.length === 0) return [];
 
@@ -657,16 +668,20 @@ export async function getAllMyEvents(): Promise<ChatEvent[]> {
 
   const { data, error } = await supabase
     .from("chat_events")
-    .select("*, creator:users(full_name, avatar_url)")
+    .select("id, channel_id, creator_id, title, description, event_date, is_reminder_sent, created_at, creator:users(full_name, avatar_url)")
     .in("channel_id", channelIds)
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: true })
+    .limit(200);
 
   if (error) {
     console.error("Error fetching all chat events:", error);
     return [];
   }
 
-  return data as ChatEvent[];
+  return (data || []).map((event: any) => ({
+    ...event,
+    creator: Array.isArray(event.creator) ? event.creator[0] : event.creator,
+  })) as ChatEvent[];
 }
 
 export async function createChatEvent(params: {

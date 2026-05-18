@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileDown, Loader2 } from "lucide-react";
+import { FileDown, Loader2 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
   downloadTableCsv,

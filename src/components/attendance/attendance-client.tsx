@@ -21,7 +21,7 @@ import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import type { AttendanceSettings, UserRole, Leave } from "@/lib/types";
-import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Bot } from "lucide-react";
+import { Clock, CalendarDays, Users, TrendingUp, ListFilter, Bot } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Linkedin, Twitter, Mail } from "lucide-react";
+import { Linkedin, Twitter, Mail } from "@/components/ui/icons";
 
 export default function Footer() {
   return (

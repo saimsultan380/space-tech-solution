@@ -10,7 +10,7 @@ import { assignNextEmployeeIdForUser, updateUser } from "@/lib/actions/users";
 import { getSidebarModuleOptionsForRole } from "@/lib/constants";
 import { cn, formatCnic } from "@/lib/utils";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@/components/ui/icons";
 import { BankNameField } from "./bank-name-field";
 
 const ROLE_OPTIONS = [

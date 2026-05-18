@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { deleteProcessingAccount } from "@/lib/actions/processing-accounts";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@/components/ui/icons";
 
 interface DeleteProcessingAccountButtonProps {
   id: string;

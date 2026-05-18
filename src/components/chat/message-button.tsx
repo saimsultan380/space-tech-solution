@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare, Loader2 } from "@/components/ui/icons";
 import { createDirectMessage } from "@/lib/actions/chat";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createNote, updateNote, deleteNote } from "@/lib/actions/notes";
-import { CreditCard, FileText, Loader2, Plus, Pencil, X, Trash2 } from "lucide-react";
+import { CreditCard, FileText, Loader2, Plus, Pencil, X, Trash2 } from "@/components/ui/icons";
 import type { Note } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 

@@ -20,7 +20,7 @@ import {
   BarChart3,
   Settings,
   Send,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 interface ThemeAppearanceProps {
   companySettings: CompanySettings;

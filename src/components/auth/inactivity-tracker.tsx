@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { LogOut, Clock } from "lucide-react";
+import { LogOut, Clock } from "@/components/ui/icons";
 
 interface InactivityTrackerProps {
   timeoutMs?: number; // Total inactivity time before logout

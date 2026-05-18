@@ -27,7 +27,7 @@ import {
   UploadCloud,
   CheckCircle2,
   Palette,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 interface SettingsClientProps {
   user: AppUser;

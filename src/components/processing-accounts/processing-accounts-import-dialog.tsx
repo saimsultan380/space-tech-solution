@@ -26,7 +26,7 @@ import {
   PROCESSING_ACCOUNTS_CSV_TEMPLATE,
 } from "@/lib/processing-accounts-import";
 import type { ProcessingAccountImportPayload } from "@/lib/types";
-import { Download, FileSpreadsheet, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, Upload } from "@/components/ui/icons";
 
 interface ProcessingAccountsImportDialogProps {
   open: boolean;

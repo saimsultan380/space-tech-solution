@@ -20,7 +20,7 @@ import {
 } from "@/lib/actions/processing-accounts";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
 import type { UserRole, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
-import { Save, Building2, CreditCard } from "lucide-react";
+import { Save, Building2, CreditCard } from "@/components/ui/icons";
 
 interface ProcessingAccountFormDialogProps {
   open: boolean;

@@ -262,7 +262,8 @@ export async function getMonthlyAttendanceSummary(month?: string, userId?: strin
   const usersQuery = supabase
     .from("users")
     .select("id, full_name, role")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .limit(500);
 
   const [attendanceRes, usersRes] = await Promise.all([
     userId ? attendanceQuery.eq("user_id", userId) : attendanceQuery,

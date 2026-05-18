@@ -23,7 +23,7 @@ import {
   EyeOff,
   CalendarDays,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 interface DashboardClientProps {
   user: AppUser;

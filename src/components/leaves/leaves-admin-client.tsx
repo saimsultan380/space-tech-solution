@@ -22,7 +22,7 @@ import { ROLE_LABELS, LEAVE_STATUSES } from "@/lib/constants";
 import type { Leave } from "@/lib/types";
 import { updateLeaveStatus } from "@/lib/actions/leaves";
 import { formatDate } from "@/lib/utils";
-import { CheckCircle2, XCircle, CalendarDays, FileText, Clock, CheckCircle, Bot } from "lucide-react";
+import { CheckCircle2, XCircle, CalendarDays, FileText, Clock, CheckCircle, Bot } from "@/components/ui/icons";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 

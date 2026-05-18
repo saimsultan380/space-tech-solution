@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { notifyAdminAboutAccount } from "@/lib/actions/processing-accounts";
-import { Bell } from "lucide-react";
+import { Bell } from "@/components/ui/icons";
 
 interface NotifyAdminDialogProps {
   open: boolean;

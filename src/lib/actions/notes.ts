@@ -9,8 +9,9 @@ export async function getNotes(params: { sale_id?: string; customer_id?: string;
   const supabase = await createClient();
   let query = supabase
     .from("notes")
-    .select("*, user:users(id, full_name, role)")
-    .order("created_at", { ascending: false });
+    .select("id, content, created_at, updated_at, is_important, type, sale_id, customer_id, user_id, user:users(id, full_name, role)")
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (params.sale_id) {
     query = query.eq("sale_id", params.sale_id);
@@ -24,7 +25,12 @@ export async function getNotes(params: { sale_id?: string; customer_id?: string;
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return data;
+  
+  // Normalize the user field from array to object
+  return (data || []).map((note: any) => ({
+    ...note,
+    user: Array.isArray(note.user) ? note.user[0] : note.user,
+  }));
 }
 
 export async function createNote(formData: {

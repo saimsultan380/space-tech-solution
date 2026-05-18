@@ -21,7 +21,7 @@ import {
   Zap,
   LayoutGrid,
   Receipt,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const KARACHI_TIMEZONE = "Asia/Karachi";
 

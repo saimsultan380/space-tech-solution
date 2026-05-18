@@ -11,7 +11,7 @@ import {
   BarChart2, 
   UserCheck, 
   DollarSign 
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 const features = [
   {

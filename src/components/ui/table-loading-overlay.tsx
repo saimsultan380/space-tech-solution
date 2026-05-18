@@ -1,6 +1,6 @@
-"use client";
-
 import { Spinner } from "@/components/ui/loading";
+
+// ✅ No client-side features - safe to be server component
 
 interface TableLoadingOverlayProps {
   isLoading: boolean;

@@ -18,7 +18,7 @@ import {
   Trash2,
   AlertCircle,
   Filter,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 interface Note {
   id: string;
