@@ -23,10 +23,10 @@ tsconfig.tsbuildinfo
 tmp-*.css
 
 # Scripts
-scripts/
+/scripts/
 
 # Supabase (migrations are applied separately)
-supabase/
+/supabase/
 
 # Test files
 **/*.test.ts
