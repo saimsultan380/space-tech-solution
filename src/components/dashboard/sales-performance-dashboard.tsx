@@ -99,6 +99,21 @@ export function SalesPerformanceDashboard({
   const [allNotifications, setAllNotifications] = useState(initialNotifications);
   const lastProcessedRef = useRef<string | null>(null);
 
+  // PERFORMANCE FIX: Cache agent names from the already-loaded leaderboard.
+  // This prevents N×users DB queries when realtime sale events fire.
+  // Every connected browser was calling supabase.from("users").select(...)
+  // on each INSERT — now we serve names from this local Map instead.
+  const agentNameCacheRef = useRef<Map<string, string>>(
+    new Map(initialLeaderboard.map((e) => [e.agent_id, e.agent_name]))
+  );
+
+  // Keep the cache in sync when leaderboard updates
+  useEffect(() => {
+    initialLeaderboard.forEach((e) => {
+      agentNameCacheRef.current.set(e.agent_id, e.agent_name);
+    });
+  }, [initialLeaderboard]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -133,13 +148,11 @@ export function SalesPerformanceDashboard({
           const amount = Number(newSale.charged_amount);
 
           if (!isRejected) {
-            const { data: agentData } = await supabase
-              .from("users")
-              .select("full_name")
-              .eq("id", newSale.agent_id)
-              .single();
-
-            const agentName = agentData?.full_name || "Unknown";
+            // PERFORMANCE FIX: Serve agent name from local cache — zero DB queries.
+            // Previously this fired a supabase.from("users").select(...) from EVERY
+            // connected browser simultaneously (N×users DB hits per sale insert).
+            const agentName =
+              agentNameCacheRef.current.get(newSale.agent_id) || "Unknown";
 
             addToast({
               id: newSale.id,

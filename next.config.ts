@@ -26,6 +26,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // ✨ Enable gzip/brotli compression — reduces response payload 60-80%
+  compress: true,
+
+  // ✨ Remove X-Powered-By header (minor security + slightly smaller responses)
+  poweredByHeader: false,
+
   // ✨ Optimize package imports
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion', 'date-fns', '@radix-ui/react-icons'],

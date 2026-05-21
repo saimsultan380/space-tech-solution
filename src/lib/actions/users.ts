@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
 import { NAV_ITEMS } from "@/lib/constants";
 import { formatCnic, sanitizeFilterValue } from "@/lib/utils";
@@ -139,6 +139,7 @@ export async function createUser(formData: {
     }
 
     revalidatePath("/dashboard/users");
+    (revalidateTag as any)("users"); // bust cached chat users list
     return authData.user;
   } catch (error) {
     // Roll back auth user when profile insert/update fails to avoid orphan auth records.
@@ -278,6 +279,7 @@ export async function updateUser(
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/users");
   revalidatePath("/dashboard/payslips");
+  (revalidateTag as any)("users"); // bust cached chat users list
 }
 
 export async function toggleUserStatus(userId: string, isActive: boolean) {
@@ -291,6 +293,7 @@ export async function toggleUserStatus(userId: string, isActive: boolean) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/users");
+  (revalidateTag as any)("users"); // bust cached chat users list
 }
 
 export async function updateUserAllowedModules(userId: string, allowedModules: string[]) {
@@ -344,4 +347,5 @@ export async function deleteUser(userId: string) {
   if (authError) throw new Error(authError.message);
 
   revalidatePath("/dashboard/users");
+  (revalidateTag as any)("users"); // bust cached chat users list
 }

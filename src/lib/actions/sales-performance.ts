@@ -9,6 +9,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
+import { unstable_cache } from "next/cache";
 import type { SaleStatus, SaleType, SaleSubtype } from "@/lib/types";
 
 // Database response types
@@ -107,7 +108,7 @@ const DEAL_COLORS: Record<string, string> = {
  * @param agentId - Optional agent ID. If not provided, uses current user's ID
  * @returns Performance statistics including sales counts, revenue, and targets
  */
-export async function getAgentPerformanceStats(agentId?: string) {
+async function _getAgentPerformanceStats(agentId?: string) {
   try {
     const user = await requireAuth();
     const supabase = await createClient();
@@ -207,7 +208,7 @@ export async function getAgentPerformanceStats(agentId?: string) {
  * @param agentId - Optional agent ID. If not provided, uses current user's ID
  * @returns Array of monthly sales and revenue data
  */
-export async function getAgentMonthlySalesTrends(agentId?: string): Promise<MonthlySalesTrend[]> {
+async function _getAgentMonthlySalesTrends(agentId?: string): Promise<MonthlySalesTrend[]> {
   try {
     const user = await requireAuth();
     const supabase = await createClient();
@@ -271,7 +272,7 @@ export async function getAgentMonthlySalesTrends(agentId?: string): Promise<Mont
  * @param agentId - Optional agent ID. If not provided, uses current user's ID
  * @returns Array of deal categories with counts and colors
  */
-export async function getAgentDealCategories(agentId?: string): Promise<DealCategoryBreakdown[]> {
+async function _getAgentDealCategories(agentId?: string): Promise<DealCategoryBreakdown[]> {
   try {
     const user = await requireAuth();
     const supabase = await createClient();
@@ -313,7 +314,7 @@ export async function getAgentDealCategories(agentId?: string): Promise<DealCate
  * @param agentId - Optional agent ID. If not provided, uses current user's ID
  * @returns Array of weekly revenue data points
  */
-export async function getAgentRevenueOverTime(agentId?: string): Promise<Array<{ date: string; revenue: number }>> {
+async function _getAgentRevenueOverTime(agentId?: string): Promise<Array<{ date: string; revenue: number }>> {
   try {
     const user = await requireAuth();
     const supabase = await createClient();
@@ -357,7 +358,7 @@ export async function getAgentRevenueOverTime(agentId?: string): Promise<Array<{
  * Retrieves the sales leaderboard with all active sales agents ranked by performance
  * @returns Array of leaderboard entries sorted by revenue and sales performance
  */
-export async function getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
+async function _getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
     await requireAuth();
     const supabase = await createClient();
@@ -456,7 +457,7 @@ export async function getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
  * Retrieves recent sales notifications from the last 24 hours
  * @returns Array of sales notifications for recent deals and milestones
  */
-export async function getRecentSalesNotifications(): Promise<SalesNotification[]> {
+async function _getRecentSalesNotifications(): Promise<SalesNotification[]> {
   try {
     await requireAuth();
     const supabase = await createClient();
@@ -498,3 +499,58 @@ export async function getRecentSalesNotifications(): Promise<SalesNotification[]
     throw new Error("Failed to fetch recent sales notifications");
   }
 }
+
+// ─── Cached Public API ────────────────────────────────────────────────────────
+//
+// PERFORMANCE: These cached wrappers sit in front of the raw DB functions above.
+// Next.js unstable_cache deduplicates identical requests within the same render
+// AND caches results across concurrent users for the revalidate window.
+//
+// Impact: 10 users loading the leaderboard simultaneously → 1 DB query (cached).
+//         Without this: 10 separate DB queries per page load cycle.
+//
+// Cache invalidation is handled by revalidateTag() calls in sales.ts write
+// actions (createSale, updateSale, deleteSale, bulkUpdateSaleStatus).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Cached leaderboard — refreshes every 60 s or on sale write. */
+export const getSalesLeaderboard = unstable_cache(
+  _getSalesLeaderboard,
+  ["sales-leaderboard"],
+  { revalidate: 60, tags: ["leaderboard", "sales"] }
+);
+
+/** Cached notifications — refreshes every 30 s or on sale write. */
+export const getRecentSalesNotifications = unstable_cache(
+  _getRecentSalesNotifications,
+  ["sales-notifications"],
+  { revalidate: 30, tags: ["leaderboard", "sales"] }
+);
+
+/** Cached per-agent stats — refreshes every 120 s or on agent sale write. */
+export const getAgentPerformanceStats = unstable_cache(
+  async (agentId?: string) => _getAgentPerformanceStats(agentId),
+  ["agent-perf-stats"],
+  { revalidate: 120, tags: ["agent-stats", "sales"] }
+);
+
+/** Cached monthly trends — refreshes every 5 min or on sale write. */
+export const getAgentMonthlySalesTrends = unstable_cache(
+  async (agentId?: string) => _getAgentMonthlySalesTrends(agentId),
+  ["agent-monthly-trends"],
+  { revalidate: 300, tags: ["agent-stats", "sales"] }
+);
+
+/** Cached deal categories — refreshes every 5 min or on sale write. */
+export const getAgentDealCategories = unstable_cache(
+  async (agentId?: string) => _getAgentDealCategories(agentId),
+  ["agent-deal-categories"],
+  { revalidate: 300, tags: ["agent-stats", "sales"] }
+);
+
+/** Cached revenue timeline — refreshes every 5 min or on sale write. */
+export const getAgentRevenueOverTime = unstable_cache(
+  async (agentId?: string) => _getAgentRevenueOverTime(agentId),
+  ["agent-revenue-time"],
+  { revalidate: 300, tags: ["agent-stats", "sales"] }
+);
