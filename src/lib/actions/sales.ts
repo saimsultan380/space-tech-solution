@@ -287,14 +287,14 @@ export async function createSale(formData: CreateSaleInput) {
 
       let { data: customerData, error: customerError } = await supabase
         .from("customers")
-        .insert(withSourceCustomerPayload)
+        .insert(withSourceCustomerPayload as any)
         .select("id")
         .single();
 
       if (isMissingSourceColumnError(customerError)) {
         const retryResult = await supabase
           .from("customers")
-          .insert(baseCustomerPayload)
+          .insert(baseCustomerPayload as any)
           .select("id")
           .single();
         customerData = retryResult.data;
@@ -352,7 +352,7 @@ export async function createSale(formData: CreateSaleInput) {
 
   let { data: saleData, error: saleError } = await supabase
     .from("sales")
-    .insert(saleInsertPayload)
+    .insert(saleInsertPayload as any)
     .select("id")
     .single();
 
@@ -363,7 +363,7 @@ export async function createSale(formData: CreateSaleInput) {
   ) {
     const retryResult = await supabase
       .from("sales")
-      .insert({ ...saleInsertPayload, subtype: "cancelation" })
+      .insert({ ...saleInsertPayload, subtype: "cancelation" } as any)
       .select("id")
       .single();
     saleData = retryResult.data;
@@ -433,7 +433,7 @@ export async function createSale(formData: CreateSaleInput) {
     }
 
     if (formData.payment_method === "card" || formData.payment_method === "checking") {
-      await supabase.from("payments").insert(paymentInsert);
+      await supabase.from("payments").insert(paymentInsert as any);
     }
   }
 

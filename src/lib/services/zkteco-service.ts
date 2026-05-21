@@ -162,15 +162,15 @@ export class ZKTecoService {
         throw new Error("No user mappings found. Please configure user mappings first.");
       }
 
-      // Create a map for quick lookup
-      const userMap = new Map(
-        mappings.map((m) => [m.machine_user_id, m.user_id])
+      // Create a map for quick lookup (key as string to avoid number/string mismatch)
+      const userMap = new Map<string, string>(
+        mappings.map((m) => [String(m.machine_user_id), m.user_id])
       );
 
       // Process each log
       for (const log of logs) {
         try {
-          const systemUserId = userMap.get(Number(log.deviceUserId));
+          const systemUserId = userMap.get(String(log.deviceUserId));
 
           if (!systemUserId) {
             result.errors.push(

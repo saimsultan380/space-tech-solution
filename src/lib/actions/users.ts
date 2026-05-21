@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth";
 import { revalidatePath, revalidateTag } from "next/cache";
-import type { UserRole, EmployeeCategory, PaidThrough } from "@/lib/types";
+import type { UserRole, EmployeeCategory, PaidThrough, AppUser } from "@/lib/types";
 import { NAV_ITEMS } from "@/lib/constants";
 import { formatCnic, sanitizeFilterValue } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export async function getUsers(filters?: {
   if (error) throw new Error(error.message);
   
   return {
-    data: data || [],
+    data: (data || []) as AppUser[],
     count: count || 0,
     page,
     pageSize,

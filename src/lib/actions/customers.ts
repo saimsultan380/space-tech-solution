@@ -221,14 +221,14 @@ export async function createCustomer(formData: {
 
   let { data, error } = await supabase
     .from("customers")
-    .insert(withSourcePayload)
+    .insert(withSourcePayload as any)
     .select("id")
     .single();
 
   if (isMissingSourceColumnError(error)) {
     const retryResult = await supabase
       .from("customers")
-      .insert(basePayload)
+      .insert(basePayload as any)
       .select("id")
       .single();
     data = retryResult.data;
@@ -290,7 +290,7 @@ export async function updateCustomer(
 
   const { error } = await supabase
     .from("customers")
-    .update(updateData)
+    .update(updateData as any)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

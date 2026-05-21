@@ -96,7 +96,7 @@ export async function getDashboardStats(month?: string) {
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("get_dashboard_analytics", {
-    month_filter: month || null,
+    month_filter: month || undefined,
   });
 
   if (error || !data || data.length === 0) {
@@ -143,7 +143,7 @@ export async function getSalesPerAgent(month?: string) {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_sales_per_agent_stats", {
-    target_month: month || null,
+    target_month: (month || null) as any,
   });
 
   if (error) {
@@ -163,7 +163,7 @@ export async function getSalesPerProcessor(month?: string) {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_sales_per_processor_stats", {
-    target_month: month || null,
+    target_month: (month || null) as any,
   });
 
   if (error) {
@@ -198,7 +198,7 @@ export async function getChargebacksPerEmployee(month?: string) {
   await requireAuth();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_chargebacks_per_employee_stats", {
-    target_month: month || null,
+    target_month: (month || null) as any,
   });
 
   if (error) {

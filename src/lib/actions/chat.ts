@@ -446,7 +446,8 @@ export async function createDirectMessage(otherUserId: string) {
   });
 
   if (existingChannel && existingChannel.length > 0) {
-    return { error: null, channelId: (existingChannel[0] as { channel_id: string }).channel_id };
+    const first = existingChannel[0] as unknown as { channel_id: string };
+    return { error: null, channelId: first.channel_id };
   }
 
   const { data: otherUser } = await supabase
@@ -466,7 +467,7 @@ export async function createDirectMessage(otherUserId: string) {
       description: "Direct message",
       is_direct: true,
       created_by: user.id,
-    } as Record<string, unknown>)
+    })
     .select("id")
     .single();
 

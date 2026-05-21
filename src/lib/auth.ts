@@ -28,7 +28,9 @@ export const getAppUser = cache(async (): Promise<AppUser | null> => {
     .single();
 
   if (error || !data) return null;
-  return data;
+  // The generated DB type returns role as `string`. Cast to AppUser since we
+  // enforce the enum at all write paths and the DB has a CHECK constraint.
+  return { ...data, role: data.role as UserRole } as AppUser;
 });
 
 export async function requireAuth(): Promise<AppUser> {

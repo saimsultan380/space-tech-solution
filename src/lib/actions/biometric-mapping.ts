@@ -83,7 +83,7 @@ export async function createBiometricMapping(input: {
     const { data: existingMachineId } = await supabase
       .from("biometric_user_mapping")
       .select("id, user:users(full_name)")
-      .eq("machine_user_id", Number(input.machine_user_id))
+      .eq("machine_user_id", String(input.machine_user_id))
       .eq("machine_id", input.machine_id || "zkteco_k40")
       .maybeSingle();
 
@@ -97,7 +97,7 @@ export async function createBiometricMapping(input: {
 
     const { error } = await supabase.from("biometric_user_mapping").insert({
       user_id: input.user_id,
-      machine_user_id: Number(input.machine_user_id),
+      machine_user_id: String(input.machine_user_id), // DB type is string
       machine_id: input.machine_id || "zkteco_k40",
       is_active: true,
     });
