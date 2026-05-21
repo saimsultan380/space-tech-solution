@@ -1,13 +1,13 @@
 /**
  * Sales Performance Actions
- * 
+ *
  * This module provides server actions for retrieving and calculating
  * sales performance metrics, leaderboards, and analytics data.
  */
 
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createClientUncached } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { unstable_cache } from "next/cache";
 import type { SaleStatus, SaleType, SaleSubtype } from "@/lib/types";
@@ -104,84 +104,144 @@ const DEAL_COLORS: Record<string, string> = {
 };
 
 /**
- * Retrieves comprehensive performance statistics for a specific agent
- * @param agentId - Optional agent ID. If not provided, uses current user's ID
- * @returns Performance statistics including sales counts, revenue, and targets
+ * Internal DB function for agent performance stats. Requires userId only.
+ * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getAgentPerformanceStats(agentId?: string) {
+async function _getAgentPerformanceStatsDB(userId: string) {
   try {
-    const user = await requireAuth();
-    const supabase = await createClient();
-    const targetAgentId = agentId || user.id;
+    const supabase = createClientUncached();
+    const targetAgentId = userId;
 
     const today = new Date();
     const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
     const quarterMonth = Math.floor(today.getMonth() / 3) * 3;
     const quarterStart = `${today.getFullYear()}-${String(quarterMonth + 1).padStart(2, "0")}-01`;
 
-    const [allSalesRes, monthSalesRes, quarterSalesRes, chargebackRes] = await Promise.all([
-      supabase
-        .from("sales")
-        .select("id, status, charged_amount, sale_type, subtype, created_at")
-        .eq("agent_id", targetAgentId)
-        .limit(1000),
-      supabase
-        .from("sales")
-        .select("id, status, charged_amount")
-        .eq("agent_id", targetAgentId)
-        .gte("created_at", `${monthStart}T00:00:00`)
-        .limit(500),
-      supabase
-        .from("sales")
-        .select("id, status, charged_amount")
-        .eq("agent_id", targetAgentId)
-        .gte("created_at", `${quarterStart}T00:00:00`)
-        .limit(500),
-      supabase
-        .from("chargebacks")
-        .select("id, sale:sales!inner(agent_id)")
-        .eq("sale.agent_id", targetAgentId),
-    ]);
+    const [allSalesRes, monthSalesRes, quarterSalesRes, chargebackRes] =
+      await Promise.all([
+        supabase
+          .from("sales")
+          .select("id, status, charged_amount, sale_type, subtype, created_at")
+          .eq("agent_id", targetAgentId)
+          .limit(1000),
+        supabase
+          .from("sales")
+          .select("id, status, charged_amount")
+          .eq("agent_id", targetAgentId)
+          .gte("created_at", `${monthStart}T00:00:00`)
+          .limit(500),
+        supabase
+          .from("sales")
+          .select("id, status, charged_amount")
+          .eq("agent_id", targetAgentId)
+          .gte("created_at", `${quarterStart}T00:00:00`)
+          .limit(500),
+        supabase
+          .from("chargebacks")
+          .select("id, sale:sales!inner(agent_id)")
+          .eq("sale.agent_id", targetAgentId),
+      ]);
 
     // Check for errors
-    if (allSalesRes.error) throw new Error(`Failed to fetch sales: ${allSalesRes.error.message}`);
-    if (monthSalesRes.error) throw new Error(`Failed to fetch monthly sales: ${monthSalesRes.error.message}`);
-    if (quarterSalesRes.error) throw new Error(`Failed to fetch quarterly sales: ${quarterSalesRes.error.message}`);
-    if (chargebackRes.error) throw new Error(`Failed to fetch chargebacks: ${chargebackRes.error.message}`);
+    if (allSalesRes.error)
+      throw new Error(`Failed to fetch sales: ${allSalesRes.error.message}`);
+    if (monthSalesRes.error)
+      throw new Error(
+        `Failed to fetch monthly sales: ${monthSalesRes.error.message}`,
+      );
+    if (quarterSalesRes.error)
+      throw new Error(
+        `Failed to fetch quarterly sales: ${quarterSalesRes.error.message}`,
+      );
+    if (chargebackRes.error)
+      throw new Error(
+        `Failed to fetch chargebacks: ${chargebackRes.error.message}`,
+      );
 
     const allSales = allSalesRes.data || [];
     const monthSales = monthSalesRes.data || [];
     const quarterSales = quarterSalesRes.data || [];
 
     const approved = (allSales as any[]).filter((s) => s.status !== "rejected");
-    const monthApproved = (monthSales as any[]).filter((s) => s.status !== "rejected");
-    const quarterApproved = (quarterSales as any[]).filter((s) => s.status !== "rejected");
+    const monthApproved = (monthSales as any[]).filter(
+      (s) => s.status !== "rejected",
+    );
+    const quarterApproved = (quarterSales as any[]).filter(
+      (s) => s.status !== "rejected",
+    );
 
-    const totalRevenue = approved.reduce((sum: number, s: any) => sum + Number(s.charged_amount), 0);
-    const monthRevenue = monthApproved.reduce((sum: number, s: any) => sum + Number(s.charged_amount), 0);
-    const quarterRevenue = quarterApproved.reduce((sum: number, s: any) => sum + Number(s.charged_amount), 0);
+    const totalRevenue = approved.reduce(
+      (sum: number, s: any) => sum + Number(s.charged_amount),
+      0,
+    );
+    const monthRevenue = monthApproved.reduce(
+      (sum: number, s: any) => sum + Number(s.charged_amount),
+      0,
+    );
+    const quarterRevenue = quarterApproved.reduce(
+      (sum: number, s: any) => sum + Number(s.charged_amount),
+      0,
+    );
 
     const monthTarget = 30;
     const monthRevenueTarget = 50000;
     const quarterTarget = 90;
     const quarterRevenueTarget = 150000;
 
-    const monthPct = Math.min(100, Math.round((monthSales.length / monthTarget) * 100));
-    const monthRevPct = Math.min(100, Math.round((monthRevenue / monthRevenueTarget) * 100));
-    const quarterPct = Math.min(100, Math.round((quarterSales.length / quarterTarget) * 100));
-    const quarterRevPct = Math.min(100, Math.round((quarterRevenue / quarterRevenueTarget) * 100));
+    const monthPct = Math.min(
+      100,
+      Math.round((monthSales.length / monthTarget) * 100),
+    );
+    const monthRevPct = Math.min(
+      100,
+      Math.round((monthRevenue / monthRevenueTarget) * 100),
+    );
+    const quarterPct = Math.min(
+      100,
+      Math.round((quarterSales.length / quarterTarget) * 100),
+    );
+    const quarterRevPct = Math.min(
+      100,
+      Math.round((quarterRevenue / quarterRevenueTarget) * 100),
+    );
 
-    const getStatus = (pct: number): "on_target" | "at_risk" | "below_target" => {
+    const getStatus = (
+      pct: number,
+    ): "on_target" | "at_risk" | "below_target" => {
       if (pct >= 70) return "on_target";
       if (pct >= 40) return "at_risk";
       return "below_target";
     };
 
     const targets: PerformanceTarget[] = [
-      { label: "Monthly Sales", current: monthSales.length, target: monthTarget, percentage: monthPct, status: getStatus(monthPct) },
-      { label: "Monthly Revenue", current: monthRevenue, target: monthRevenueTarget, percentage: monthRevPct, status: getStatus(monthRevPct) },
-      { label: "Quarterly Sales", current: quarterSales.length, target: quarterTarget, percentage: quarterPct, status: getStatus(quarterPct) },
-      { label: "Quarterly Revenue", current: quarterRevenue, target: quarterRevenueTarget, percentage: quarterRevPct, status: getStatus(quarterRevPct) },
+      {
+        label: "Monthly Sales",
+        current: monthSales.length,
+        target: monthTarget,
+        percentage: monthPct,
+        status: getStatus(monthPct),
+      },
+      {
+        label: "Monthly Revenue",
+        current: monthRevenue,
+        target: monthRevenueTarget,
+        percentage: monthRevPct,
+        status: getStatus(monthRevPct),
+      },
+      {
+        label: "Quarterly Sales",
+        current: quarterSales.length,
+        target: quarterTarget,
+        percentage: quarterPct,
+        status: getStatus(quarterPct),
+      },
+      {
+        label: "Quarterly Revenue",
+        current: quarterRevenue,
+        target: quarterRevenueTarget,
+        percentage: quarterRevPct,
+        status: getStatus(quarterRevPct),
+      },
     ];
 
     return {
@@ -194,7 +254,10 @@ async function _getAgentPerformanceStats(agentId?: string) {
       quarterSales: quarterSales.length,
       quarterRevenue,
       chargebacks: chargebackRes.data?.length || 0,
-      conversionRate: allSales.length > 0 ? Math.round((approved.length / allSales.length) * 100) : 0,
+      conversionRate:
+        allSales.length > 0
+          ? Math.round((approved.length / allSales.length) * 100)
+          : 0,
       targets,
     };
   } catch (error) {
@@ -204,15 +267,15 @@ async function _getAgentPerformanceStats(agentId?: string) {
 }
 
 /**
- * Retrieves monthly sales trends for the last 6 months for a specific agent
- * @param agentId - Optional agent ID. If not provided, uses current user's ID
- * @returns Array of monthly sales and revenue data
+ * Internal DB function for monthly sales trends. Requires userId only.
+ * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getAgentMonthlySalesTrends(agentId?: string): Promise<MonthlySalesTrend[]> {
+async function _getAgentMonthlySalesTrendsDB(
+  userId: string,
+): Promise<MonthlySalesTrend[]> {
   try {
-    const user = await requireAuth();
-    const supabase = await createClient();
-    const targetAgentId = agentId || user.id;
+    const supabase = createClientUncached();
+    const targetAgentId = userId;
 
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
@@ -230,7 +293,20 @@ async function _getAgentMonthlySalesTrends(agentId?: string): Promise<MonthlySal
     }
 
     const monthMap = new Map<string, { sales: number; revenue: number }>();
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
 
     // Initialize the last 6 months
     for (let i = 0; i < 6; i++) {
@@ -268,15 +344,15 @@ async function _getAgentMonthlySalesTrends(agentId?: string): Promise<MonthlySal
 }
 
 /**
- * Retrieves deal category breakdown for a specific agent
- * @param agentId - Optional agent ID. If not provided, uses current user's ID
- * @returns Array of deal categories with counts and colors
+ * Internal DB function for deal categories. Requires userId only.
+ * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getAgentDealCategories(agentId?: string): Promise<DealCategoryBreakdown[]> {
+async function _getAgentDealCategoriesDB(
+  userId: string,
+): Promise<DealCategoryBreakdown[]> {
   try {
-    const user = await requireAuth();
-    const supabase = await createClient();
-    const targetAgentId = agentId || user.id;
+    const supabase = createClientUncached();
+    const targetAgentId = userId;
 
     const { data, error } = await supabase
       .from("sales")
@@ -290,7 +366,8 @@ async function _getAgentDealCategories(agentId?: string): Promise<DealCategoryBr
 
     const catMap = new Map<string, number>();
     (data || []).forEach((sale: any) => {
-      const type = sale.sale_type.charAt(0).toUpperCase() + sale.sale_type.slice(1);
+      const type =
+        sale.sale_type.charAt(0).toUpperCase() + sale.sale_type.slice(1);
       const sub = sale.subtype.charAt(0).toUpperCase() + sale.subtype.slice(1);
       const key = `${type} - ${sub}`;
       catMap.set(key, (catMap.get(key) || 0) + 1);
@@ -310,15 +387,15 @@ async function _getAgentDealCategories(agentId?: string): Promise<DealCategoryBr
 }
 
 /**
- * Retrieves weekly revenue data over the last 6 months for a specific agent
- * @param agentId - Optional agent ID. If not provided, uses current user's ID
- * @returns Array of weekly revenue data points
+ * Internal DB function for revenue over time. Requires userId only.
+ * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getAgentRevenueOverTime(agentId?: string): Promise<Array<{ date: string; revenue: number }>> {
+async function _getAgentRevenueOverTimeDB(
+  userId: string,
+): Promise<Array<{ date: string; revenue: number }>> {
   try {
-    const user = await requireAuth();
-    const supabase = await createClient();
-    const targetAgentId = agentId || user.id;
+    const supabase = createClientUncached();
+    const targetAgentId = userId;
 
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
@@ -337,13 +414,15 @@ async function _getAgentRevenueOverTime(agentId?: string): Promise<Array<{ date:
     }
 
     const weekMap = new Map<string, number>();
-    (data || []).forEach((sale: { charged_amount: number; created_at: string }) => {
-      const d = new Date(sale.created_at);
-      const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - d.getDay());
-      const key = weekStart.toISOString().split("T")[0];
-      weekMap.set(key, (weekMap.get(key) || 0) + Number(sale.charged_amount));
-    });
+    (data || []).forEach(
+      (sale: { charged_amount: number; created_at: string }) => {
+        const d = new Date(sale.created_at);
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        const key = weekStart.toISOString().split("T")[0];
+        weekMap.set(key, (weekMap.get(key) || 0) + Number(sale.charged_amount));
+      },
+    );
 
     return Array.from(weekMap.entries())
       .map(([date, revenue]) => ({ date, revenue }))
@@ -355,16 +434,17 @@ async function _getAgentRevenueOverTime(agentId?: string): Promise<Array<{ date:
 }
 
 /**
- * Retrieves the sales leaderboard with all active sales agents ranked by performance
- * @returns Array of leaderboard entries sorted by revenue and sales performance
+ * Internal DB function for sales leaderboard.
+ * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
+async function _getSalesLeaderboardDB(): Promise<LeaderboardEntry[]> {
   try {
-    await requireAuth();
-    const supabase = await createClient();
+    const supabase = createClientUncached();
 
     // Try to use the RPC function first
-    const { data: rpcRows, error: rpcError } = await supabase.rpc("get_sales_leaderboard");
+    const { data: rpcRows, error: rpcError } = await supabase.rpc(
+      "get_sales_leaderboard",
+    );
     if (!rpcError && Array.isArray(rpcRows)) {
       return (rpcRows as Array<Record<string, unknown>>).map((r) => ({
         agent_id: String(r.agent_id),
@@ -403,9 +483,14 @@ async function _getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
     ]);
 
     // Check for errors
-    if (salesRes.error) throw new Error(`Failed to fetch sales: ${salesRes.error.message}`);
-    if (usersRes.error) throw new Error(`Failed to fetch users: ${usersRes.error.message}`);
-    if (chargebackRes.error) throw new Error(`Failed to fetch chargebacks: ${chargebackRes.error.message}`);
+    if (salesRes.error)
+      throw new Error(`Failed to fetch sales: ${salesRes.error.message}`);
+    if (usersRes.error)
+      throw new Error(`Failed to fetch users: ${usersRes.error.message}`);
+    if (chargebackRes.error)
+      throw new Error(
+        `Failed to fetch chargebacks: ${chargebackRes.error.message}`,
+      );
 
     const agents = usersRes.data || [];
     const sales = salesRes.data || [];
@@ -422,7 +507,10 @@ async function _getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
     const entries: LeaderboardEntry[] = agents.map((agent: any) => {
       const agentSales = sales.filter((s: any) => s.agent_id === agent.id);
       const approved = agentSales.filter((s: any) => s.status !== "rejected");
-      const revenue = approved.reduce((sum: number, s: any) => sum + Number(s.charged_amount), 0);
+      const revenue = approved.reduce(
+        (sum: number, s: any) => sum + Number(s.charged_amount),
+        0,
+      );
 
       return {
         agent_id: agent.id,
@@ -434,7 +522,10 @@ async function _getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
         revenue,
         chargebacks: cbMap.get(agent.id) || 0,
         rank: 0,
-        conversion_rate: agentSales.length > 0 ? Math.round((approved.length / agentSales.length) * 100) : 0,
+        conversion_rate:
+          agentSales.length > 0
+            ? Math.round((approved.length / agentSales.length) * 100)
+            : 0,
       };
     });
 
@@ -454,20 +545,21 @@ async function _getSalesLeaderboard(): Promise<LeaderboardEntry[]> {
 }
 
 /**
- * Retrieves recent sales notifications from the last 24 hours
- * @returns Array of sales notifications for recent deals and milestones
+ * Internal DB function for recent sales notifications.
+ * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getRecentSalesNotifications(): Promise<SalesNotification[]> {
+async function _getRecentSalesNotificationsDB(): Promise<SalesNotification[]> {
   try {
-    await requireAuth();
-    const supabase = await createClient();
+    const supabase = createClientUncached();
 
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
     const { data, error } = await supabase
       .from("sales")
-      .select("id, charged_amount, agent:users!sales_agent_id_fkey(full_name), created_at, company_name")
+      .select(
+        "id, charged_amount, agent:users!sales_agent_id_fkey(full_name), created_at, company_name",
+      )
       .gte("created_at", oneDayAgo.toISOString())
       .neq("status", "rejected")
       .order("created_at", { ascending: false })
@@ -500,57 +592,92 @@ async function _getRecentSalesNotifications(): Promise<SalesNotification[]> {
   }
 }
 
-// ─── Cached Public API ────────────────────────────────────────────────────────
+// ─── Cached DB Access Functions ───────────────────────────────────────────────
 //
-// PERFORMANCE: These cached wrappers sit in front of the raw DB functions above.
-// Next.js unstable_cache deduplicates identical requests within the same render
-// AND caches results across concurrent users for the revalidate window.
+// These are the actual cached functions that perform DB queries.
+// They only accept serializable primitives (strings, numbers) as parameters.
+// Supabase client is created inside to avoid circular reference serialization.
 //
-// Impact: 10 users loading the leaderboard simultaneously → 1 DB query (cached).
-//         Without this: 10 separate DB queries per page load cycle.
-//
-// Cache invalidation is handled by revalidateTag() calls in sales.ts write
-// actions (createSale, updateSale, deleteSale, bulkUpdateSaleStatus).
-// ─────────────────────────────────────────────────────────────────────────────
 
-/** Cached leaderboard — refreshes every 60 s or on sale write. */
-export const getSalesLeaderboard = unstable_cache(
-  _getSalesLeaderboard,
-  ["sales-leaderboard"],
-  { revalidate: 60, tags: ["leaderboard", "sales"] }
-);
-
-/** Cached notifications — refreshes every 30 s or on sale write. */
-export const getRecentSalesNotifications = unstable_cache(
-  _getRecentSalesNotifications,
-  ["sales-notifications"],
-  { revalidate: 30, tags: ["leaderboard", "sales"] }
-);
-
-/** Cached per-agent stats — refreshes every 120 s or on agent sale write. */
-export const getAgentPerformanceStats = unstable_cache(
-  async (agentId?: string) => _getAgentPerformanceStats(agentId),
+const _cachedGetAgentPerformanceStats = unstable_cache(
+  (userId: string) => _getAgentPerformanceStatsDB(userId),
   ["agent-perf-stats"],
-  { revalidate: 120, tags: ["agent-stats", "sales"] }
+  { revalidate: 120, tags: ["agent-stats", "sales"] },
 );
 
-/** Cached monthly trends — refreshes every 5 min or on sale write. */
-export const getAgentMonthlySalesTrends = unstable_cache(
-  async (agentId?: string) => _getAgentMonthlySalesTrends(agentId),
+const _cachedGetAgentMonthlySalesTrends = unstable_cache(
+  (userId: string) => _getAgentMonthlySalesTrendsDB(userId),
   ["agent-monthly-trends"],
-  { revalidate: 300, tags: ["agent-stats", "sales"] }
+  { revalidate: 300, tags: ["agent-stats", "sales"] },
 );
 
-/** Cached deal categories — refreshes every 5 min or on sale write. */
-export const getAgentDealCategories = unstable_cache(
-  async (agentId?: string) => _getAgentDealCategories(agentId),
+const _cachedGetAgentDealCategories = unstable_cache(
+  (userId: string) => _getAgentDealCategoriesDB(userId),
   ["agent-deal-categories"],
-  { revalidate: 300, tags: ["agent-stats", "sales"] }
+  { revalidate: 300, tags: ["agent-stats", "sales"] },
 );
 
-/** Cached revenue timeline — refreshes every 5 min or on sale write. */
-export const getAgentRevenueOverTime = unstable_cache(
-  async (agentId?: string) => _getAgentRevenueOverTime(agentId),
+const _cachedGetAgentRevenueOverTime = unstable_cache(
+  (userId: string) => _getAgentRevenueOverTimeDB(userId),
   ["agent-revenue-time"],
-  { revalidate: 300, tags: ["agent-stats", "sales"] }
+  { revalidate: 300, tags: ["agent-stats", "sales"] },
 );
+
+const _cachedGetSalesLeaderboard = unstable_cache(
+  () => _getSalesLeaderboardDB(),
+  ["sales-leaderboard"],
+  { revalidate: 60, tags: ["leaderboard", "sales"] },
+);
+
+const _cachedGetRecentSalesNotifications = unstable_cache(
+  () => _getRecentSalesNotificationsDB(),
+  ["sales-notifications"],
+  { revalidate: 30, tags: ["leaderboard", "sales"] },
+);
+
+// ─── Public API Wrappers ──────────────────────────────────────────────────────
+//
+// These wrappers call requireAuth() and pass only serializable data (user ID)
+// to the cached functions. The cached functions then create their own
+// Supabase clients.
+//
+
+/** Get agent performance stats — handles auth outside cache */
+export async function getAgentPerformanceStats(agentId?: string) {
+  const user = await requireAuth();
+  const targetAgentId = agentId || user.id;
+  return _cachedGetAgentPerformanceStats(targetAgentId);
+}
+
+/** Get monthly sales trends — handles auth outside cache */
+export async function getAgentMonthlySalesTrends(agentId?: string) {
+  const user = await requireAuth();
+  const targetAgentId = agentId || user.id;
+  return _cachedGetAgentMonthlySalesTrends(targetAgentId);
+}
+
+/** Get deal categories — handles auth outside cache */
+export async function getAgentDealCategories(agentId?: string) {
+  const user = await requireAuth();
+  const targetAgentId = agentId || user.id;
+  return _cachedGetAgentDealCategories(targetAgentId);
+}
+
+/** Get revenue over time — handles auth outside cache */
+export async function getAgentRevenueOverTime(agentId?: string) {
+  const user = await requireAuth();
+  const targetAgentId = agentId || user.id;
+  return _cachedGetAgentRevenueOverTime(targetAgentId);
+}
+
+/** Get sales leaderboard — handles auth outside cache */
+export async function getSalesLeaderboard() {
+  await requireAuth();
+  return _cachedGetSalesLeaderboard();
+}
+
+/** Get recent sales notifications — handles auth outside cache */
+export async function getRecentSalesNotifications() {
+  await requireAuth();
+  return _cachedGetRecentSalesNotifications();
+}
