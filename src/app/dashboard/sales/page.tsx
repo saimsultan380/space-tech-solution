@@ -1,47 +1,11 @@
 import { requireAuth } from "@/lib/auth";
-import { getSales } from "@/lib/actions/sales";
-import { getUsers } from "@/lib/actions/users";
 import { SalesClient } from "@/components/sales/sales-client";
-import type { AppUser } from "@/lib/types";
 
-export default async function SalesPage(props: {
-  searchParams: Promise<{
-    page?: string;
-    type?: string;
-    agent_id?: string;
-    from_date?: string;
-    to_date?: string;
-    q?: string;
-  }>;
-}) {
+export default async function SalesPage() {
   const user = await requireAuth();
-  const searchParams = await props.searchParams;
-  
-  const page = Number(searchParams.page) || 1;
-  const type = searchParams.type || "all";
-  const agent_id = user.role === "sales_agent" ? user.id : searchParams.agent_id || "all";
-  const from_date = searchParams.from_date || "";
-  const to_date = searchParams.to_date || "";
-  const search = searchParams.q || "";
-
-  const salesFilters = {
-    agent_id,
-    sale_type: type,
-    page,
-    pageSize: 10,
-    from_date,
-    to_date,
-    search,
-  };
-
-  const [salesResponse, usersResponse] = await Promise.all([getSales(salesFilters), getUsers()]);
-
-  const agents = (usersResponse.data as any[]).filter((u) => u.role === "sales_agent");
 
   return (
     <SalesClient 
-      salesResponse={salesResponse as any} 
-      agents={agents} 
       userRole={user.role} 
       userId={user.id} 
     />

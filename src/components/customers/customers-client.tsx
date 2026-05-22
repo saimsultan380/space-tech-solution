@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -20,11 +22,9 @@ import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
-import type { UserRole, CustomerListItem } from "@/lib/types";
+import type { UserRole } from "@/lib/types";
 import { BarChart3, ChevronDown, ChevronUp, Filter, PieChart as PieChartIcon, Plus, Search, Eye, Users } from "@/components/ui/icons";
 import Link from "next/link";
-
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
 import { StatCard } from "@/components/ui/stat-card";
@@ -38,26 +38,18 @@ import {
   Tooltip,
 } from "recharts";
 import { useTheme } from "next-themes";
+import { getCustomers } from "@/lib/queries/customers";
 
 interface CustomersClientProps {
-  customersResponse: {
-    data: CustomerListItem[];
-    count: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  };
   userRole: UserRole;
 }
 
 export function CustomersClient({
-  customersResponse,
   userRole,
 }: CustomersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
 
   const [showForm, setShowForm] = useState(false);
   const [showChart, setShowChart] = useState(false);
@@ -77,13 +69,9 @@ export function CustomersClient({
     setMounted(true);
   }, []);
 
-  const {
-    data: customers,
-    count,
-    page,
-    totalPages,
-    pageSize,
-  } = customersResponse;
+  const page = Number(searchParams.get("page")) || 1;
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
 
   const updateFilters = (
     updates: Record<string, string | number | undefined>,
@@ -99,16 +87,31 @@ export function CustomersClient({
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
     useDebouncedUrlSearchInput(searchParams, updateFilters);
 
-  const fromDateFilter = searchParams.get("from_date") || "";
-  const toDateFilter = searchParams.get("to_date") || "";
+  // React Query for fetching customers
+  const { data: customersResponse, isLoading, error } = useQuery({
+    queryKey: ["customers", page, urlSearch, fromDateFilter, toDateFilter],
+    queryFn: () => getCustomers({
+      page,
+      pageSize: 10,
+      search: urlSearch,
+      createdFromDate: fromDateFilter || undefined,
+      createdToDate: toDateFilter || undefined,
+    }),
+    staleTime: 30000,
+  });
+
+  const {
+    data: customers = [],
+    count = 0,
+    totalPages = 1,
+    pageSize = 10,
+  } = customersResponse || {};
 
   /** Super admin, sales agents, and processors (when given Call Logs access) use full list management UI. */
   const canManageCallLogs =
@@ -203,6 +206,124 @@ export function CustomersClient({
     "#64748B",
     "#6366F1",
   ];
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="h-9 w-64 animate-pulse rounded-lg bg-muted/70" />
+            <div className="h-5 w-80 animate-pulse rounded bg-muted/50" />
+          </div>
+          <div className="flex w-full max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-2 lg:w-auto lg:shrink-0">
+            <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:h-9 sm:w-32" />
+            <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:h-9 sm:w-32" />
+            <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:h-9 sm:w-48" />
+          </div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-24 animate-pulse rounded bg-muted/60" />
+                    <div className="h-8 w-16 animate-pulse rounded-lg bg-muted/80" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-muted/50" />
+                  </div>
+                  <div className="h-12 w-12 animate-pulse rounded-lg bg-muted/70" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Table Card Skeleton */}
+        <Card>
+          <CardHeader className="space-y-0 pb-4 pt-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
+              <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                <div className="h-11 flex-1 animate-pulse rounded-lg bg-muted/70" />
+                <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:w-[260px]" />
+                <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:w-[260px]" />
+              </div>
+              <div className="h-5 w-32 animate-pulse rounded bg-muted/60" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Table Header Skeleton */}
+            <div className="overflow-x-auto">
+              <div className="min-w-full">
+                <div className="flex items-center gap-4 border-b border-border pb-3 mb-3">
+                  {["Name", "Email", "Phone", "DOB", "Recent Note", "Agent", "Created", "Actions"].map((header, i) => (
+                    <div key={i} className={`h-4 animate-pulse rounded bg-muted/60 ${i === 0 ? "w-32" : i === 4 ? "w-40" : "w-24"}`} />
+                  ))}
+                </div>
+                
+                {/* Table Rows Skeleton */}
+                {[...Array(10)].map((_, rowIndex) => (
+                  <div key={rowIndex} className="flex items-center gap-4 border-b border-border/50 py-4">
+                    <div className="h-5 w-32 animate-pulse rounded bg-muted/70" />
+                    <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-24 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-40 animate-pulse rounded bg-muted/50" />
+                    <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-24 animate-pulse rounded bg-muted/60" />
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pagination Skeleton */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+                <div className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+                <div className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+                <div className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+                <div className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-bold">Call Logs Responses</h1>
+            <p className="text-muted-foreground">
+              Manage your call logs responses database
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <EmptyState
+              title="Error loading data"
+              description={error instanceof Error ? error.message : "An error occurred while loading customers"}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -439,7 +560,7 @@ export function CustomersClient({
           </div>
         </CardHeader>
         <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+          <TableLoadingOverlay isLoading={false} />
           {visibleCustomers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -32,9 +34,9 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
+import { getSales } from "@/lib/queries/sales";
+import { getUsers } from "@/lib/queries/users";
 
 const KARACHI_TIMEZONE = "Asia/Karachi";
 
@@ -48,34 +50,15 @@ function formatDateKarachi(date: string | Date): string {
 }
 
 interface SalesClientProps {
-  salesResponse: {
-    data: Sale[];
-    count: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    stats: {
-      totalRecords: number;
-      totalAmount: number;
-      grossChargedAmount: number;
-      chargebackImpactedAmount: number;
-      totalChargedAmount: number;
-      avgChargedAmount: number;
-      utilityCount: number;
-      insuranceCount: number;
-    };
-  };
-  agents: Array<{ id: string; full_name: string }>;
   userRole: UserRole;
   userId: string;
 }
 
-export function SalesClient({ salesResponse, agents, userRole, userId }: SalesClientProps) {
+export function SalesClient({ userRole, userId }: SalesClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currency } = useCurrency();
-  const [isPending, startTransition] = useTransition();
 
   const [saleToDelete, setSaleToDelete] = useState<{
     id: string;
@@ -83,7 +66,12 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
   } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const { data: sales, count, page, totalPages, pageSize, stats } = salesResponse;
+  const page = Number(searchParams.get("page")) || 1;
+  const typeFilter = searchParams.get("type") || "all";
+  const agentFilterParam = searchParams.get("agent_id") || "all";
+  const agentFilter = userRole === "sales_agent" ? userId : agentFilterParam;
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
 
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -97,19 +85,54 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
-  const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(
+  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } = useDebouncedUrlSearchInput(
     searchParams,
     updateFilters,
   );
-  const typeFilter = searchParams.get("type") || "all";
-  const agentFilter = searchParams.get("agent_id") || "all";
-  const fromDateFilter = searchParams.get("from_date") || "";
-  const toDateFilter = searchParams.get("to_date") || "";
+
+  // React Query for fetching sales
+  const { data: salesResponse, isLoading: salesLoading, error: salesError } = useQuery({
+    queryKey: ["sales", page, typeFilter, agentFilter, fromDateFilter, toDateFilter, urlSearch],
+    queryFn: () => getSales({
+      agent_id: agentFilter,
+      sale_type: typeFilter,
+      page,
+      pageSize: 10,
+      from_date: fromDateFilter,
+      to_date: toDateFilter,
+      search: urlSearch,
+    }),
+    staleTime: 30000,
+  });
+
+  // React Query for fetching users (agents)
+  const { data: usersResponse, isLoading: usersLoading } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => getUsers(),
+    staleTime: 30000,
+  });
+
+  const {
+    data: sales = [],
+    count = 0,
+    totalPages = 1,
+    pageSize = 10,
+    stats = {
+      totalRecords: 0,
+      totalAmount: 0,
+      grossChargedAmount: 0,
+      chargebackImpactedAmount: 0,
+      totalChargedAmount: 0,
+      avgChargedAmount: 0,
+      utilityCount: 0,
+      insuranceCount: 0,
+    },
+  } = salesResponse || {};
+
+  const agents = (usersResponse?.data || []).filter((u) => u.role === "sales_agent");
 
   const canCreate = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
 
@@ -131,6 +154,123 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
     }
     setDeleteLoading(false);
   };
+
+  const isLoading = salesLoading || usersLoading;
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-9 w-32 animate-pulse rounded-lg bg-muted/70" />
+            <div className="h-5 w-64 animate-pulse rounded bg-muted/50" />
+          </div>
+          <div className="h-11 w-32 animate-pulse rounded-lg bg-muted/70" />
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="h-3 w-24 animate-pulse rounded bg-muted/60" />
+                  <div className="h-7 w-7 animate-pulse rounded-md bg-muted/70" />
+                </div>
+                <div className="h-8 w-20 animate-pulse rounded-lg bg-muted/80" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Table Card Skeleton */}
+        <Card>
+          <CardHeader>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
+              <div className="h-11 animate-pulse rounded-lg bg-muted/70 sm:col-span-2 xl:col-span-4" />
+              <div className="h-11 animate-pulse rounded-lg bg-muted/70 xl:col-span-2" />
+              <div className="h-11 animate-pulse rounded-lg bg-muted/70 xl:col-span-2" />
+              <div className="h-11 animate-pulse rounded-lg bg-muted/70 sm:col-span-1 xl:col-span-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="min-w-full">
+                {/* Table Header */}
+                <div className="mb-3 flex items-center gap-4 border-b border-border pb-3">
+                  {["Customer", "Company", "Type", "Amount", "Agent", "Date", "Actions"].map((header, i) => (
+                    <div key={i} className={`h-4 animate-pulse rounded bg-muted/60 ${i === 0 ? "w-40" : i === 5 ? "w-32" : "w-24"}`} />
+                  ))}
+                </div>
+                
+                {/* Table Rows */}
+                {[...Array(10)].map((_, rowIndex) => (
+                  <div key={rowIndex} className="flex items-center gap-4 border-b border-border/50 py-4">
+                    <div className="w-40 space-y-1">
+                      <div className="h-5 w-32 animate-pulse rounded bg-muted/70" />
+                      <div className="h-3 w-28 animate-pulse rounded bg-muted/50" />
+                    </div>
+                    <div className="h-5 w-24 animate-pulse rounded bg-muted/60" />
+                    <div className="w-24 space-y-1">
+                      <div className="h-5 w-20 animate-pulse rounded bg-muted/70" />
+                      <div className="h-3 w-16 animate-pulse rounded bg-muted/50" />
+                    </div>
+                    <div className="h-5 w-24 animate-pulse rounded bg-muted/70" />
+                    <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
+                    <div className="w-32 space-y-1">
+                      <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
+                      <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
+                    </div>
+                    <div className="flex w-24 items-center justify-end gap-0.5">
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pagination Skeleton */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
+              <div className="flex items-center gap-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (salesError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Sales</h1>
+            <p className="text-muted-foreground">
+              {userRole === "processor" ? "View and search all sales" : "Track your sales pipeline"}
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <EmptyState
+              title="Error loading data"
+              description={salesError instanceof Error ? salesError.message : "An error occurred while loading sales"}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -280,7 +420,7 @@ export function SalesClient({ salesResponse, agents, userRole, userId }: SalesCl
           </div>
         </CardHeader>
         <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
+          <TableLoadingOverlay isLoading={false} />
           <div className="overflow-x-auto">
             {sales.length === 0 ? (
               <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />

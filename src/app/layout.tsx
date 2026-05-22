@@ -4,6 +4,7 @@ import "./globals.css";
 import "./landing.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { RouteLoadingProvider } from "@/components/providers/route-loading-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -39,14 +40,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} ${quicksand.variable} ${spaceMono.variable} antialiased`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <RouteLoadingProvider>{children}</RouteLoadingProvider>
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <RouteLoadingProvider>{children}</RouteLoadingProvider>
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );
