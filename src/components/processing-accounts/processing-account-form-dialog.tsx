@@ -19,7 +19,11 @@ import {
   getProcessingAccount,
 } from "@/lib/actions/processing-accounts";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
-import type { UserRole, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
+import type {
+  UserRole,
+  ProcessingAccountStatus,
+  ProcessingAccountType,
+} from "@/lib/types";
 import { Save, Building2, CreditCard } from "@/components/ui/icons";
 
 interface ProcessingAccountFormDialogProps {
@@ -28,11 +32,12 @@ interface ProcessingAccountFormDialogProps {
   userRole: UserRole;
   account?: {
     id: string;
-    account_holder_name: string;
-    billing_address: string;
+    account_holder_name: string | null;
+    billing_address: string | null;
     status: ProcessingAccountStatus | null;
     notes: string | null;
   } | null;
+  onSuccess?: () => void;
 }
 
 const emptyForm = {
@@ -53,6 +58,7 @@ export function ProcessingAccountFormDialog({
   onClose,
   userRole,
   account,
+  onSuccess,
 }: ProcessingAccountFormDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -67,16 +73,21 @@ export function ProcessingAccountFormDialog({
       setLoadingAccount(true);
       getProcessingAccount(account.id)
         .then((full) => {
-          const accountType = (full.account_type as ProcessingAccountType) || "checkin";
+          const accountType =
+            (full.account_type as ProcessingAccountType) || "checkin";
           const isAdmin = userRole === "super_admin";
           setForm({
             account_type: accountType,
             account_holder_name: full.account_holder_name || "",
             routing_number: full.routing_number || "",
             account_number: full.account_number || "",
-            card_number: isAdmin ? (full.card_number || "") : (full.card_number ? `****${full.card_number.slice(-4)}` : ""),
+            card_number: isAdmin
+              ? full.card_number || ""
+              : full.card_number
+                ? `****${full.card_number.slice(-4)}`
+                : "",
             expiration_date: full.expiration_date || "",
-            cvv: isAdmin ? (full.cvv || "") : (full.cvv ? "***" : ""),
+            cvv: isAdmin ? full.cvv || "" : full.cvv ? "***" : "",
             billing_address: full.billing_address || "",
             status: (full.status || "") as ProcessingAccountStatus | "",
             notes: full.notes || "",
@@ -97,7 +108,14 @@ export function ProcessingAccountFormDialog({
       setLoadingAccount(false);
     }
     setErrors({});
-  }, [open, account?.id, account?.account_holder_name, account?.billing_address, account?.notes, account?.status]);
+  }, [
+    open,
+    account?.id,
+    account?.account_holder_name,
+    account?.billing_address,
+    account?.notes,
+    account?.status,
+  ]);
 
   const handleClose = () => {
     onClose();
@@ -134,10 +152,10 @@ export function ProcessingAccountFormDialog({
         }
         router.refresh();
         handleClose();
+        onSuccess?.();
       } catch (error) {
         setErrors({
-          submit:
-            error instanceof Error ? error.message : "An error occurred",
+          submit: error instanceof Error ? error.message : "An error occurred",
         });
       }
     });
@@ -182,9 +200,7 @@ export function ProcessingAccountFormDialog({
             </button>
             <button
               type="button"
-              onClick={() =>
-                setForm((f) => ({ ...f, account_type: "card" }))
-              }
+              onClick={() => setForm((f) => ({ ...f, account_type: "card" }))}
               className={`flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                 isCard
                   ? "bg-primary text-primary-foreground"
@@ -313,7 +329,10 @@ export function ProcessingAccountFormDialog({
                 status: e.target.value as ProcessingAccountStatus | "",
               }))
             }
-            options={[{ value: "", label: "Not set" }, ...PROCESSING_ACCOUNT_STATUSES]}
+            options={[
+              { value: "", label: "Not set" },
+              ...PROCESSING_ACCOUNT_STATUSES,
+            ]}
             placeholder="Select status"
           />
 

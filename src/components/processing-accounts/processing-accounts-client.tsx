@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,6 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ProcessingAccountFormDialog } from "./processing-account-form-dialog";
@@ -26,8 +27,15 @@ import { DeleteProcessingAccountButton } from "./delete-processing-account-butto
 import { NotifyAdminDialog } from "./notify-admin-dialog";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
 import type { UserRole, ProcessingAccountStatus } from "@/lib/types";
-import type { ProcessingAccountStats } from "@/lib/actions/processing-accounts";
-import { updateProcessingAccountNotes, updateProcessingAccountStatus } from "@/lib/actions/processing-accounts";
+import {
+  updateProcessingAccountNotes,
+  updateProcessingAccountStatus,
+} from "@/lib/actions/processing-accounts";
+import {
+  getProcessingAccounts,
+  getProcessingAccountStats,
+} from "@/lib/queries/processing-accounts";
+import type { ProcessingAccountStats } from "@/lib/queries/processing-accounts";
 import {
   Plus,
   FileUp,
@@ -45,56 +53,92 @@ import {
   Save,
   ChevronDown,
 } from "@/components/ui/icons";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { formatDate } from "@/lib/utils";
-import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
+import {
+  DropdownRangeDatePicker,
+  toDateRangeFromFilters,
+  toFilterDates,
+} from "@/components/ui/dropdown-range-date-picker";
 
 interface ProcessingAccountRow {
   id: string;
   account_type: string;
-  account_holder_name: string;
+  account_holder_name: string | null;
   routing_number: string;
   account_number: string;
   card_number: string;
   expiration_date: string;
   cvv: string;
-  billing_address: string;
+  billing_address: string | null;
   status: ProcessingAccountStatus | null;
   notes: string | null;
-  created_at: string;
+  created_at: string | unknown;
+  [key: string]: unknown;
 }
 
 interface ProcessingAccountsClientProps {
-  accountsResponse: {
-    data: ProcessingAccountRow[];
-    count: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  };
-  stats: ProcessingAccountStats;
   userRole: UserRole;
 }
 
 const statusConfig: Record<
   ProcessingAccountStatus,
-  { label: string; variant: "success" | "destructive" | "warning" | "secondary" | "default"; icon: React.ComponentType<{ className?: string }> }
+  {
+    label: string;
+    variant: "success" | "destructive" | "warning" | "secondary" | "default";
+    icon: React.ComponentType<{ className?: string }>;
+  }
 > = {
   active: { label: "Active", variant: "success", icon: CheckCircle },
-  not_working: { label: "Not Working", variant: "destructive", icon: AlertTriangle },
+  not_working: {
+    label: "Not Working",
+    variant: "destructive",
+    icon: AlertTriangle,
+  },
   closed: { label: "Closed", variant: "secondary", icon: XCircle },
-  reversal_issue: { label: "Reversal Issue", variant: "warning", icon: AlertOctagon },
+  reversal_issue: {
+    label: "Reversal Issue",
+    variant: "warning",
+    icon: AlertOctagon,
+  },
   under_review: { label: "Under Review", variant: "default", icon: Clock },
 };
 
 // ─── Status color map for inline dropdown badge ───────────────────────────────
-const statusColors: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  active:         { bg: "bg-emerald-500/15 dark:bg-emerald-500/20", text: "text-emerald-700 dark:text-emerald-400", border: "border-emerald-500/40", dot: "bg-emerald-500" },
-  not_working:    { bg: "bg-red-500/15 dark:bg-red-500/20",         text: "text-red-700 dark:text-red-400",         border: "border-red-500/40",     dot: "bg-red-500" },
-  closed:         { bg: "bg-slate-500/15 dark:bg-slate-500/20",     text: "text-slate-600 dark:text-slate-400",     border: "border-slate-500/40",   dot: "bg-slate-500" },
-  reversal_issue: { bg: "bg-amber-500/15 dark:bg-amber-500/20",     text: "text-amber-700 dark:text-amber-400",     border: "border-amber-500/40",   dot: "bg-amber-500" },
-  under_review:   { bg: "bg-blue-500/15 dark:bg-blue-500/20",       text: "text-blue-700 dark:text-blue-400",       border: "border-blue-500/40",    dot: "bg-blue-500" },
+const statusColors: Record<
+  string,
+  { bg: string; text: string; border: string; dot: string }
+> = {
+  active: {
+    bg: "bg-emerald-500/15 dark:bg-emerald-500/20",
+    text: "text-emerald-700 dark:text-emerald-400",
+    border: "border-emerald-500/40",
+    dot: "bg-emerald-500",
+  },
+  not_working: {
+    bg: "bg-red-500/15 dark:bg-red-500/20",
+    text: "text-red-700 dark:text-red-400",
+    border: "border-red-500/40",
+    dot: "bg-red-500",
+  },
+  closed: {
+    bg: "bg-slate-500/15 dark:bg-slate-500/20",
+    text: "text-slate-600 dark:text-slate-400",
+    border: "border-slate-500/40",
+    dot: "bg-slate-500",
+  },
+  reversal_issue: {
+    bg: "bg-amber-500/15 dark:bg-amber-500/20",
+    text: "text-amber-700 dark:text-amber-400",
+    border: "border-amber-500/40",
+    dot: "bg-amber-500",
+  },
+  under_review: {
+    bg: "bg-blue-500/15 dark:bg-blue-500/20",
+    text: "text-blue-700 dark:text-blue-400",
+    border: "border-blue-500/40",
+    dot: "bg-blue-500",
+  },
 };
 
 // ─── Inline Status Dropdown ───────────────────────────────────────────────────
@@ -113,7 +157,8 @@ function StatusDropdown({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -147,7 +192,7 @@ function StatusDropdown({
           saving && "opacity-50 cursor-wait",
           colors
             ? cn(colors.bg, colors.text, colors.border)
-            : "border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary/50 hover:text-primary bg-transparent"
+            : "border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary/50 hover:text-primary bg-transparent",
         )}
         title="Click to change status"
       >
@@ -157,7 +202,12 @@ function StatusDropdown({
           <span className={cn("h-2 w-2 rounded-full shrink-0", colors.dot)} />
         ) : null}
         <span>{current?.label ?? "Set status"}</span>
-        <ChevronDown className={cn("h-3 w-3 opacity-50 transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 opacity-50 transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open && (
@@ -176,13 +226,24 @@ function StatusDropdown({
                     "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors text-left",
                     isSelected
                       ? cn(c.bg, c.text, "font-bold")
-                      : "hover:bg-muted text-foreground"
+                      : "hover:bg-muted text-foreground",
                   )}
                 >
-                  <span className={cn("h-2 w-2 rounded-full shrink-0", c.dot)} />
-                  {Icon && <Icon className={cn("h-3.5 w-3.5 shrink-0", isSelected ? c.text : "text-muted-foreground")} />}
+                  <span
+                    className={cn("h-2 w-2 rounded-full shrink-0", c.dot)}
+                  />
+                  {Icon && (
+                    <Icon
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0",
+                        isSelected ? c.text : "text-muted-foreground",
+                      )}
+                    />
+                  )}
                   {label}
-                  {isSelected && <span className={cn("ml-auto text-xs", c.text)}>✓</span>}
+                  {isSelected && (
+                    <span className={cn("ml-auto text-xs", c.text)}>✓</span>
+                  )}
                 </button>
               );
             })}
@@ -230,7 +291,12 @@ function ViewAccountDialog({
       <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <span className={cn("text-sm font-medium text-foreground break-all", mono && "font-mono")}>
+      <span
+        className={cn(
+          "text-sm font-medium text-foreground break-all",
+          mono && "font-mono",
+        )}
+      >
         {value || <span className="text-muted-foreground">—</span>}
       </span>
     </div>
@@ -250,17 +316,22 @@ function ViewAccountDialog({
               .toUpperCase() || "?"}
           </div>
           <div>
-            <DialogTitle>{account.account_holder_name || "Account Details"}</DialogTitle>
+            <DialogTitle>
+              {account.account_holder_name || "Account Details"}
+            </DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isCard ? "Credit / Debit Card" : "CheckIn Account"} ·{" "}
-              {formatDate(account.created_at)}
+              {formatDate(String(account.created_at || ""))}
             </p>
           </div>
         </div>
       </DialogHeader>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <DetailRow label="Account Type" value={isCard ? "Credit / Debit Card" : "CheckIn Account"} />
+        <DetailRow
+          label="Account Type"
+          value={isCard ? "Credit / Debit Card" : "CheckIn Account"}
+        />
         <DetailRow
           label="Status"
           value={
@@ -274,18 +345,40 @@ function ViewAccountDialog({
         />
         {isCard ? (
           <>
-            <DetailRow 
-              label="Card Number" 
-              value={userRole === "super_admin" ? account.card_number : (account.card_number ? `****${account.card_number.trim().slice(-4)}` : "—")} 
-              mono 
+            <DetailRow
+              label="Card Number"
+              value={
+                userRole === "super_admin"
+                  ? account.card_number
+                  : account.card_number
+                    ? `****${account.card_number.trim().slice(-4)}`
+                    : "—"
+              }
+              mono
             />
-            <DetailRow label="Expiry Date" value={account.expiration_date} mono />
-            <DetailRow label="CVV" value={userRole === "super_admin" ? account.cvv : "—"} mono />
+            <DetailRow
+              label="Expiry Date"
+              value={account.expiration_date}
+              mono
+            />
+            <DetailRow
+              label="CVV"
+              value={userRole === "super_admin" ? account.cvv : "—"}
+              mono
+            />
           </>
         ) : (
           <>
-            <DetailRow label="Routing Number" value={account.routing_number} mono />
-            <DetailRow label="Account Number" value={account.account_number} mono />
+            <DetailRow
+              label="Routing Number"
+              value={account.routing_number}
+              mono
+            />
+            <DetailRow
+              label="Account Number"
+              value={account.account_number}
+              mono
+            />
           </>
         )}
         <div className="sm:col-span-2">
@@ -294,10 +387,19 @@ function ViewAccountDialog({
         <div className="sm:col-span-2">
           <DetailRow
             label="Notes"
-            value={account.notes || <span className="text-muted-foreground italic">No notes added</span>}
+            value={
+              account.notes || (
+                <span className="text-muted-foreground italic">
+                  No notes added
+                </span>
+              )
+            }
           />
         </div>
-        <DetailRow label="Created On" value={formatDate(account.created_at)} />
+        <DetailRow
+          label="Created On"
+          value={formatDate(String(account.created_at || ""))}
+        />
       </div>
     </Dialog>
   );
@@ -363,13 +465,18 @@ function NotesPopover({
           "inline-flex h-8 min-w-[88px] items-center justify-between gap-1 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap",
           hasNotes
             ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
-            : "border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            : "border border-border text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
         title={hasNotes ? "View / Edit Notes" : "Add Notes"}
       >
         <StickyNote className="h-3.5 w-3.5 shrink-0" />
         <span>{hasNotes ? "Notes" : "Add Note"}</span>
-        <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 shrink-0 transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open && (
@@ -415,39 +522,29 @@ function NotesPopover({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function ProcessingAccountsClient({
-  accountsResponse,
-  stats,
   userRole,
 }: ProcessingAccountsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
 
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<ProcessingAccountRow | null>(null);
-  const [viewingAccount, setViewingAccount] = useState<ProcessingAccountRow | null>(null);
+  const [editingAccount, setEditingAccount] =
+    useState<ProcessingAccountRow | null>(null);
+  const [viewingAccount, setViewingAccount] =
+    useState<ProcessingAccountRow | null>(null);
   const [notifyAccountId, setNotifyAccountId] = useState<string | null>(null);
 
-  const {
-    data: initialAccounts,
-    count,
-    page,
-    totalPages,
-    pageSize,
-  } = accountsResponse;
-
-  // Local state for optimistic status updates
-  const [accounts, setAccounts] = useState(initialAccounts);
-
-  // Sync when server data changes (pagination/filter navigation)
-  useEffect(() => {
-    setAccounts(initialAccounts);
-  }, [initialAccounts]);
+  const page = Number(searchParams.get("page")) || 1;
+  const statusFilter = searchParams.get("status") || "all";
+  const accountTypeFilter = searchParams.get("account_type") || "all";
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
 
   const updateFilters = (
-    updates: Record<string, string | number | undefined>
+    updates: Record<string, string | number | undefined>,
   ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -460,24 +557,196 @@ export function ProcessingAccountsClient({
     if (!updates.page) {
       params.delete("page");
     }
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
-  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
-    useDebouncedUrlSearchInput(searchParams, updateFilters);
-  const statusFilter = searchParams.get("status") || "all";
-  const accountTypeFilter = searchParams.get("account_type") || "all";
-  const fromDateFilter = searchParams.get("from_date") || "";
-  const toDateFilter = searchParams.get("to_date") || "";
+  const {
+    inputRef,
+    inputValue: searchInput,
+    onInputChange,
+    urlValue: urlSearch,
+  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
 
-  const canManage = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
+  // React Query for fetching accounts
+  const {
+    data: accountsResponse,
+    isLoading: accountsLoading,
+    error: accountsError,
+  } = useQuery({
+    queryKey: [
+      "processing-accounts",
+      page,
+      urlSearch,
+      statusFilter,
+      accountTypeFilter,
+      fromDateFilter,
+      toDateFilter,
+    ],
+    queryFn: () =>
+      getProcessingAccounts({
+        page,
+        pageSize: 10,
+        search: urlSearch,
+        status: statusFilter as ProcessingAccountStatus | "all",
+        from_date: fromDateFilter,
+        to_date: toDateFilter,
+        account_type: accountTypeFilter,
+      }),
+    staleTime: 30000,
+  });
+
+  // React Query for fetching stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: [
+      "processing-accounts-stats",
+      urlSearch,
+      fromDateFilter,
+      toDateFilter,
+      accountTypeFilter,
+    ],
+    queryFn: () =>
+      getProcessingAccountStats({
+        search: urlSearch,
+        from_date: fromDateFilter,
+        to_date: toDateFilter,
+        account_type: accountTypeFilter,
+      }),
+    staleTime: 30000,
+  });
+
+  const {
+    data: initialAccounts = [],
+    count = 0,
+    totalPages = 1,
+    pageSize = 10,
+  } = accountsResponse || {};
+
+  // Delete processing account mutation with optimistic updates
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const { deleteProcessingAccount } =
+        await import("@/lib/actions/processing-accounts");
+      return deleteProcessingAccount(accountId);
+    },
+    onMutate: async (accountId: string) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({
+        queryKey: ["processing-accounts"],
+      });
+
+      // Snapshot previous data
+      const mainQueryKey = [
+        "processing-accounts",
+        page,
+        urlSearch,
+        statusFilter,
+        accountTypeFilter,
+        fromDateFilter,
+        toDateFilter,
+      ];
+      const previousAccountsResponse = queryClient.getQueryData(mainQueryKey);
+
+      // Snapshot stats query
+      const statsQueryKey = [
+        "processing-accounts-stats",
+        urlSearch,
+        fromDateFilter,
+        toDateFilter,
+        accountTypeFilter,
+      ];
+      const previousStats = queryClient.getQueryData(statsQueryKey);
+
+      // Optimistically update main query cache
+      queryClient.setQueryData(mainQueryKey, (old: typeof accountsResponse) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.filter((a: any) => a.id !== accountId),
+          count: Math.max(0, old.count - 1),
+          totalPages: Math.max(1, Math.ceil((old.count - 1) / old.pageSize)),
+        };
+      });
+
+      return { previousAccountsResponse, previousStats };
+    },
+    onError: (_err, _accountId, context) => {
+      // Rollback on error
+      if (context?.previousAccountsResponse) {
+        const mainQueryKey = [
+          "processing-accounts",
+          page,
+          urlSearch,
+          statusFilter,
+          accountTypeFilter,
+          fromDateFilter,
+          toDateFilter,
+        ];
+        queryClient.setQueryData(
+          mainQueryKey,
+          context.previousAccountsResponse,
+        );
+      }
+      if (context?.previousStats) {
+        const statsQueryKey = [
+          "processing-accounts-stats",
+          urlSearch,
+          fromDateFilter,
+          toDateFilter,
+          accountTypeFilter,
+        ];
+        queryClient.setQueryData(statsQueryKey, context.previousStats);
+      }
+    },
+    onSuccess: () => {
+      // Invalidate both queries
+      queryClient.invalidateQueries({
+        queryKey: ["processing-accounts"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["processing-accounts-stats"],
+      });
+    },
+  });
+
+  // Create processing account mutation with invalidation
+  const createAccountMutation = useMutation({
+    mutationFn: async () => {
+      // Mutation is triggered via ProcessingAccountFormDialog.onSuccess
+      // This just invalidates queries after successful creation
+    },
+    onSuccess: () => {
+      // Invalidate both queries
+      queryClient.invalidateQueries({
+        queryKey: ["processing-accounts"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["processing-accounts-stats"],
+      });
+    },
+  });
+
+  const defaultStats: ProcessingAccountStats = {
+    total: 0,
+    active: 0,
+    not_working: 0,
+    closed: 0,
+    reversal_issue: 0,
+    under_review: 0,
+  };
+
+  const currentStats = stats || defaultStats;
+
+  const canManage =
+    userRole === "super_admin" ||
+    userRole === "sales_agent" ||
+    userRole === "processor";
+
+  const isLoading = accountsLoading || statsLoading;
 
   const statCards = [
     {
       label: "Active Accounts",
-      value: stats.active,
+      value: currentStats.active,
       icon: CheckCircle,
       color: "text-success",
       bgColor: "bg-success/10",
@@ -486,7 +755,7 @@ export function ProcessingAccountsClient({
     },
     {
       label: "Not Working",
-      value: stats.not_working,
+      value: currentStats.not_working,
       icon: AlertTriangle,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
@@ -495,7 +764,7 @@ export function ProcessingAccountsClient({
     },
     {
       label: "Closed",
-      value: stats.closed,
+      value: currentStats.closed,
       icon: XCircle,
       color: "text-muted-foreground",
       bgColor: "bg-muted",
@@ -504,7 +773,7 @@ export function ProcessingAccountsClient({
     },
     {
       label: "Reversal Issues",
-      value: stats.reversal_issue,
+      value: currentStats.reversal_issue,
       icon: AlertOctagon,
       color: "text-warning",
       bgColor: "bg-warning/10",
@@ -513,7 +782,7 @@ export function ProcessingAccountsClient({
     },
     {
       label: "Under Review",
-      value: stats.under_review,
+      value: currentStats.under_review,
       icon: Clock,
       color: "text-primary",
       bgColor: "bg-primary/10",
@@ -521,6 +790,137 @@ export function ProcessingAccountsClient({
       filterValue: "under_review",
     },
   ];
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-9 w-64 animate-pulse rounded-lg bg-muted/70" />
+            <div className="h-5 w-96 animate-pulse rounded bg-muted/50" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="h-11 w-48 animate-pulse rounded-lg bg-muted/70" />
+            <div className="h-11 w-56 animate-pulse rounded-lg bg-muted/70" />
+          </div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="h-4 w-24 animate-pulse rounded bg-muted/60" />
+                    <div className="h-8 w-16 animate-pulse rounded-lg bg-muted/80" />
+                  </div>
+                  <div className="h-12 w-12 animate-pulse rounded-full bg-muted/70" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Table Card Skeleton */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="h-6 w-32 animate-pulse rounded bg-muted/70" />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:min-w-[280px]" />
+                <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:w-[190px]" />
+                <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:w-[180px]" />
+                <div className="h-11 w-full animate-pulse rounded-lg bg-muted/70 sm:w-[260px]" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="min-w-full">
+                {/* Table Header */}
+                <div className="mb-3 flex items-center gap-4 border-b border-border pb-3">
+                  {[
+                    "Account Holder",
+                    "Type",
+                    "Routing/Card",
+                    "Account/Expiry",
+                    "CVV",
+                    "Address",
+                    "Status",
+                    "Date",
+                    "Actions",
+                  ].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-4 w-24 animate-pulse rounded bg-muted/60"
+                    />
+                  ))}
+                </div>
+
+                {/* Table Rows */}
+                {[...Array(10)].map((_, rowIndex) => (
+                  <div
+                    key={rowIndex}
+                    className="flex items-center gap-4 border-b border-border/50 py-4"
+                  >
+                    <div className="flex w-40 items-center gap-3">
+                      <div className="h-9 w-9 animate-pulse rounded-full bg-muted/70" />
+                      <div className="h-5 w-24 animate-pulse rounded bg-muted/70" />
+                    </div>
+                    <div className="h-6 w-20 animate-pulse rounded-full bg-muted/70" />
+                    <div className="h-5 w-32 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-32 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-12 animate-pulse rounded bg-muted/60" />
+                    <div className="h-5 w-40 animate-pulse rounded bg-muted/50" />
+                    <div className="h-6 w-24 animate-pulse rounded-md bg-muted/70" />
+                    <div className="h-5 w-24 animate-pulse rounded bg-muted/60" />
+                    <div className="flex w-32 items-center justify-end gap-1.5">
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-20 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-16 animate-pulse rounded bg-muted/70" />
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                      <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (accountsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Processing Database</h1>
+            <p className="text-muted-foreground">
+              Manage checking accounts used for daily sales processing
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <EmptyState
+              title="Error loading data"
+              description={
+                accountsError instanceof Error
+                  ? accountsError.message
+                  : "An error occurred while loading processing accounts"
+              }
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -553,7 +953,7 @@ export function ProcessingAccountsClient({
               className={cn(
                 "cursor-pointer bg-gradient-to-br transition-all hover:shadow-md",
                 stat.cardTint,
-                isActive ? "ring-2 ring-primary/60" : ""
+                isActive ? "ring-2 ring-primary/60" : "",
               )}
               onClick={() =>
                 updateFilters({
@@ -567,7 +967,9 @@ export function ProcessingAccountsClient({
                     <p className="text-sm font-medium text-muted-foreground">
                       {stat.label}
                     </p>
-                    <p className={cn("mt-2 text-3xl font-semibold", stat.color)}>
+                    <p
+                      className={cn("mt-2 text-3xl font-semibold", stat.color)}
+                    >
                       {stat.value}
                     </p>
                   </div>
@@ -602,7 +1004,9 @@ export function ProcessingAccountsClient({
               <Select
                 id="account_type_filter"
                 value={accountTypeFilter}
-                onChange={(e) => updateFilters({ account_type: e.target.value })}
+                onChange={(e) =>
+                  updateFilters({ account_type: e.target.value })
+                }
                 options={[
                   { value: "all", label: "All Types" },
                   { value: "checkin", label: "CheckIn" },
@@ -622,13 +1026,17 @@ export function ProcessingAccountsClient({
               />
               <DropdownRangeDatePicker
                 value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
-                onApply={(range) => updateFilters({ ...toFilterDates(range), page: 1 })}
+                onApply={(range) =>
+                  updateFilters({ ...toFilterDates(range), page: 1 })
+                }
                 triggerClassName="h-11 w-full justify-start text-left font-normal sm:w-[260px]"
               />
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">{count} accounts found</p>
+            <p className="text-sm text-muted-foreground">
+              {count} accounts found
+            </p>
             <TableDataExport
               filenameBase="processing-accounts"
               headers={[
@@ -644,35 +1052,45 @@ export function ProcessingAccountsClient({
                 "Notes",
                 "Date",
               ]}
-              rows={accounts.map((a) => [
-                a.account_type === "card" ? "Credit/Debit Card" : "CheckIn Account",
-                a.account_holder_name,
+              rows={initialAccounts.map((a) => [
+                a.account_type === "card"
+                  ? "Credit/Debit Card"
+                  : "CheckIn Account",
+                a.account_holder_name || "",
                 a.routing_number,
                 a.account_number,
                 a.card_number,
                 a.expiration_date,
                 a.cvv,
-                a.billing_address,
+                a.billing_address || "",
                 a.status ? statusConfig[a.status].label : "",
                 a.notes || "",
-                formatDate(a.created_at),
+                formatDate(String(a.created_at || "")),
               ])}
-              disabled={accounts.length === 0}
+              disabled={initialAccounts.length === 0}
             />
           </div>
         </CardHeader>
         <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
-          {accounts.length === 0 ? (
+          {initialAccounts.length === 0 ? (
             <EmptyState
               title="No processing accounts found"
               description={
-                urlSearch || statusFilter !== "all" || accountTypeFilter !== "all" || fromDateFilter || toDateFilter
+                urlSearch ||
+                statusFilter !== "all" ||
+                accountTypeFilter !== "all" ||
+                fromDateFilter ||
+                toDateFilter
                   ? "Try adjusting your search or filters"
                   : "Add your first processing account to get started"
               }
               action={
-                canManage && !urlSearch && statusFilter === "all" && accountTypeFilter === "all" && !fromDateFilter && !toDateFilter ? (
+                canManage &&
+                !urlSearch &&
+                statusFilter === "all" &&
+                accountTypeFilter === "all" &&
+                !fromDateFilter &&
+                !toDateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Processing Account
                   </Button>
@@ -686,8 +1104,12 @@ export function ProcessingAccountsClient({
                   <TableRow>
                     <TableHead>Account Holder Name</TableHead>
                     <TableHead className="min-w-[90px]">Type</TableHead>
-                    <TableHead className="min-w-[160px]">Routing / Card No.</TableHead>
-                    <TableHead className="min-w-[160px]">Account No. / Expiry</TableHead>
+                    <TableHead className="min-w-[160px]">
+                      Routing / Card No.
+                    </TableHead>
+                    <TableHead className="min-w-[160px]">
+                      Account No. / Expiry
+                    </TableHead>
                     <TableHead className="min-w-[60px]">CVV</TableHead>
                     <TableHead>Billing Address</TableHead>
                     <TableHead>Status</TableHead>
@@ -696,8 +1118,10 @@ export function ProcessingAccountsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {accounts.map((account) => {
-                    const status = account.status ? statusConfig[account.status] : null;
+                  {initialAccounts.map((account) => {
+                    const status = account.status
+                      ? statusConfig[account.status]
+                      : null;
                     const StatusIcon = status?.icon;
                     return (
                       <TableRow key={account.id}>
@@ -732,10 +1156,12 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
                           {account.account_type === "card"
-                            ? (userRole === "super_admin" 
-                                ? (account.card_number?.trim() || "—")
-                                : (account.card_number?.trim() ? `****${account.card_number.trim().slice(-4)}` : "—"))
-                            : (account.routing_number?.trim() || "—")}
+                            ? userRole === "super_admin"
+                              ? account.card_number?.trim() || "—"
+                              : account.card_number?.trim()
+                                ? `****${account.card_number.trim().slice(-4)}`
+                                : "—"
+                            : account.routing_number?.trim() || "—"}
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
                           {account.account_type === "card"
@@ -744,13 +1170,19 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap">
                           {account.account_type === "card"
-                            ? (userRole === "super_admin" ? (account.cvv?.trim() || "—") : "—")
+                            ? userRole === "super_admin"
+                              ? account.cvv?.trim() || "—"
+                              : "—"
                             : "—"}
                         </TableCell>
                         <TableCell className="align-middle">
                           <span
                             className="block max-w-[200px] truncate text-sm"
-                            title={account.billing_address}
+                            title={
+                              account.billing_address
+                                ? account.billing_address
+                                : undefined
+                            }
                           >
                             {account.billing_address}
                           </span>
@@ -759,17 +1191,13 @@ export function ProcessingAccountsClient({
                           <StatusDropdown
                             accountId={account.id}
                             currentStatus={account.status}
-                            onStatusChange={(newStatus) => {
-                              setAccounts((prev) =>
-                                prev.map((a) =>
-                                  a.id === account.id ? { ...a, status: newStatus } : a
-                                )
-                              );
+                            onStatusChange={() => {
+                              // Status updated on server, React Query will refetch
                             }}
                           />
                         </TableCell>
                         <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDate(account.created_at)}
+                          {formatDate(String(account.created_at || ""))}
                         </TableCell>
                         <TableCell className="align-middle text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -810,7 +1238,12 @@ export function ProcessingAccountsClient({
                                 </button>
                                 <DeleteProcessingAccountButton
                                   id={account.id}
-                                  name={account.account_holder_name}
+                                  name={String(
+                                    account.account_holder_name ?? "",
+                                  )}
+                                  onDeleted={() =>
+                                    deleteAccountMutation.mutate(account.id)
+                                  }
                                 />
                               </>
                             )}
@@ -855,6 +1288,7 @@ export function ProcessingAccountsClient({
           open={showForm}
           userRole={userRole}
           onClose={() => setShowForm(false)}
+          onSuccess={() => createAccountMutation.mutate()}
         />
       )}
 

@@ -11,7 +11,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
-import { createCustomer, getCustomerSsnForEdit, updateCustomer } from "@/lib/actions/customers";
+import {
+  createCustomer,
+  getCustomerSsnForEdit,
+  updateCustomer,
+} from "@/lib/actions/customers";
 import { createNote } from "@/lib/actions/notes";
 import { Pencil } from "@/components/ui/icons";
 
@@ -27,12 +31,14 @@ interface CustomerFormDialogProps {
   };
   open?: boolean;
   onClose?: () => void;
+  onSuccess?: () => void;
 }
 
 export function CustomerFormDialog({
   customer,
   open: externalOpen,
   onClose: externalClose,
+  onSuccess,
 }: CustomerFormDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = externalOpen ?? internalOpen;
@@ -83,15 +89,22 @@ export function CustomerFormDialog({
       if (isEdit) {
         await updateCustomer(customer.id, form);
         if (form.notes.trim()) {
-          await createNote({ customer_id: customer.id, content: form.notes.trim() });
+          await createNote({
+            customer_id: customer.id,
+            content: form.notes.trim(),
+          });
         }
       } else {
         const newCustomerId = await createCustomer(form);
         if (form.notes.trim()) {
-          await createNote({ customer_id: newCustomerId, content: form.notes.trim() });
+          await createNote({
+            customer_id: newCustomerId,
+            content: form.notes.trim(),
+          });
         }
       }
       close();
+      onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     }
@@ -109,7 +122,9 @@ export function CustomerFormDialog({
   return (
     <Dialog open={isOpen} onClose={close}>
       <DialogHeader>
-        <DialogTitle>{isEdit ? "Edit Call Log Response" : "New Call Log Response"}</DialogTitle>
+        <DialogTitle>
+          {isEdit ? "Edit Call Log Response" : "New Call Log Response"}
+        </DialogTitle>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4 mt-4" noValidate>
         <Input
@@ -164,7 +179,9 @@ export function CustomerFormDialog({
           label="Account Number"
           placeholder="Account / Policy No."
           value={form.account_no}
-          onChange={(e) => setForm((f) => ({ ...f, account_no: e.target.value }))}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, account_no: e.target.value }))
+          }
         />
         <Textarea
           id="notes"
@@ -174,9 +191,7 @@ export function CustomerFormDialog({
           onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
         />
 
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={close}>

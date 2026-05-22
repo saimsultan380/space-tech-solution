@@ -16,11 +16,13 @@ import { Trash2 } from "@/components/ui/icons";
 interface DeleteProcessingAccountButtonProps {
   id: string;
   name: string;
+  onDeleted?: () => void;
 }
 
 export function DeleteProcessingAccountButton({
   id,
   name,
+  onDeleted,
 }: DeleteProcessingAccountButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -32,6 +34,7 @@ export function DeleteProcessingAccountButton({
         await deleteProcessingAccount(id);
         router.refresh();
         setOpen(false);
+        onDeleted?.();
       } catch (error) {
         console.error("Failed to delete processing account:", error);
       }

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,13 +21,48 @@ import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  getDashboardStats,
+  getSalesPerAgent,
+  getSalesPerProcessor,
+  getRevenueOverTime,
+  getChargebacksPerEmployee,
+  getAttendanceVsPerformance,
+  getEmployeeMonthlyStats,
+} from "@/lib/queries/reports";
 
-const SalesPerAgentChart = dynamic(() => import("./charts/sales-per-agent-chart").then((m) => m.SalesPerAgentChart), { ssr: false });
-const SalesPerProcessorChart = dynamic(() => import("./charts/sales-per-processor-chart").then((m) => m.SalesPerProcessorChart), { ssr: false });
-const RevenueChart = dynamic(() => import("./charts/revenue-chart").then((m) => m.RevenueChart), { ssr: false });
-const ChargebacksChart = dynamic(() => import("./charts/chargebacks-chart").then((m) => m.ChargebacksChart), { ssr: false });
-const AttendancePerformanceChart = dynamic(() => import("./charts/attendance-performance-chart").then((m) => m.AttendancePerformanceChart), { ssr: false });
-const ConversionChart = dynamic(() => import("./charts/conversion-chart").then((m) => m.ConversionChart), { ssr: false });
+const SalesPerAgentChart = dynamic(
+  () =>
+    import("./charts/sales-per-agent-chart").then((m) => m.SalesPerAgentChart),
+  { ssr: false },
+);
+const SalesPerProcessorChart = dynamic(
+  () =>
+    import("./charts/sales-per-processor-chart").then(
+      (m) => m.SalesPerProcessorChart,
+    ),
+  { ssr: false },
+);
+const RevenueChart = dynamic(
+  () => import("./charts/revenue-chart").then((m) => m.RevenueChart),
+  { ssr: false },
+);
+const ChargebacksChart = dynamic(
+  () => import("./charts/chargebacks-chart").then((m) => m.ChargebacksChart),
+  { ssr: false },
+);
+const AttendancePerformanceChart = dynamic(
+  () =>
+    import("./charts/attendance-performance-chart").then(
+      (m) => m.AttendancePerformanceChart,
+    ),
+  { ssr: false },
+);
+const ConversionChart = dynamic(
+  () => import("./charts/conversion-chart").then((m) => m.ConversionChart),
+  { ssr: false },
+);
 import {
   DollarSign,
   ShoppingCart,
@@ -52,43 +88,13 @@ interface EmployeeStat {
 }
 
 interface ReportsClientProps {
-  stats: {
-    totalSales: number;
-    totalRevenue: number;
-    pendingSales: number;
-    approvedSales: number;
-    rejectedSales: number;
-    totalChargebacks: number;
-    openChargebacks: number;
-    totalCallLogs: number;
-    totalProcessingAccounts: number;
-    totalCustomers: number;
-    conversionRate: string;
-  };
-  salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }>;
-  salesPerProcessor: Array<{ name: string; total: number; approved: number; rejected: number }>;
-  revenueData: {
-    daily: Array<{ date: string; revenue: number }>;
-    weekly: Array<{ date: string; revenue: number }>;
-    monthly: Array<{ date: string; revenue: number }>;
-  };
-  chargebacksPerEmployee: Array<{ name: string; count: number }>;
-  attendanceVsPerformance: Array<{ name: string; attendance_days: number; approved_sales: number }>;
-  employeeMonthlyStats: EmployeeStat[];
   month: string;
 }
 
-export function ReportsClient({
-  stats,
-  salesPerAgent,
-  salesPerProcessor,
-  revenueData,
-  chargebacksPerEmployee,
-  attendanceVsPerformance,
-  employeeMonthlyStats,
-  month,
-}: ReportsClientProps) {
-  const [revenuePeriod, setRevenuePeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+export function ReportsClient({ month }: ReportsClientProps) {
+  const [revenuePeriod, setRevenuePeriod] = useState<
+    "daily" | "weekly" | "monthly"
+  >("daily");
   const { currency } = useCurrency();
   const router = useRouter();
   const pathname = usePathname();
@@ -97,14 +103,107 @@ export function ReportsClient({
 
   const [selectedMonth, setSelectedMonth] = useState(month);
 
+  // React Query hooks for fetching data
+  const {
+    data: stats = {
+      totalSales: 0,
+      totalRevenue: 0,
+      totalCustomers: 0,
+      pendingSales: 0,
+      approvedSales: 0,
+      rejectedSales: 0,
+      totalChargebacks: 0,
+      openChargebacks: 0,
+      totalCallLogs: 0,
+      totalProcessingAccounts: 0,
+      pendingLeaves: 0,
+      todayOnLeave: 0,
+      conversionRate: "0",
+    },
+    isLoading: statsLoading,
+  } = useQuery({
+    queryKey: ["reports-stats", selectedMonth],
+    queryFn: () => getDashboardStats(selectedMonth),
+    staleTime: 30000,
+  });
+
+  const { data: salesPerAgent = [], isLoading: salesPerAgentLoading } =
+    useQuery({
+      queryKey: ["reports-sales-per-agent", selectedMonth],
+      queryFn: () => getSalesPerAgent(selectedMonth),
+      staleTime: 30000,
+    });
+
+  const { data: salesPerProcessor = [], isLoading: salesPerProcessorLoading } =
+    useQuery({
+      queryKey: ["reports-sales-per-processor", selectedMonth],
+      queryFn: () => getSalesPerProcessor(selectedMonth),
+      staleTime: 30000,
+    });
+
+  const { data: revenueDaily = [], isLoading: revenueLoadingDaily } = useQuery({
+    queryKey: ["reports-revenue", "daily"],
+    queryFn: () => getRevenueOverTime("day"),
+    staleTime: 30000,
+  });
+
+  const { data: revenueWeekly = [], isLoading: revenueLoadingWeekly } =
+    useQuery({
+      queryKey: ["reports-revenue", "weekly"],
+      queryFn: () => getRevenueOverTime("week"),
+      staleTime: 30000,
+    });
+
+  const { data: revenueMonthly = [], isLoading: revenueLoadingMonthly } =
+    useQuery({
+      queryKey: ["reports-revenue", "monthly"],
+      queryFn: () => getRevenueOverTime("month"),
+      staleTime: 30000,
+    });
+
+  const { data: chargebacksPerEmployee = [], isLoading: chargebacksLoading } =
+    useQuery({
+      queryKey: ["reports-chargebacks", selectedMonth],
+      queryFn: () => getChargebacksPerEmployee(selectedMonth),
+      staleTime: 30000,
+    });
+
+  const { data: attendanceVsPerformance = [], isLoading: attendanceLoading } =
+    useQuery({
+      queryKey: ["reports-attendance", selectedMonth],
+      queryFn: () => getAttendanceVsPerformance(selectedMonth),
+      staleTime: 30000,
+    });
+
+  const { data: employeeMonthlyStats = [], isLoading: employeeStatsLoading } =
+    useQuery({
+      queryKey: ["reports-employee-stats", selectedMonth],
+      queryFn: () => getEmployeeMonthlyStats(selectedMonth),
+      staleTime: 30000,
+    });
+
+  const revenueData = {
+    daily: revenueDaily,
+    weekly: revenueWeekly,
+    monthly: revenueMonthly,
+  };
+
   const empPage = Math.max(1, Number(searchParams.get("emp_page") || "1") || 1);
   const empPageSize = 10;
-  const empTotalPages = Math.max(1, Math.ceil(employeeMonthlyStats.length / empPageSize));
+  const empTotalPages = Math.max(
+    1,
+    Math.ceil(employeeMonthlyStats.length / empPageSize),
+  );
   const empCurrentPage = Math.min(empPage, empTotalPages);
   const empStartIndex = (empCurrentPage - 1) * empPageSize;
-  const paginatedEmployees = employeeMonthlyStats.slice(empStartIndex, empStartIndex + empPageSize);
+  const paginatedEmployees = employeeMonthlyStats.slice(
+    empStartIndex,
+    empStartIndex + empPageSize,
+  );
 
-  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+  const updateFilters = (
+    updates: Record<string, string | number | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
       if (value === undefined || value === "") {
@@ -164,11 +263,18 @@ export function ReportsClient({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Comprehensive performance insights</p>
+          <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold">
+            Reports & Analytics
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Comprehensive performance insights
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="month-filter" className="text-sm font-medium text-muted-foreground">
+          <label
+            htmlFor="month-filter"
+            className="text-sm font-medium text-muted-foreground"
+          >
             Month:
           </label>
           <select
@@ -187,54 +293,64 @@ export function ReportsClient({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(stats.totalRevenue, currency)}
-          icon={<DollarSign className="h-4 w-4" />}
-          colorClass="bg-blue-500"
-        />
-        <StatCard
-          title="Total Sales"
-          value={stats.totalSales}
-          icon={<ShoppingCart className="h-4 w-4" />}
-          colorClass="bg-emerald-500"
-        />
-        <StatCard
-          title="Recorded share"
-          value={`${stats.conversionRate}%`}
-          icon={<TrendingUp className="h-4 w-4" />}
-          colorClass="bg-violet-500"
-        />
-        <StatCard
-          title="Open Chargebacks"
-          value={stats.openChargebacks}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          colorClass="bg-rose-500"
-        />
-        <StatCard
-          title="Total Chargebacks"
-          value={stats.totalChargebacks}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          colorClass="bg-red-600"
-        />
-        <StatCard
-          title="Call Log Responses"
-          value={stats.totalCallLogs}
-          icon={<MessageSquare className="h-4 w-4" />}
-          colorClass="bg-sky-500"
-        />
-        <StatCard
-          title="Processing Accounts"
-          value={stats.totalProcessingAccounts}
-          icon={<Users className="h-4 w-4" />}
-          colorClass="bg-amber-500"
-        />
-        <StatCard
-          title="Total Customers"
-          value={stats.totalCustomers}
-          icon={<Users className="h-4 w-4" />}
-          colorClass="bg-indigo-500"
-        />
+        {statsLoading ? (
+          <>
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
+          </>
+        ) : (
+          <>
+            <StatCard
+              title="Total Revenue"
+              value={formatCurrency(stats.totalRevenue, currency)}
+              icon={<DollarSign className="h-4 w-4" />}
+              colorClass="bg-blue-500"
+            />
+            <StatCard
+              title="Total Sales"
+              value={stats.totalSales}
+              icon={<ShoppingCart className="h-4 w-4" />}
+              colorClass="bg-emerald-500"
+            />
+            <StatCard
+              title="Recorded share"
+              value={`${stats.conversionRate}%`}
+              icon={<TrendingUp className="h-4 w-4" />}
+              colorClass="bg-violet-500"
+            />
+            <StatCard
+              title="Open Chargebacks"
+              value={stats.openChargebacks}
+              icon={<AlertTriangle className="h-4 w-4" />}
+              colorClass="bg-rose-500"
+            />
+            <StatCard
+              title="Total Chargebacks"
+              value={stats.totalChargebacks}
+              icon={<AlertTriangle className="h-4 w-4" />}
+              colorClass="bg-red-600"
+            />
+            <StatCard
+              title="Call Log Responses"
+              value={stats.totalCallLogs}
+              icon={<MessageSquare className="h-4 w-4" />}
+              colorClass="bg-sky-500"
+            />
+            <StatCard
+              title="Processing Accounts"
+              value={stats.totalProcessingAccounts}
+              icon={<Users className="h-4 w-4" />}
+              colorClass="bg-amber-500"
+            />
+            <StatCard
+              title="Total Customers"
+              value={stats.totalCustomers}
+              icon={<Users className="h-4 w-4" />}
+              colorClass="bg-indigo-500"
+            />
+          </>
+        )}
       </div>
 
       {/* Employee Performance Table */}
@@ -297,16 +413,24 @@ export function ReportsClient({
                     <TableRow key={emp.id}>
                       <TableCell className="font-medium">{emp.name}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{ROLE_LABELS[emp.role] || emp.role}</Badge>
+                        <Badge variant="secondary">
+                          {ROLE_LABELS[emp.role] || emp.role}
+                        </Badge>
                       </TableCell>
                       <TableCell>{emp.totalSales}</TableCell>
                       <TableCell>
-                        <span className="text-green-600">{emp.approvedSales}</span>
+                        <span className="text-green-600">
+                          {emp.approvedSales}
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-red-600">{emp.rejectedSales}</span>
+                        <span className="text-red-600">
+                          {emp.rejectedSales}
+                        </span>
                       </TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(emp.revenue, currency)}</TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(emp.revenue, currency)}
+                      </TableCell>
                       <TableCell>{emp.daysPresent}</TableCell>
                       <TableCell>{emp.totalHours}h</TableCell>
                     </TableRow>
@@ -338,13 +462,22 @@ export function ReportsClient({
               <CardTitle>Revenue Over Time</CardTitle>
               <Tabs defaultValue="daily">
                 <TabsList>
-                  <TabsTrigger value="daily" onClick={() => setRevenuePeriod("daily")}>
+                  <TabsTrigger
+                    value="daily"
+                    onClick={() => setRevenuePeriod("daily")}
+                  >
                     Daily
                   </TabsTrigger>
-                  <TabsTrigger value="weekly" onClick={() => setRevenuePeriod("weekly")}>
+                  <TabsTrigger
+                    value="weekly"
+                    onClick={() => setRevenuePeriod("weekly")}
+                  >
                     Weekly
                   </TabsTrigger>
-                  <TabsTrigger value="monthly" onClick={() => setRevenuePeriod("monthly")}>
+                  <TabsTrigger
+                    value="monthly"
+                    onClick={() => setRevenuePeriod("monthly")}
+                  >
                     Monthly
                   </TabsTrigger>
                 </TabsList>
@@ -361,7 +494,10 @@ export function ReportsClient({
             <CardTitle>Sales outcomes</CardTitle>
           </CardHeader>
           <CardContent>
-            <ConversionChart recorded={stats.approvedSales} rejected={stats.rejectedSales} />
+            <ConversionChart
+              recorded={stats.approvedSales}
+              rejected={stats.rejectedSales}
+            />
           </CardContent>
         </Card>
 

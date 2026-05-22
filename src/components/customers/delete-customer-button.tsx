@@ -16,9 +16,11 @@ import { Trash2 } from "@/components/ui/icons";
 export function DeleteCustomerButton({
   id,
   name,
+  onDeleted,
 }: {
   id: string;
   name: string;
+  onDeleted?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,7 @@ export function DeleteCustomerButton({
     try {
       await deleteCustomer(id);
       setOpen(false);
+      onDeleted?.();
     } catch {
       setLoading(false);
     }
@@ -38,7 +41,7 @@ export function DeleteCustomerButton({
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
         <Trash2 className="h-3 w-3 text-destructive" />
       </Button>
-      <Dialog open={open} onClose={() => setOpen(false)}>
+      <Dialog open={open} onClose={() => !loading && setOpen(false)}>
         <DialogHeader>
           <DialogTitle>Delete Call Log Response</DialogTitle>
         </DialogHeader>
@@ -48,7 +51,11 @@ export function DeleteCustomerButton({
           undone.
         </DialogDescription>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={loading}
+          >
             Cancel
           </Button>
           <Button

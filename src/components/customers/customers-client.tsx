@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,19 +16,36 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
 import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
 import type { UserRole } from "@/lib/types";
-import { BarChart3, ChevronDown, ChevronUp, Filter, PieChart as PieChartIcon, Plus, Search, Eye, Users } from "@/components/ui/icons";
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  PieChart as PieChartIcon,
+  Plus,
+  Search,
+  Eye,
+  Users,
+} from "@/components/ui/icons";
 import Link from "next/link";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
-import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
+import {
+  DropdownRangeDatePicker,
+  toDateRangeFromFilters,
+  toFilterDates,
+} from "@/components/ui/dropdown-range-date-picker";
 import { StatCard } from "@/components/ui/stat-card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Cell,
   Legend,
@@ -44,12 +61,11 @@ interface CustomersClientProps {
   userRole: UserRole;
 }
 
-export function CustomersClient({
-  userRole,
-}: CustomersClientProps) {
+export function CustomersClient({ userRole }: CustomersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
   const [showForm, setShowForm] = useState(false);
   const [showChart, setShowChart] = useState(false);
@@ -90,19 +106,28 @@ export function CustomersClient({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } =
-    useDebouncedUrlSearchInput(searchParams, updateFilters);
+  const {
+    inputRef,
+    inputValue: searchInput,
+    onInputChange,
+    urlValue: urlSearch,
+  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
 
   // React Query for fetching customers
-  const { data: customersResponse, isLoading, error } = useQuery({
+  const {
+    data: customersResponse,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["customers", page, urlSearch, fromDateFilter, toDateFilter],
-    queryFn: () => getCustomers({
-      page,
-      pageSize: 10,
-      search: urlSearch,
-      createdFromDate: fromDateFilter || undefined,
-      createdToDate: toDateFilter || undefined,
-    }),
+    queryFn: () =>
+      getCustomers({
+        page,
+        pageSize: 10,
+        search: urlSearch,
+        createdFromDate: fromDateFilter || undefined,
+        createdToDate: toDateFilter || undefined,
+      }),
     staleTime: 30000,
   });
 
@@ -112,6 +137,72 @@ export function CustomersClient({
     totalPages = 1,
     pageSize = 10,
   } = customersResponse || {};
+
+  // Delete customer mutation with optimistic updates
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      const { deleteCustomer } = await import("@/lib/actions/customers");
+      return deleteCustomer(customerId);
+    },
+    onMutate: async (customerId: string) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({
+        queryKey: ["customers"],
+      });
+
+      // Snapshot previous data
+      const queryKey = [
+        "customers",
+        page,
+        urlSearch,
+        fromDateFilter,
+        toDateFilter,
+      ];
+      const previousCustomersResponse = queryClient.getQueryData(queryKey);
+
+      // Optimistically update cache
+      queryClient.setQueryData(queryKey, (old: typeof customersResponse) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.filter((c: any) => c.id !== customerId),
+          count: Math.max(0, old.count - 1),
+          totalPages: Math.max(1, Math.ceil((old.count - 1) / old.pageSize)),
+        };
+      });
+
+      return { previousCustomersResponse };
+    },
+    onError: (_err, _customerId, context) => {
+      // Rollback on error
+      if (context?.previousCustomersResponse) {
+        const queryKey = [
+          "customers",
+          page,
+          urlSearch,
+          fromDateFilter,
+          toDateFilter,
+        ];
+        queryClient.setQueryData(queryKey, context.previousCustomersResponse);
+      }
+    },
+    onSuccess: () => {
+      // Invalidate all customer queries
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+
+  // Create customer mutation with optimistic updates
+  const createCustomerMutation = useMutation({
+    mutationFn: async () => {
+      // Mutation is triggered via CustomerFormDialog.onSuccess
+      // This just invalidates queries after successful creation
+    },
+    onSuccess: () => {
+      // Invalidate and refetch customer queries
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
 
   /** Super admin, sales agents, and processors (when given Call Logs access) use full list management UI. */
   const canManageCallLogs =
@@ -142,7 +233,7 @@ export function CustomersClient({
       String(c.created_by_user?.full_name || "")
         .trim()
         .toLowerCase()
-        .includes(chosen)
+        .includes(chosen),
     );
   }, [customers, agentFilterValue]);
 
@@ -161,7 +252,7 @@ export function CustomersClient({
     const uniqueAgents = new Set(
       visibleCustomers
         .map((c) => String(c.created_by_user?.full_name || "").trim())
-        .filter(Boolean)
+        .filter(Boolean),
     );
     const todayLocal = new Date();
     const isSameLocalDay = (d: Date) =>
@@ -183,7 +274,8 @@ export function CustomersClient({
   const pieData = useMemo(() => {
     const byAgent = new Map<string, number>();
     customers.forEach((c) => {
-      const name = String(c.created_by_user?.full_name || "Unknown").trim() || "Unknown";
+      const name =
+        String(c.created_by_user?.full_name || "Unknown").trim() || "Unknown";
       byAgent.set(name, (byAgent.get(name) || 0) + 1);
     });
     return Array.from(byAgent.entries())
@@ -259,14 +351,29 @@ export function CustomersClient({
             <div className="overflow-x-auto">
               <div className="min-w-full">
                 <div className="flex items-center gap-4 border-b border-border pb-3 mb-3">
-                  {["Name", "Email", "Phone", "DOB", "Recent Note", "Agent", "Created", "Actions"].map((header, i) => (
-                    <div key={i} className={`h-4 animate-pulse rounded bg-muted/60 ${i === 0 ? "w-32" : i === 4 ? "w-40" : "w-24"}`} />
+                  {[
+                    "Name",
+                    "Email",
+                    "Phone",
+                    "DOB",
+                    "Recent Note",
+                    "Agent",
+                    "Created",
+                    "Actions",
+                  ].map((header, i) => (
+                    <div
+                      key={i}
+                      className={`h-4 animate-pulse rounded bg-muted/60 ${i === 0 ? "w-32" : i === 4 ? "w-40" : "w-24"}`}
+                    />
                   ))}
                 </div>
-                
+
                 {/* Table Rows Skeleton */}
                 {[...Array(10)].map((_, rowIndex) => (
-                  <div key={rowIndex} className="flex items-center gap-4 border-b border-border/50 py-4">
+                  <div
+                    key={rowIndex}
+                    className="flex items-center gap-4 border-b border-border/50 py-4"
+                  >
                     <div className="h-5 w-32 animate-pulse rounded bg-muted/70" />
                     <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
                     <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
@@ -317,7 +424,11 @@ export function CustomersClient({
           <CardContent className="p-6">
             <EmptyState
               title="Error loading data"
-              description={error instanceof Error ? error.message : "An error occurred while loading customers"}
+              description={
+                error instanceof Error
+                  ? error.message
+                  : "An error occurred while loading customers"
+              }
             />
           </CardContent>
         </Card>
@@ -341,12 +452,25 @@ export function CustomersClient({
             onClick={() => setShowChart((s) => !s)}
             className="h-11 w-full sm:h-9 sm:w-auto"
           >
-            <PieChartIcon className="h-4 w-4" /> {showChart ? "Hide Chart" : "Show Chart"}
-            {showChart ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <PieChartIcon className="h-4 w-4" />{" "}
+            {showChart ? "Hide Chart" : "Show Chart"}
+            {showChart ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
           </Button>
           <TableDataExport
             filenameBase="call-logs-responses"
-            headers={["Name", "Email", "Phone", "DOB", "Recent Note", "Agent Name", "Created"]}
+            headers={[
+              "Name",
+              "Email",
+              "Phone",
+              "DOB",
+              "Recent Note",
+              "Agent Name",
+              "Created",
+            ]}
             rows={exportRows}
             disabled={visibleCustomers.length === 0}
             className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:flex-1 sm:[&_button]:flex-initial sm:[&_button]:min-h-9"
@@ -396,7 +520,9 @@ export function CustomersClient({
       <div
         className={
           "grid transition-[grid-template-rows,opacity] duration-300 ease-out " +
-          (showChart ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")
+          (showChart
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0")
         }
       >
         <div className="min-h-0 overflow-hidden">
@@ -405,13 +531,17 @@ export function CustomersClient({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <div className="text-base font-semibold">Distribution</div>
-                  <div className="text-sm text-muted-foreground">Call logs by agent</div>
+                  <div className="text-sm text-muted-foreground">
+                    Call logs by agent
+                  </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               {pieData.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No data available
+                </p>
               ) : (
                 <div className="h-[320px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -424,13 +554,24 @@ export function CustomersClient({
                         outerRadius={110}
                         paddingAngle={2}
                         labelLine={false}
-                        label={({ name, percent }: { name?: string; percent?: number }) =>
-                          name && percent !== undefined && percent >= 0.08 ? `${name} ${Math.round(percent * 100)}%` : ""
+                        label={({
+                          name,
+                          percent,
+                        }: {
+                          name?: string;
+                          percent?: number;
+                        }) =>
+                          name && percent !== undefined && percent >= 0.08
+                            ? `${name} ${Math.round(percent * 100)}%`
+                            : ""
                         }
                         style={{ fill: pieLabelFill }}
                       >
                         {pieData.map((_, idx) => (
-                          <Cell key={`cell-${idx}`} fill={pieColors[idx % pieColors.length]} />
+                          <Cell
+                            key={`cell-${idx}`}
+                            fill={pieColors[idx % pieColors.length]}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
@@ -486,7 +627,10 @@ export function CustomersClient({
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-[min(90vw,320px)] p-3">
+                <PopoverContent
+                  align="start"
+                  className="w-[min(90vw,320px)] p-3"
+                >
                   <div className="space-y-2">
                     <Input
                       value={agentFilterSearch}
@@ -525,7 +669,9 @@ export function CustomersClient({
                         </button>
                       ))}
                       {filteredAgentOptions.length === 0 && (
-                        <div className="px-3 py-2 text-sm text-muted-foreground">No agents found</div>
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          No agents found
+                        </div>
                       )}
                     </div>
                     {(agentFilterValue || agentFilterSearch) && (
@@ -542,7 +688,9 @@ export function CustomersClient({
                         >
                           Clear
                         </Button>
-                        <p className="text-xs text-muted-foreground">{visibleCustomers.length} visible</p>
+                        <p className="text-xs text-muted-foreground">
+                          {visibleCustomers.length} visible
+                        </p>
                       </div>
                     )}
                   </div>
@@ -550,7 +698,9 @@ export function CustomersClient({
               </Popover>
               <DropdownRangeDatePicker
                 value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
-                onApply={(range) => updateFilters({ ...toFilterDates(range), page: 1 })}
+                onApply={(range) =>
+                  updateFilters({ ...toFilterDates(range), page: 1 })
+                }
                 triggerClassName="h-11 w-full justify-start text-left font-normal sm:w-[260px]"
               />
             </div>
@@ -560,7 +710,6 @@ export function CustomersClient({
           </div>
         </CardHeader>
         <CardContent className="relative">
-          <TableLoadingOverlay isLoading={false} />
           {visibleCustomers.length === 0 ? (
             <EmptyState
               title="No call logs responses found"
@@ -570,7 +719,10 @@ export function CustomersClient({
                   : "Add your first call log response to get started"
               }
               action={
-                canManageCallLogs && !urlSearch && !fromDateFilter && !toDateFilter ? (
+                canManageCallLogs &&
+                !urlSearch &&
+                !fromDateFilter &&
+                !toDateFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Call Log Response
                   </Button>
@@ -624,7 +776,9 @@ export function CustomersClient({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{customer.created_by_user?.full_name || "-"}</TableCell>
+                      <TableCell>
+                        {customer.created_by_user?.full_name || "-"}
+                      </TableCell>
                       <TableCell>{formatDate(customer.created_at)}</TableCell>
                       {canManageCallLogs && (
                         <TableCell className="text-right">
@@ -640,6 +794,9 @@ export function CustomersClient({
                             <DeleteCustomerButton
                               id={customer.id}
                               name={customer.name}
+                              onDeleted={() =>
+                                deleteCustomerMutation.mutate(customer.id)
+                              }
                             />
                           </div>
                         </TableCell>
@@ -662,7 +819,11 @@ export function CustomersClient({
       </Card>
 
       {showForm && (
-        <CustomerFormDialog open onClose={() => setShowForm(false)} />
+        <CustomerFormDialog
+          open
+          onClose={() => setShowForm(false)}
+          onSuccess={() => createCustomerMutation.mutate()}
+        />
       )}
     </div>
   );

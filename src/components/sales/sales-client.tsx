@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +17,29 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
-import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
+
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_TYPES } from "@/lib/constants";
 import { deleteSale } from "@/lib/actions/sales";
 import type { UserRole, Sale } from "@/lib/types";
-import { Plus, Search, Eye, Pencil, Trash2, Database, Wallet, Target, Zap, Shield } from "@/components/ui/icons";
-import { DropdownRangeDatePicker, toDateRangeFromFilters, toFilterDates } from "@/components/ui/dropdown-range-date-picker";
+import {
+  Plus,
+  Search,
+  Eye,
+  Pencil,
+  Trash2,
+  Database,
+  Wallet,
+  Target,
+  Zap,
+  Shield,
+} from "@/components/ui/icons";
+import {
+  DropdownRangeDatePicker,
+  toDateRangeFromFilters,
+  toFilterDates,
+} from "@/components/ui/dropdown-range-date-picker";
 import Link from "next/link";
 import { MessageButton } from "@/components/chat/message-button";
 import {
@@ -58,13 +73,13 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { currency } = useCurrency();
 
   const [saleToDelete, setSaleToDelete] = useState<{
     id: string;
     label: string;
   } | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const page = Number(searchParams.get("page")) || 1;
   const typeFilter = searchParams.get("type") || "all";
@@ -73,7 +88,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
 
-  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+  const updateFilters = (
+    updates: Record<string, string | number | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
       if (value === undefined || value === "all" || value === "") {
@@ -88,23 +105,38 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const { inputRef, inputValue: searchInput, onInputChange, urlValue: urlSearch } = useDebouncedUrlSearchInput(
-    searchParams,
-    updateFilters,
-  );
+  const {
+    inputRef,
+    inputValue: searchInput,
+    onInputChange,
+    urlValue: urlSearch,
+  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
 
   // React Query for fetching sales
-  const { data: salesResponse, isLoading: salesLoading, error: salesError } = useQuery({
-    queryKey: ["sales", page, typeFilter, agentFilter, fromDateFilter, toDateFilter, urlSearch],
-    queryFn: () => getSales({
-      agent_id: agentFilter,
-      sale_type: typeFilter,
+  const {
+    data: salesResponse,
+    isLoading: salesLoading,
+    error: salesError,
+  } = useQuery({
+    queryKey: [
+      "sales",
       page,
-      pageSize: 10,
-      from_date: fromDateFilter,
-      to_date: toDateFilter,
-      search: urlSearch,
-    }),
+      typeFilter,
+      agentFilter,
+      fromDateFilter,
+      toDateFilter,
+      urlSearch,
+    ],
+    queryFn: () =>
+      getSales({
+        agent_id: agentFilter,
+        sale_type: typeFilter,
+        page,
+        pageSize: 10,
+        from_date: fromDateFilter,
+        to_date: toDateFilter,
+        search: urlSearch,
+      }),
     staleTime: 30000,
   });
 
@@ -132,27 +164,101 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     },
   } = salesResponse || {};
 
-  const agents = (usersResponse?.data || []).filter((u) => u.role === "sales_agent");
+  const agents = (usersResponse?.data || []).filter(
+    (u) => u.role === "sales_agent",
+  );
 
-  const canCreate = userRole === "super_admin" || userRole === "sales_agent" || userRole === "processor";
+  // Delete mutation with optimistic updates
+  const deleteMutation = useMutation({
+    mutationFn: (saleId: string) => deleteSale(saleId),
+    onMutate: async (saleId: string) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ["sales"] });
+
+      // Snapshot the previous data
+      const previousSalesResponse = queryClient.getQueryData([
+        "sales",
+        page,
+        typeFilter,
+        agentFilter,
+        fromDateFilter,
+        toDateFilter,
+        urlSearch,
+      ]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(
+        [
+          "sales",
+          page,
+          typeFilter,
+          agentFilter,
+          fromDateFilter,
+          toDateFilter,
+          urlSearch,
+        ],
+        (old: typeof salesResponse) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((s) => s.id !== saleId),
+            count: Math.max(0, (old.count || 0) - 1),
+            totalPages: Math.max(
+              1,
+              Math.ceil(
+                Math.max(0, (old.count || 0) - 1) / (old.pageSize || 10),
+              ),
+            ),
+          };
+        },
+      );
+
+      return { previousSalesResponse };
+    },
+    onError: (_err, _saleId, context) => {
+      // Rollback on error
+      if (context?.previousSalesResponse) {
+        queryClient.setQueryData(
+          [
+            "sales",
+            page,
+            typeFilter,
+            agentFilter,
+            fromDateFilter,
+            toDateFilter,
+            urlSearch,
+          ],
+          context.previousSalesResponse,
+        );
+      }
+    },
+    onSuccess: () => {
+      // Invalidate stats and refetch if needed
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+
+  const canCreate =
+    userRole === "super_admin" ||
+    userRole === "sales_agent" ||
+    userRole === "processor";
 
   const canEditSale = (sale: (typeof sales)[number]) =>
-    userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
+    userRole === "super_admin" ||
+    (userRole === "sales_agent" && sale.agent_id === userId);
 
   const canDeleteSale = (sale: (typeof sales)[number]) =>
-    userRole === "super_admin" || (userRole === "sales_agent" && sale.agent_id === userId);
+    userRole === "super_admin" ||
+    (userRole === "sales_agent" && sale.agent_id === userId);
 
   const handleConfirmDelete = async () => {
     if (!saleToDelete) return;
-    setDeleteLoading(true);
     try {
-      await deleteSale(saleToDelete.id);
+      await deleteMutation.mutateAsync(saleToDelete.id);
       setSaleToDelete(null);
-      router.refresh();
     } catch {
-      // surfaced via toast elsewhere if needed
+      // Error handling is done in mutation.onError, user sees rollback
     }
-    setDeleteLoading(false);
   };
 
   const isLoading = salesLoading || usersLoading;
@@ -200,14 +306,28 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
               <div className="min-w-full">
                 {/* Table Header */}
                 <div className="mb-3 flex items-center gap-4 border-b border-border pb-3">
-                  {["Customer", "Company", "Type", "Amount", "Agent", "Date", "Actions"].map((header, i) => (
-                    <div key={i} className={`h-4 animate-pulse rounded bg-muted/60 ${i === 0 ? "w-40" : i === 5 ? "w-32" : "w-24"}`} />
+                  {[
+                    "Customer",
+                    "Company",
+                    "Type",
+                    "Amount",
+                    "Agent",
+                    "Date",
+                    "Actions",
+                  ].map((header, i) => (
+                    <div
+                      key={i}
+                      className={`h-4 animate-pulse rounded bg-muted/60 ${i === 0 ? "w-40" : i === 5 ? "w-32" : "w-24"}`}
+                    />
                   ))}
                 </div>
-                
+
                 {/* Table Rows */}
                 {[...Array(10)].map((_, rowIndex) => (
-                  <div key={rowIndex} className="flex items-center gap-4 border-b border-border/50 py-4">
+                  <div
+                    key={rowIndex}
+                    className="flex items-center gap-4 border-b border-border/50 py-4"
+                  >
                     <div className="w-40 space-y-1">
                       <div className="h-5 w-32 animate-pulse rounded bg-muted/70" />
                       <div className="h-3 w-28 animate-pulse rounded bg-muted/50" />
@@ -238,7 +358,10 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
               <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
               <div className="flex items-center gap-2">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-9 w-9 animate-pulse rounded-lg bg-muted/70" />
+                  <div
+                    key={i}
+                    className="h-9 w-9 animate-pulse rounded-lg bg-muted/70"
+                  />
                 ))}
               </div>
             </div>
@@ -256,7 +379,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
           <div>
             <h1 className="text-3xl font-bold">Sales</h1>
             <p className="text-muted-foreground">
-              {userRole === "processor" ? "View and search all sales" : "Track your sales pipeline"}
+              {userRole === "processor"
+                ? "View and search all sales"
+                : "Track your sales pipeline"}
             </p>
           </div>
         </div>
@@ -264,7 +389,11 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
           <CardContent className="p-6">
             <EmptyState
               title="Error loading data"
-              description={salesError instanceof Error ? salesError.message : "An error occurred while loading sales"}
+              description={
+                salesError instanceof Error
+                  ? salesError.message
+                  : "An error occurred while loading sales"
+              }
             />
           </CardContent>
         </Card>
@@ -278,7 +407,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         <div>
           <h1 className="text-3xl font-bold">Sales</h1>
           <p className="text-muted-foreground">
-            {userRole === "processor" ? "View and search all sales" : "Track your sales pipeline"}
+            {userRole === "processor"
+              ? "View and search all sales"
+              : "Track your sales pipeline"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -312,17 +443,21 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                 <Wallet className="h-4 w-4" />
               </span>
             </div>
-            <p className="text-2xl font-semibold">{formatCurrency(stats.totalChargedAmount, currency)}</p>
+            <p className="text-2xl font-semibold">
+              {formatCurrency(stats.totalChargedAmount, currency)}
+            </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              <span className="text-foreground">{formatCurrency(stats.grossChargedAmount, currency)}</span>
-              {" "}
-              <span className="text-muted-foreground">-</span>
-              {" "}
-              <span className="text-destructive">{formatCurrency(stats.chargebackImpactedAmount, currency)}</span>
-              {" "}
-              <span className="text-muted-foreground">=</span>
-              {" "}
-              <span className="font-medium text-primary">{formatCurrency(stats.totalChargedAmount, currency)}</span>
+              <span className="text-foreground">
+                {formatCurrency(stats.grossChargedAmount, currency)}
+              </span>{" "}
+              <span className="text-muted-foreground">-</span>{" "}
+              <span className="text-destructive">
+                {formatCurrency(stats.chargebackImpactedAmount, currency)}
+              </span>{" "}
+              <span className="text-muted-foreground">=</span>{" "}
+              <span className="font-medium text-primary">
+                {formatCurrency(stats.totalChargedAmount, currency)}
+              </span>
             </p>
           </CardContent>
         </Card>
@@ -334,7 +469,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                 <Target className="h-4 w-4" />
               </span>
             </div>
-            <p className="text-2xl font-semibold">{formatCurrency(stats.avgChargedAmount, currency)}</p>
+            <p className="text-2xl font-semibold">
+              {formatCurrency(stats.avgChargedAmount, currency)}
+            </p>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-orange-500/[0.12] to-amber-500/[0.06]">
@@ -396,7 +533,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
             <div className="sm:col-span-1 xl:col-span-4 min-w-[220px]">
               <DropdownRangeDatePicker
                 value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
-                onApply={(range) => updateFilters({ ...toFilterDates(range), page: 1 })}
+                onApply={(range) =>
+                  updateFilters({ ...toFilterDates(range), page: 1 })
+                }
                 triggerClassName="h-11 w-full justify-start text-left font-normal"
               />
             </div>
@@ -420,10 +559,12 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
           </div>
         </CardHeader>
         <CardContent className="relative">
-          <TableLoadingOverlay isLoading={false} />
           <div className="overflow-x-auto">
             {sales.length === 0 ? (
-              <EmptyState title="No sales found" description="Adjust your filters or create a new sale" />
+              <EmptyState
+                title="No sales found"
+                description="Adjust your filters or create a new sale"
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -434,7 +575,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     <TableHead>Amount</TableHead>
                     <TableHead>Agent Name</TableHead>
                     <TableHead className="min-w-[180px]">Date</TableHead>
-                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                    <TableHead className="w-[120px] text-right">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -457,7 +600,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="capitalize">{sale.sale_type}</span>
-                          <span className="text-[11px] text-muted-foreground uppercase">{sale.subtype}</span>
+                          <span className="text-[11px] text-muted-foreground uppercase">
+                            {sale.subtype}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="font-semibold text-foreground">
@@ -465,7 +610,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{sale.agent?.full_name || "N/A"}</span>
+                          <span className="text-sm font-medium">
+                            {sale.agent?.full_name || "N/A"}
+                          </span>
                           {sale.agent_id && sale.agent_id !== userId && (
                             <MessageButton
                               userId={sale.agent_id}
@@ -480,7 +627,10 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
-                            Sale: {sale.sale_date ? formatDateKarachi(sale.sale_date) : "N/A"}
+                            Sale:{" "}
+                            {sale.sale_date
+                              ? formatDateKarachi(sale.sale_date)
+                              : "N/A"}
                           </span>
                           <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
                             Recorded: {formatDateKarachi(sale.created_at)}
@@ -520,7 +670,11 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                               onClick={() =>
                                 setSaleToDelete({
                                   id: sale.id,
-                                  label: sale.customer?.name || sale.customer_name || sale.company_name || "this sale",
+                                  label:
+                                    sale.customer?.name ||
+                                    sale.customer_name ||
+                                    sale.company_name ||
+                                    "this sale",
                                 })
                               }
                             >
@@ -545,21 +699,32 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={!!saleToDelete} onClose={() => !deleteLoading && setSaleToDelete(null)}>
+      <Dialog
+        open={!!saleToDelete}
+        onClose={() => !deleteMutation.isPending && setSaleToDelete(null)}
+      >
         <DialogHeader>
           <DialogTitle>Delete sale</DialogTitle>
         </DialogHeader>
         <DialogDescription className="mt-2 text-left">
           Are you sure you want to delete the sale for{" "}
-          <strong>{saleToDelete?.label}</strong>? Related payments and attachments will be removed.
-          This cannot be undone.
+          <strong>{saleToDelete?.label}</strong>? Related payments and
+          attachments will be removed. This cannot be undone.
         </DialogDescription>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setSaleToDelete(null)} disabled={deleteLoading}>
+          <Button
+            variant="outline"
+            onClick={() => setSaleToDelete(null)}
+            disabled={deleteMutation.isPending}
+          >
             Cancel
           </Button>
-          <Button variant="destructive" onClick={() => void handleConfirmDelete()} disabled={deleteLoading}>
-            {deleteLoading ? <Spinner /> : "Delete"}
+          <Button
+            variant="destructive"
+            onClick={() => void handleConfirmDelete()}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? <Spinner /> : "Delete"}
           </Button>
         </DialogFooter>
       </Dialog>

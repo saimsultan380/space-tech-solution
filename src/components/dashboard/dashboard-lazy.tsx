@@ -36,7 +36,7 @@ export const SalesPerformanceDashboard = dynamic(
   }
 );
 
-function DashboardSkeleton() {
+export function DashboardSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
       {/* Header skeleton */}
