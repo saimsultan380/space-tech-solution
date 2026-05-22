@@ -42,6 +42,7 @@ import { Select } from "@/components/ui/select";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 
 interface EmployeeRow {
@@ -124,10 +125,11 @@ export function PayslipsAdminClient({
     });
   };
 
-  const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(
-    searchParams,
-    updateFilters,
-  );
+  const {
+    inputRef,
+    inputValue: searchInput,
+    onInputChange,
+  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
   const [activeMonth, setActiveMonth] = useState(() =>
     new Date().toISOString().slice(0, 7),
@@ -247,12 +249,19 @@ export function PayslipsAdminClient({
             Generate, send, edit, and reuse monthly salary slips.
           </p>
         </div>
-        <Button
-          onClick={() => setShowForm(true)}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-2" /> Generate Payslip
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link href="/dashboard/payslips/history">
+            <Button variant="outline" className="border-border hover:bg-muted">
+              View History
+            </Button>
+          </Link>
+          <Button
+            onClick={() => setShowForm(true)}
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4 mr-2" /> Generate Payslip
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -383,7 +392,7 @@ export function PayslipsAdminClient({
                     <TableCell className="font-semibold">
                       {formatCurrency(
                         Number(payslip.net_pay || 0),
-                        payslip.currency,
+                        payslip.currency || "PKR",
                       )}
                     </TableCell>
                     <TableCell>

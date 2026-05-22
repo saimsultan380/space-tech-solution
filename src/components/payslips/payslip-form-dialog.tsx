@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/loading";
@@ -49,9 +54,12 @@ export function PayslipFormDialog({
 }: PayslipFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
-  const initialEmployeeId = (initialPayslip?.employee_id_display || initialPayslip?.user?.employee_id || "");
-  
+
+  const initialEmployeeId =
+    initialPayslip?.employee_id_display ||
+    initialPayslip?.user?.employee_id ||
+    "";
+
   const [form, setForm] = useState({
     user_id: initialPayslip?.user_id || "",
     period_start: initialPayslip?.period_start || "",
@@ -74,12 +82,18 @@ export function PayslipFormDialog({
     address: initialPayslip?.address || "",
     pay_rate: initialPayslip ? String(initialPayslip.pay_rate) : "0",
     gross_pay: initialPayslip ? String(initialPayslip.gross_pay) : "0",
-    monthly_revenue: initialPayslip ? String(initialPayslip.monthly_revenue) : "0",
-    chargeback_amount: initialPayslip ? String(initialPayslip.chargeback_amount) : "0",
+    monthly_revenue: initialPayslip
+      ? String(initialPayslip.monthly_revenue)
+      : "0",
+    chargeback_amount: initialPayslip
+      ? String(initialPayslip.chargeback_amount)
+      : "0",
     remaining: initialPayslip ? String(initialPayslip.remaining) : "0",
     commission: initialPayslip ? String(initialPayslip.commission) : "0",
     advance: initialPayslip ? String(initialPayslip.advance) : "0",
-    late_attendance: initialPayslip ? String(initialPayslip.late_attendance) : "0",
+    late_attendance: initialPayslip
+      ? String(initialPayslip.late_attendance)
+      : "0",
     leaves: initialPayslip ? String(initialPayslip.leaves) : "0",
     paid_through: initialPayslip?.paid_through || "Bank",
     bank_account_no: initialPayslip?.bank_account_no || "",
@@ -90,7 +104,7 @@ export function PayslipFormDialog({
     const userEmployeeId = initialPayslip?.user?.employee_id || "";
     const storedEmployeeId = initialPayslip?.employee_id_display || "";
     const resolvedEmployeeId = storedEmployeeId || userEmployeeId;
-    
+
     setForm({
       user_id: initialPayslip?.user_id || "",
       period_start: initialPayslip?.period_start || "",
@@ -113,12 +127,18 @@ export function PayslipFormDialog({
       address: initialPayslip?.address || "",
       pay_rate: initialPayslip ? String(initialPayslip.pay_rate) : "0",
       gross_pay: initialPayslip ? String(initialPayslip.gross_pay) : "0",
-      monthly_revenue: initialPayslip ? String(initialPayslip.monthly_revenue) : "0",
-      chargeback_amount: initialPayslip ? String(initialPayslip.chargeback_amount) : "0",
+      monthly_revenue: initialPayslip
+        ? String(initialPayslip.monthly_revenue)
+        : "0",
+      chargeback_amount: initialPayslip
+        ? String(initialPayslip.chargeback_amount)
+        : "0",
       remaining: initialPayslip ? String(initialPayslip.remaining) : "0",
       commission: initialPayslip ? String(initialPayslip.commission) : "0",
       advance: initialPayslip ? String(initialPayslip.advance) : "0",
-      late_attendance: initialPayslip ? String(initialPayslip.late_attendance) : "0",
+      late_attendance: initialPayslip
+        ? String(initialPayslip.late_attendance)
+        : "0",
       leaves: initialPayslip ? String(initialPayslip.leaves) : "0",
       paid_through: initialPayslip?.paid_through || "Bank",
       bank_account_no: initialPayslip?.bank_account_no || "",
@@ -187,7 +207,7 @@ export function PayslipFormDialog({
         allowances: Number(form.allowances || 0),
         deductions: Number(form.deductions || 0),
         bonus: Number(form.bonus || 0),
-        currency: selectedEmployee?.preferred_currency || initialPayslip?.currency || "PKR",
+        currency: "PKR",
         status: form.status as "processed" | "paid",
         // New fields
         employee_id_display: form.employee_id_display,
@@ -263,13 +283,21 @@ export function PayslipFormDialog({
   return (
     <Dialog open={open} onClose={onClose} className="max-w-3xl">
       <DialogHeader>
-        <DialogTitle>{mode === "edit" ? "Edit Payslip" : "Generate Payslip"}</DialogTitle>
+        <DialogTitle>
+          {mode === "edit" ? "Edit Payslip" : "Generate Payslip"}
+        </DialogTitle>
       </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="mt-4 space-y-6 overflow-y-auto px-1 pb-4" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      <form
+        onSubmit={handleSubmit}
+        className="mt-4 space-y-6 overflow-y-auto px-1 pb-4"
+        style={{ maxHeight: "calc(100vh - 200px)" }}
+      >
         {/* Basic Info */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Basic Information</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Basic Information
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
               id="user_id"
@@ -277,7 +305,9 @@ export function PayslipFormDialog({
               options={employeeOptions}
               placeholder="Select employee"
               value={form.user_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, user_id: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, user_id: e.target.value }))
+              }
               required
             />
             <div className="space-y-1.5">
@@ -302,7 +332,9 @@ export function PayslipFormDialog({
               label="Period Start"
               type="date"
               value={form.period_start}
-              onChange={(e) => setForm((prev) => ({ ...prev, period_start: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, period_start: e.target.value }))
+              }
               required
             />
             <Input
@@ -310,7 +342,9 @@ export function PayslipFormDialog({
               label="Period End"
               type="date"
               value={form.period_end}
-              onChange={(e) => setForm((prev) => ({ ...prev, period_end: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, period_end: e.target.value }))
+              }
               required
             />
             <Input
@@ -318,7 +352,9 @@ export function PayslipFormDialog({
               label="Pay Date"
               type="date"
               value={form.pay_date}
-              onChange={(e) => setForm((prev) => ({ ...prev, pay_date: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, pay_date: e.target.value }))
+              }
               required
             />
           </div>
@@ -326,13 +362,17 @@ export function PayslipFormDialog({
 
         {/* Employee Details */}
         <div className="space-y-4 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Employee Profile Details</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Employee Profile Details
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               id="father_name"
               label="Father Name"
               value={form.father_name}
-              onChange={(e) => setForm((prev) => ({ ...prev, father_name: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, father_name: e.target.value }))
+              }
             />
             <Input
               id="cnic_no"
@@ -340,7 +380,12 @@ export function PayslipFormDialog({
               placeholder="XXXXX-XXXXXXX-X"
               value={form.cnic_no}
               maxLength={15}
-              onChange={(e) => setForm((prev) => ({ ...prev, cnic_no: formatCnic(e.target.value) }))}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  cnic_no: formatCnic(e.target.value),
+                }))
+              }
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -349,7 +394,9 @@ export function PayslipFormDialog({
               label="Joining Date"
               type="date"
               value={form.joining_date}
-              onChange={(e) => setForm((prev) => ({ ...prev, joining_date: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, joining_date: e.target.value }))
+              }
             />
             <Select
               id="category"
@@ -359,7 +406,9 @@ export function PayslipFormDialog({
                 { value: "Contract", label: "Contract" },
               ]}
               value={form.category}
-              onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, category: e.target.value }))
+              }
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -368,21 +417,27 @@ export function PayslipFormDialog({
               label="Department"
               placeholder="e.g. Sales Department"
               value={form.department}
-              onChange={(e) => setForm((prev) => ({ ...prev, department: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, department: e.target.value }))
+              }
             />
             <Input
               id="job_position"
               label="Job Position"
               placeholder="e.g. Customer Sales Representative"
               value={form.job_position}
-              onChange={(e) => setForm((prev) => ({ ...prev, job_position: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, job_position: e.target.value }))
+              }
             />
           </div>
           <Input
             id="address"
             label="Address"
             value={form.address}
-            onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, address: e.target.value }))
+            }
           />
           <div className="grid gap-4 sm:grid-cols-3">
             <Input
@@ -390,56 +445,78 @@ export function PayslipFormDialog({
               label="Pay Days"
               type="number"
               value={form.pay_days}
-              onChange={(e) => setForm((prev) => ({ ...prev, pay_days: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, pay_days: e.target.value }))
+              }
             />
             <Input
               id="pay_rate"
               label="Pay Rate"
               type="number"
               value={form.pay_rate}
-              onChange={(e) => setForm((prev) => ({ ...prev, pay_rate: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, pay_rate: e.target.value }))
+              }
             />
             <Input
               id="gross_pay"
               label="Gross Pay"
               type="number"
               value={form.gross_pay}
-              onChange={(e) => setForm((prev) => ({ ...prev, gross_pay: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, gross_pay: e.target.value }))
+              }
             />
           </div>
         </div>
 
         {/* Revenue Section */}
         <div className="space-y-4 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Revenue Tracking</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Revenue Tracking
+          </h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <Input
               id="monthly_revenue"
               label="Monthly Revenue"
               type="number"
               value={form.monthly_revenue}
-              onChange={(e) => setForm((prev) => ({ ...prev, monthly_revenue: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  monthly_revenue: e.target.value,
+                }))
+              }
             />
             <Input
               id="chargeback_amount"
               label="Chargeback"
               type="number"
               value={form.chargeback_amount}
-              onChange={(e) => setForm((prev) => ({ ...prev, chargeback_amount: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  chargeback_amount: e.target.value,
+                }))
+              }
             />
             <Input
               id="remaining"
               label="Remaining"
               type="number"
               value={form.remaining}
-              onChange={(e) => setForm((prev) => ({ ...prev, remaining: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, remaining: e.target.value }))
+              }
             />
           </div>
         </div>
 
         {/* Salary Breakdown */}
         <div className="space-y-4 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Salary Breakdown</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Salary Breakdown
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               id="basic_salary"
@@ -448,7 +525,9 @@ export function PayslipFormDialog({
               min="0"
               step="0.01"
               value={form.basic_salary}
-              onChange={(e) => setForm((prev) => ({ ...prev, basic_salary: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, basic_salary: e.target.value }))
+              }
               required
             />
             <Input
@@ -458,7 +537,9 @@ export function PayslipFormDialog({
               min="0"
               step="0.01"
               value={form.allowances}
-              onChange={(e) => setForm((prev) => ({ ...prev, allowances: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, allowances: e.target.value }))
+              }
               required
             />
             <Input
@@ -468,7 +549,9 @@ export function PayslipFormDialog({
               min="0"
               step="0.01"
               value={form.bonus}
-              onChange={(e) => setForm((prev) => ({ ...prev, bonus: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, bonus: e.target.value }))
+              }
               required
             />
             <Input
@@ -478,7 +561,9 @@ export function PayslipFormDialog({
               min="0"
               step="0.01"
               value={form.commission}
-              onChange={(e) => setForm((prev) => ({ ...prev, commission: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, commission: e.target.value }))
+              }
             />
             <Input
               id="advance"
@@ -487,7 +572,9 @@ export function PayslipFormDialog({
               min="0"
               step="0.01"
               value={form.advance}
-              onChange={(e) => setForm((prev) => ({ ...prev, advance: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, advance: e.target.value }))
+              }
             />
             <Input
               id="deductions"
@@ -496,7 +583,9 @@ export function PayslipFormDialog({
               min="0"
               step="0.01"
               value={form.deductions}
-              onChange={(e) => setForm((prev) => ({ ...prev, deductions: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, deductions: e.target.value }))
+              }
               required
             />
           </div>
@@ -508,7 +597,12 @@ export function PayslipFormDialog({
               min="0"
               step="1"
               value={form.late_attendance}
-              onChange={(e) => setForm((prev) => ({ ...prev, late_attendance: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  late_attendance: e.target.value,
+                }))
+              }
             />
             <Input
               id="leaves"
@@ -517,14 +611,18 @@ export function PayslipFormDialog({
               min="0"
               step="1"
               value={form.leaves}
-              onChange={(e) => setForm((prev) => ({ ...prev, leaves: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, leaves: e.target.value }))
+              }
             />
           </div>
         </div>
 
         {/* Bank Information */}
         <div className="space-y-4 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Payment Details</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Payment Details
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
               id="paid_through"
@@ -539,17 +637,28 @@ export function PayslipFormDialog({
                 setForm((prev) => ({
                   ...prev,
                   paid_through: e.target.value,
-                  bank_account_no: e.target.value === "Cash" ? "" : prev.bank_account_no,
-                  bank_branch: e.target.value === "Cash" ? "" : prev.bank_branch,
+                  bank_account_no:
+                    e.target.value === "Cash" ? "" : prev.bank_account_no,
+                  bank_branch:
+                    e.target.value === "Cash" ? "" : prev.bank_branch,
                 }))
               }
             />
             {form.paid_through !== "Cash" ? (
               <Input
                 id="bank_account_no"
-                label={form.paid_through === "Cheque" ? "Cheque Number" : "Account Number"}
+                label={
+                  form.paid_through === "Cheque"
+                    ? "Cheque Number"
+                    : "Account Number"
+                }
                 value={form.bank_account_no}
-                onChange={(e) => setForm((prev) => ({ ...prev, bank_account_no: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    bank_account_no: e.target.value,
+                  }))
+                }
               />
             ) : (
               <div className="space-y-1.5 text-left">
@@ -565,19 +674,64 @@ export function PayslipFormDialog({
           {form.paid_through !== "Cash" && (
             <Input
               id="bank_branch"
-              label={form.paid_through === "Cheque" ? "Cheque Bank" : "Bank Branch"}
+              label={
+                form.paid_through === "Cheque" ? "Cheque Bank" : "Bank Branch"
+              }
               value={form.bank_branch}
-              onChange={(e) => setForm((prev) => ({ ...prev, bank_branch: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, bank_branch: e.target.value }))
+              }
             />
           )}
         </div>
 
-        <div className="rounded-xl border border-border bg-muted/20 p-4">
-          <div className="flex items-center justify-between">
+        <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase mb-3">
+              Salary Summary
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Earnings</p>
+                <p className="font-semibold text-success">
+                  {(
+                    Number(form.basic_salary || 0) +
+                    Number(form.allowances || 0) +
+                    Number(form.bonus || 0) +
+                    Number(form.commission || 0)
+                  ).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Total Deductions
+                </p>
+                <p className="font-semibold text-destructive">
+                  {(
+                    Number(form.advance || 0) + Number(form.deductions || 0)
+                  ).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-border pt-3 flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase">Calculated Net Pay</p>
-              <p className={`text-2xl font-bold ${netPay < 0 ? "text-destructive" : "text-foreground"}`}>
-                {netPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <p className="text-xs font-medium text-muted-foreground uppercase">
+                Net Pay
+              </p>
+              <p
+                className={`text-2xl font-bold ${netPay < 0 ? "text-destructive" : "text-foreground"}`}
+              >
+                {netPay.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </p>
             </div>
             <div className="w-48">
@@ -589,7 +743,12 @@ export function PayslipFormDialog({
                   { value: "paid", label: "Paid" },
                 ]}
                 value={form.status}
-                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as PayslipStatus }))}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    status: e.target.value as PayslipStatus,
+                  }))
+                }
                 required
               />
             </div>
@@ -606,8 +765,18 @@ export function PayslipFormDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading || netPay < 0} className="min-w-[120px]">
-            {loading ? <Spinner /> : mode === "edit" ? "Update Payslip" : "Save Payslip"}
+          <Button
+            type="submit"
+            disabled={loading || netPay < 0}
+            className="min-w-[120px]"
+          >
+            {loading ? (
+              <Spinner />
+            ) : mode === "edit" ? (
+              "Update Payslip"
+            ) : (
+              "Save Payslip"
+            )}
           </Button>
         </DialogFooter>
       </form>

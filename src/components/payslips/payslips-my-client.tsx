@@ -5,13 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/loading";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
-import { Download, ChevronLeft, ChevronRight, Eye } from "@/components/ui/icons";
+import {
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+} from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
@@ -31,15 +43,26 @@ interface PayslipsMyClientProps {
   companySettings: CompanySettings;
 }
 
-export function PayslipsMyClient({ payslipsResponse, companySettings }: PayslipsMyClientProps) {
+export function PayslipsMyClient({
+  payslipsResponse,
+  companySettings,
+}: PayslipsMyClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const { data: payslips, count, page, totalPages, pageSize } = payslipsResponse;
+  const {
+    data: payslips,
+    count,
+    page,
+    totalPages,
+    pageSize,
+  } = payslipsResponse;
 
-  const updateFilters = (updates: Record<string, string | number | undefined>) => {
+  const updateFilters = (
+    updates: Record<string, string | number | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
       if (value === undefined || value === "all" || value === "") {
@@ -56,11 +79,14 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
     });
   };
 
-  const { inputRef, inputValue: searchInput, onInputChange } = useDebouncedUrlSearchInput(
-    searchParams,
-    updateFilters,
+  const {
+    inputRef,
+    inputValue: searchInput,
+    onInputChange,
+  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
+  const [activeMonth, setActiveMonth] = useState(() =>
+    new Date().toISOString().slice(0, 7),
   );
-  const [activeMonth, setActiveMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
   const filteredPayslips = useMemo(() => {
@@ -72,9 +98,10 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
 
   const monthLabel = useMemo(() => {
     const [year, month] = activeMonth.split("-").map(Number);
-    return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(
-      new Date(year, (month || 1) - 1, 1)
-    );
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+    }).format(new Date(year, (month || 1) - 1, 1));
   }, [activeMonth]);
 
   const shiftMonth = (delta: number) => {
@@ -87,21 +114,35 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">My Payslips</h1>
-        <p className="text-muted-foreground">Track monthly payroll and download salary slips in PDF format.</p>
+        <p className="text-muted-foreground">
+          Track monthly payroll and download salary slips in PDF format.
+        </p>
       </div>
 
       <Card className="border-border bg-gradient-to-br from-cyan-500/[0.07] via-card to-card shadow-sm overflow-hidden">
         <CardHeader className="space-y-4 border-b border-border pb-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="text-lg font-bold text-foreground">Payslip History</CardTitle>
+            <CardTitle className="text-lg font-bold text-foreground">
+              Payslip History
+            </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(-1)}>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
+                onClick={() => shiftMonth(-1)}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-[180px] rounded-lg border border-border bg-muted/30 px-3 py-2 text-center text-sm font-bold text-foreground">
                 {monthLabel}
               </div>
-              <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg border-border hover:bg-muted" onClick={() => shiftMonth(1)}>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
+                onClick={() => shiftMonth(1)}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
               <TableDataExport
@@ -110,7 +151,7 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
                 rows={filteredPayslips.map((p) => [
                   `${formatDate(p.period_start)} - ${formatDate(p.period_end)}`,
                   formatDate(p.pay_date),
-                  formatCurrency(Number(p.net_pay || 0), p.currency || "USD"),
+                  formatCurrency(Number(p.net_pay || 0), p.currency || "PKR"),
                   p.status,
                 ])}
                 disabled={filteredPayslips.length === 0}
@@ -150,26 +191,52 @@ export function PayslipsMyClient({ payslipsResponse, companySettings }: Payslips
                   {filteredPayslips.map((payslip) => (
                     <TableRow key={payslip.id}>
                       <TableCell className="font-medium">
-                        {formatDate(payslip.period_start)} - {formatDate(payslip.period_end)}
+                        {formatDate(payslip.period_start)} -{" "}
+                        {formatDate(payslip.period_end)}
                       </TableCell>
                       <TableCell>{formatDate(payslip.pay_date)}</TableCell>
                       <TableCell className="font-bold text-foreground">
-                        {formatCurrency(Number(payslip.net_pay || 0), payslip.currency || "USD")}
+                        {formatCurrency(
+                          Number(payslip.net_pay || 0),
+                          payslip.currency || "PKR",
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={payslip.status === "paid" ? "success" : "warning"}>
+                        <Badge
+                          variant={
+                            payslip.status === "paid" ? "success" : "warning"
+                          }
+                        >
                           {payslip.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="icon" variant="ghost" onClick={() => setViewingPayslip(payslip)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setViewingPayslip(payslip)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => void previewPayslipPdf(payslip, companySettings)}>
-                            <span className="text-[10px] font-semibold">PDF</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              void previewPayslipPdf(payslip, companySettings)
+                            }
+                          >
+                            <span className="text-[10px] font-semibold">
+                              PDF
+                            </span>
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => downloadPayslipPdf(payslip, companySettings)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              downloadPayslipPdf(payslip, companySettings)
+                            }
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
                         </div>
@@ -220,8 +287,7 @@ function isPayslipInMonth(payslip: Payslip, activeMonth: string) {
 
   const overlapsPeriod = periodStart <= monthEnd && periodEnd >= monthStart;
   const inPayMonth =
-    payDate.getFullYear() === year &&
-    payDate.getMonth() + 1 === (month || 1);
+    payDate.getFullYear() === year && payDate.getMonth() + 1 === (month || 1);
 
   return overlapsPeriod || inPayMonth;
 }

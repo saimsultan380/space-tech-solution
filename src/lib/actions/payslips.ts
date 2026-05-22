@@ -18,8 +18,11 @@ interface RawPayslipRow extends Record<string, unknown> {
 
 function normalisePayslipRow(payslip: RawPayslipRow): Payslip {
   const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
-  const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
-  const userEmployeeId = (user as { employee_id?: string | null } | null)?.employee_id?.trim() || "";
+  const generator = Array.isArray(payslip.generator)
+    ? payslip.generator[0]
+    : payslip.generator;
+  const userEmployeeId =
+    (user as { employee_id?: string | null } | null)?.employee_id?.trim() || "";
   const storedEmployeeId = payslip.employee_id_display?.trim() || "";
   return {
     ...(payslip as unknown as Payslip),
@@ -110,21 +113,29 @@ export async function getPayslips(filters?: {
 
   const query = supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
+    .select(
+      "*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)",
+      { count: "exact" },
+    )
     .order("pay_date", { ascending: false });
 
   if (filters?.search) {
-    // Note: Searching on joined fields might need a different approach in Supabase, 
+    // Note: Searching on joined fields might need a different approach in Supabase,
     // but for now we'll assume the client filters or we search on basic fields.
     // For exact match on user name we might need a separate query or RPC.
   }
 
-  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
+  const { data, error, count } = await query.range(
+    offset,
+    offset + pageSize - 1,
+  );
 
   if (error) throw new Error(error.message);
 
-  const payslips: Payslip[] = (data as unknown as RawPayslipRow[] || []).map((payslip) => normalisePayslipRow(payslip));
-  
+  const payslips: Payslip[] = ((data as unknown as RawPayslipRow[]) || []).map(
+    (payslip) => normalisePayslipRow(payslip),
+  );
+
   return {
     data: payslips,
     count: count || 0,
@@ -146,7 +157,10 @@ export async function getMyPayslips(filters?: {
 
   const { data, error, count } = await supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)", { count: "exact" })
+    .select(
+      "*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)",
+      { count: "exact" },
+    )
     .eq("user_id", user.id)
     .order("pay_date", { ascending: false })
     .range(offset, offset + pageSize - 1);
@@ -155,7 +169,9 @@ export async function getMyPayslips(filters?: {
 
   const payslips: Payslip[] = (data || []).map((payslip: any) => {
     const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
-    const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
+    const generator = Array.isArray(payslip.generator)
+      ? payslip.generator[0]
+      : payslip.generator;
     const userEmployeeId = user?.employee_id?.trim() || "";
     const storedEmployeeId = payslip.employee_id_display?.trim() || "";
     return {
@@ -165,7 +181,7 @@ export async function getMyPayslips(filters?: {
       employee_id_display: storedEmployeeId || userEmployeeId || null,
     };
   });
-  
+
   return {
     data: payslips,
     count: count || 0,
@@ -181,7 +197,9 @@ export async function getRecentPayslips(limit = 5) {
 
   let query = supabase
     .from("payslips")
-    .select("*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)")
+    .select(
+      "*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)",
+    )
     .order("pay_date", { ascending: false })
     .limit(limit);
 
@@ -194,7 +212,9 @@ export async function getRecentPayslips(limit = 5) {
 
   return (data || []).map((payslip: any) => {
     const user = Array.isArray(payslip.user) ? payslip.user[0] : payslip.user;
-    const generator = Array.isArray(payslip.generator) ? payslip.generator[0] : payslip.generator;
+    const generator = Array.isArray(payslip.generator)
+      ? payslip.generator[0]
+      : payslip.generator;
     const userEmployeeId = user?.employee_id?.trim() || "";
     const storedEmployeeId = payslip.employee_id_display?.trim() || "";
     return {
@@ -212,7 +232,7 @@ async function computePayslipAttendanceSummary(
     user_id: string;
     period_start: string;
     period_end: string;
-  }
+  },
 ) {
   if (!input.user_id || !input.period_start || !input.period_end) {
     return { late_attendance: 0, leaves: 0 };
@@ -222,7 +242,9 @@ async function computePayslipAttendanceSummary(
   let lateAfterMinutes = 9 * 60 + 15;
   try {
     const settings = await getAttendanceSettings();
-    const [lateHour, lateMinute] = settings.late_after_time.split(":").map(Number);
+    const [lateHour, lateMinute] = settings.late_after_time
+      .split(":")
+      .map(Number);
     lateAfterMinutes = (lateHour || 0) * 60 + (lateMinute || 0);
   } catch {
     lateAfterMinutes = 9 * 60 + 15;
@@ -257,15 +279,19 @@ async function computePayslipAttendanceSummary(
   const endBoundary = new Date(`${input.period_end}T00:00:00`);
   let leaveDays = 0;
 
-  (leaveRows || []).forEach((leave: { start_date: string; end_date: string | null }) => {
-    const start = new Date(`${leave.start_date}T00:00:00`);
-    const end = new Date(`${leave.end_date || leave.start_date}T00:00:00`);
-    const overlapStart = start > startBoundary ? start : startBoundary;
-    const overlapEnd = end < endBoundary ? end : endBoundary;
-    if (overlapEnd < overlapStart) return;
-    const days = Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1;
-    leaveDays += days;
-  });
+  (leaveRows || []).forEach(
+    (leave: { start_date: string; end_date: string | null }) => {
+      const start = new Date(`${leave.start_date}T00:00:00`);
+      const end = new Date(`${leave.end_date || leave.start_date}T00:00:00`);
+      const overlapStart = start > startBoundary ? start : startBoundary;
+      const overlapEnd = end < endBoundary ? end : endBoundary;
+      if (overlapEnd < overlapStart) return;
+      const days =
+        Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) +
+        1;
+      leaveDays += days;
+    },
+  );
 
   return {
     late_attendance: lateCount,
@@ -287,14 +313,23 @@ export async function createPayslip(input: CreatePayslipInput) {
   const admin = await requireRole(["super_admin"]);
   const supabase = await createClient();
 
-  if (!input.user_id || !input.period_start || !input.period_end || !input.pay_date) {
+  if (
+    !input.user_id ||
+    !input.period_start ||
+    !input.period_end ||
+    !input.pay_date
+  ) {
     throw new Error("User, period dates, and pay date are required");
   }
 
   const periodStart = new Date(input.period_start);
   const periodEnd = new Date(input.period_end);
   const payDate = new Date(input.pay_date);
-  if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime()) || isNaN(payDate.getTime())) {
+  if (
+    isNaN(periodStart.getTime()) ||
+    isNaN(periodEnd.getTime()) ||
+    isNaN(payDate.getTime())
+  ) {
     throw new Error("Invalid date input");
   }
   if (periodEnd < periodStart) {
@@ -318,7 +353,8 @@ export async function createPayslip(input: CreatePayslipInput) {
   const bonus = Number(input.bonus || 0);
   const commission = Number(input.commission || 0);
   const advance = Number(input.advance || 0);
-  const netPay = basicSalary + allowances + bonus + commission - advance - deductions;
+  const netPay =
+    basicSalary + allowances + bonus + commission - advance - deductions;
   if (netPay < 0) {
     throw new Error("Net pay cannot be negative");
   }
@@ -328,7 +364,10 @@ export async function createPayslip(input: CreatePayslipInput) {
   const lateAttendance = Number(input.late_attendance ?? 0);
   const leaves = Number(input.leaves ?? 0);
 
-  const employeeIdDisplay = await resolveEmployeeIdDisplayForPayslip(input.user_id, null);
+  const employeeIdDisplay = await resolveEmployeeIdDisplayForPayslip(
+    input.user_id,
+    null,
+  );
 
   const { data, error } = await supabase
     .from("payslips")
@@ -345,7 +384,7 @@ export async function createPayslip(input: CreatePayslipInput) {
       commission,
       advance,
       net_pay: netPay,
-      currency: input.currency || "USD",
+      currency: input.currency || "PKR",
       status,
       sent_at: status === "paid" ? nowIso : null,
       employee_id_display: employeeIdDisplay,
@@ -394,7 +433,12 @@ export async function updatePayslip(input: UpdatePayslipInput) {
   if (!input.id) {
     throw new Error("Payslip id is required");
   }
-  if (!input.user_id || !input.period_start || !input.period_end || !input.pay_date) {
+  if (
+    !input.user_id ||
+    !input.period_start ||
+    !input.period_end ||
+    !input.pay_date
+  ) {
     throw new Error("User, period dates, and pay date are required");
   }
 
@@ -413,7 +457,8 @@ export async function updatePayslip(input: UpdatePayslipInput) {
   const bonus = Number(input.bonus || 0);
   const commission = Number(input.commission || 0);
   const advance = Number(input.advance || 0);
-  const netPay = basicSalary + allowances + bonus + commission - advance - deductions;
+  const netPay =
+    basicSalary + allowances + bonus + commission - advance - deductions;
   if (netPay < 0) {
     throw new Error("Net pay cannot be negative");
   }
@@ -443,7 +488,7 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       commission,
       advance,
       net_pay: netPay,
-      currency: input.currency || "USD",
+      currency: input.currency || "PKR",
       status,
       sent_at: sentAt,
       employee_id_display: employeeIdDisplay,
@@ -493,7 +538,8 @@ export async function markPayslipAsPaid(payslipId: string) {
     .eq("id", payslipId)
     .single();
 
-  if (fetchError || !payslip) throw new Error(fetchError?.message || "Payslip not found");
+  if (fetchError || !payslip)
+    throw new Error(fetchError?.message || "Payslip not found");
 
   const sentAt = new Date().toISOString();
   const { error } = await supabase
@@ -514,13 +560,18 @@ export async function markPayslipAsPaid(payslipId: string) {
   revalidatePath("/dashboard");
 }
 
-export async function clonePayslipToNextMonth(payslipId: string, status: "processed" | "paid" = "processed") {
+export async function clonePayslipToNextMonth(
+  payslipId: string,
+  status: "processed" | "paid" = "processed",
+) {
   await requireRole(["super_admin"]);
   const supabase = await createClient();
 
   const { data: source, error: sourceError } = await supabase
     .from("payslips")
-    .select("id, user_id, period_start, period_end, pay_date, basic_salary, allowances, deductions, bonus, currency")
+    .select(
+      "id, user_id, period_start, period_end, pay_date, basic_salary, allowances, deductions, bonus, currency",
+    )
     .eq("id", payslipId)
     .single();
 
@@ -552,7 +603,7 @@ export async function clonePayslipToNextMonth(payslipId: string, status: "proces
     allowances: Number(source.allowances || 0),
     deductions: Number(source.deductions || 0),
     bonus: Number(source.bonus || 0),
-    currency: source.currency || "USD",
+    currency: "PKR",
     status,
   });
 }
@@ -565,7 +616,10 @@ export async function deletePayslip(payslipId: string) {
     throw new Error("Payslip id is required");
   }
 
-  const { error } = await supabase.from("payslips").delete().eq("id", payslipId);
+  const { error } = await supabase
+    .from("payslips")
+    .delete()
+    .eq("id", payslipId);
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard/payslips");
