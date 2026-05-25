@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { getMyChannels } from "@/lib/actions/chat";
+import { getUsers } from "@/lib/actions/users";
 import { ChatClient } from "@/components/chat/chat-client";
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -34,7 +35,9 @@ export default async function ChatPage() {
   const user = await requireAuth();
   const [channels, usersResponse] = await Promise.all([
     getMyChannels(),
-    getCachedChatUsers(),
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? getCachedChatUsers()
+      : getUsers({ pageSize: 500 }).then((res) => res.data),
   ]);
 
   return (

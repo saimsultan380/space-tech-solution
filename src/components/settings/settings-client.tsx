@@ -17,6 +17,7 @@ import { updateAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { updateCompanySettings, type CompanySettings } from "@/lib/actions/company-settings";
 import { ThemeAppearance } from "@/components/settings/theme-appearance";
 import { useCurrency } from "@/components/providers/currency-provider";
+import { useRouter } from "next/navigation";
 import {
   User,
   Image as ImageIcon,
@@ -59,6 +60,7 @@ interface SettingsClientProps {
 }
 
 export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings }: SettingsClientProps) {
+  const router = useRouter();
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
   const [department, setDepartment] = useState(user.department ?? "");
@@ -256,6 +258,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
     try {
       await updatePreferences({ preferred_currency: currency });
       setGlobalCurrency(currency);
+      router.refresh();
       setPrefsMessage("Preferences saved.");
     } catch (err) {
       setPrefsMessage(
