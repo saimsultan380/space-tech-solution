@@ -11,9 +11,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/loading";
-import { createPayslip, updatePayslip } from "@/lib/actions/payslips";
+import {
+  createPayslip,
+  updatePayslip,
+  uploadPayslipPdf,
+  deletePayslipPdf,
+} from "@/lib/actions/payslips";
 import type { Payslip, PayslipStatus } from "@/lib/types";
 import { formatCnic } from "@/lib/utils";
+import { Upload, X, FileText } from "@/components/ui/icons";
 
 interface EmployeeOption {
   id: string;
@@ -54,6 +60,11 @@ export function PayslipFormDialog({
 }: PayslipFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+  const [uploadedPdfUrl, setUploadedPdfUrl] = useState<string | null>(
+    initialPayslip?.pdf_url || null
+  );
 
   const initialEmployeeId =
     initialPayslip?.employee_id_display ||
@@ -192,12 +203,67 @@ export function PayslipFormDialog({
     Number(form.advance || 0) -
     Number(form.deductions || 0);
 
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (file.type !== "application/pdf") {
+      setError("Only PDF files are allowed");
+      return;
+    }
+
+    // Validate file size (10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError("File size must be less than 10MB");
+      return;
+    }
+
+    setSelectedPdfFile(file);
+    setError("");
+  };
+
+  const handleRemovePdf = async () => {
+    if (uploadedPdfUrl && mode === "edit") {
+      // Delete from storage if it's an uploaded file
+      try {
+        await deletePayslipPdf(uploadedPdfUrl);
+      } catch (err) {
+        console.error("Failed to delete PDF:", err);
+      }
+    }
+    setSelectedPdfFile(null);
+    setUploadedPdfUrl(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
+      let pdfUrl = uploadedPdfUrl;
+
+      // Upload PDF if a new file is selected
+      if (selectedPdfFile && form.user_id) {
+        setUploadingPdf(true);
+        const formData = new FormData();
+        formData.append("file", selectedPdfFile);
+        formData.append("userId", form.user_id);
+
+        try {
+          const uploadResult = await uploadPayslipPdf(formData);
+          pdfUrl = uploadResult.fullPath;
+        } catch (uploadError) {
+          throw new Error(
+            `Failed to upload PDF: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}`
+          );
+        } finally {
+          setUploadingPdf(false);
+        }
+      }
+
       const payload = {
         user_id: form.user_id,
         period_start: form.period_start,
@@ -231,6 +297,7 @@ export function PayslipFormDialog({
         paid_through: form.paid_through,
         bank_account_no: form.bank_account_no,
         bank_branch: form.bank_branch,
+        pdf_url: pdfUrl || undefined,
       };
 
       if (mode === "edit" && initialPayslip) {
@@ -685,6 +752,79 @@ export function PayslipFormDialog({
           )}
         </div>
 
+        {/* PDF Upload Section */}
+        <div className="space-y-4 pt-4 border-t border-border">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Upload Existing Payslip PDF
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Upload an old payslip PDF file in the same format as generated payslips. 
+            This is useful for adding historical payslips to the system.
+          </p>
+          
+          {!selectedPdfFile && !uploadedPdfUrl ? (
+            <div className="rounded-lg border-2 border-dashed border-border bg-muted/20 p-6">
+              <label htmlFor="pdf-upload" className="cursor-pointer block">
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="rounded-full bg-primary/10 p-3">
+                    <Upload className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">
+                      Click to upload PDF
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PDF files only, max 10MB
+                    </p>
+                  </div>
+                </div>
+                <input
+                  id="pdf-upload"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handlePdfFileChange}
+                  className="hidden"
+                  disabled={!form.user_id}
+                />
+              </label>
+              {!form.user_id && (
+                <p className="text-xs text-warning text-center mt-3">
+                  Please select an employee first
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="rounded-md bg-primary/10 p-2 mt-0.5">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {selectedPdfFile?.name || "Uploaded PDF"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {selectedPdfFile
+                        ? `${(selectedPdfFile.size / 1024 / 1024).toFixed(2)} MB`
+                        : "Previously uploaded"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={handleRemovePdf}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase mb-3">
@@ -767,10 +907,15 @@ export function PayslipFormDialog({
           </Button>
           <Button
             type="submit"
-            disabled={loading || netPay < 0}
+            disabled={loading || uploadingPdf || netPay < 0}
             className="min-w-[120px]"
           >
-            {loading ? (
+            {uploadingPdf ? (
+              <>
+                <Spinner />
+                <span className="ml-2">Uploading...</span>
+              </>
+            ) : loading ? (
               <Spinner />
             ) : mode === "edit" ? (
               "Update Payslip"

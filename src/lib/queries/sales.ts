@@ -96,13 +96,25 @@ export async function getSales(filters?: {
     filters,
   );
 
-  const [{ data, error, count }, { data: statsRows, error: statsError }] = await Promise.all([
+  // ── Run all 3 queries in parallel (was: chargebacks fetched serially after the first two) ──
+  const chargebacksQuery =
+    supabase
+      .from("chargebacks")
+      .select("sale_id");
+
+  const [
+    { data, error, count },
+    { data: statsRows, error: statsError },
+    { data: chargebackRows, error: chargebackError },
+  ] = await Promise.all([
     query.range(offset, offset + pageSize - 1),
     statsQuery,
+    chargebacksQuery,
   ]);
 
   if (error) throw new Error(error.message);
   if (statsError) throw new Error(statsError.message);
+  if (chargebackError) throw new Error(chargebackError.message);
 
   const rows = (statsRows || []) as Array<{
     id: string;
@@ -123,20 +135,13 @@ export async function getSales(filters?: {
     { totalAmount: 0, totalChargedAmount: 0, utilityCount: 0, insuranceCount: 0 },
   );
 
+  const chargebackSaleIds = new Set(
+    (chargebackRows || []).map((r) => (r as { sale_id: string }).sale_id),
+  );
   let chargebackImpactedAmount = 0;
-  if (rows.length > 0) {
-    const chargedBySaleId = new Map(rows.map((row) => [row.id, Number(row.charged_amount || 0)]));
-    const saleIds = rows.map((row) => row.id);
-    const { data: chargebackRows, error: chargebackError } = await supabase
-      .from("chargebacks")
-      .select("sale_id")
-      .in("sale_id", saleIds);
-
-    if (chargebackError) throw new Error(chargebackError.message);
-
-    for (const chargebackRow of chargebackRows || []) {
-      const impacted = chargedBySaleId.get(chargebackRow.sale_id as string) || 0;
-      chargebackImpactedAmount += impacted;
+  for (const row of rows) {
+    if (chargebackSaleIds.has(row.id)) {
+      chargebackImpactedAmount += Number(row.charged_amount || 0);
     }
   }
 

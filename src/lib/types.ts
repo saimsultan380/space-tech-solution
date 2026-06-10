@@ -302,6 +302,7 @@ export interface Payslip {
   paid_through?: string | null;
   bank_account_no?: string | null;
   bank_branch?: string | null;
+  pdf_url?: string | null;
   user?: Pick<AppUser, "id" | "full_name" | "role" | "email" | "employee_id"> | null;
   generator?: Pick<AppUser, "id" | "full_name"> | null;
 }

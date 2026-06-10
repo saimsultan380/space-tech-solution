@@ -23,10 +23,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  FileText,
 } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
+import { getPayslipPdfUrl } from "@/lib/actions/payslips";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
@@ -108,6 +110,17 @@ export function PayslipsMyClient({
     const [year, month] = activeMonth.split("-").map(Number);
     const date = new Date(year, (month || 1) - 1 + delta, 1);
     setActiveMonth(toYearMonth(date));
+  };
+
+  const handleViewUploadedPdf = async (pdfUrl: string) => {
+    try {
+      const signedUrl = await getPayslipPdfUrl(pdfUrl);
+      window.open(signedUrl, "_blank");
+    } catch (err) {
+      alert(
+        `Failed to load PDF: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+    }
   };
 
   return (
@@ -216,29 +229,48 @@ export function PayslipsMyClient({
                             size="icon"
                             variant="ghost"
                             onClick={() => setViewingPayslip(payslip)}
+                            title="View details"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() =>
-                              void previewPayslipPdf(payslip, companySettings)
-                            }
-                          >
-                            <span className="text-[10px] font-semibold">
-                              PDF
-                            </span>
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() =>
-                              downloadPayslipPdf(payslip, companySettings)
-                            }
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          {payslip.pdf_url ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-blue-600 hover:text-blue-700"
+                              onClick={() =>
+                                handleViewUploadedPdf(payslip.pdf_url!)
+                              }
+                              title="View uploaded PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() =>
+                                  void previewPayslipPdf(payslip, companySettings)
+                                }
+                                title="Preview generated PDF"
+                              >
+                                <span className="text-[10px] font-semibold">
+                                  PDF
+                                </span>
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() =>
+                                  downloadPayslipPdf(payslip, companySettings)
+                                }
+                                title="Download generated PDF"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

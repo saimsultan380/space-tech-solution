@@ -65,6 +65,7 @@ interface CreatePayslipInput {
   paid_through?: string;
   bank_account_no?: string;
   bank_branch?: string;
+  pdf_url?: string;
 }
 
 interface UpdatePayslipInput extends CreatePayslipInput {
@@ -406,6 +407,7 @@ export async function createPayslip(input: CreatePayslipInput) {
       paid_through: input.paid_through,
       bank_account_no: input.bank_account_no,
       bank_branch: input.bank_branch,
+      pdf_url: input.pdf_url,
     })
     .select("id")
     .single();
@@ -510,6 +512,7 @@ export async function updatePayslip(input: UpdatePayslipInput) {
       paid_through: input.paid_through,
       bank_account_no: input.bank_account_no,
       bank_branch: input.bank_branch,
+      pdf_url: input.pdf_url,
     })
     .eq("id", input.id);
 
@@ -631,4 +634,109 @@ function shiftOneMonth(dateInput: string) {
   const date = new Date(Date.UTC(year, (month || 1) - 1, day || 1));
   date.setUTCMonth(date.getUTCMonth() + 1);
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Upload a payslip PDF file to Supabase storage
+ */
+export async function uploadPayslipPdf(formData: FormData) {
+  await requireRole(["super_admin"]);
+  const supabase = await createClient();
+
+  const file = formData.get("file") as File;
+  const userId = formData.get("userId") as string;
+
+  if (!file) {
+    throw new Error("No file provided");
+  }
+
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
+  // Validate file type
+  if (file.type !== "application/pdf") {
+    throw new Error("Only PDF files are allowed");
+  }
+
+  // Validate file size (10MB limit)
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    throw new Error("File size must be less than 10MB");
+  }
+
+  // Generate unique filename
+  const timestamp = Date.now();
+  const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const fileName = `${userId}/${timestamp}_${sanitizedFileName}`;
+
+  // Upload file to storage
+  const { data, error } = await supabase.storage
+    .from("payslip-pdfs")
+    .upload(fileName, file, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Failed to upload file: ${error.message}`);
+  }
+
+  return {
+    path: data.path,
+    fullPath: fileName,
+  };
+}
+
+/**
+ * Delete a payslip PDF file from Supabase storage
+ */
+export async function deletePayslipPdf(filePath: string) {
+  await requireRole(["super_admin"]);
+  const supabase = await createClient();
+
+  if (!filePath) {
+    throw new Error("File path is required");
+  }
+
+  const { error } = await supabase.storage
+    .from("payslip-pdfs")
+    .remove([filePath]);
+
+  if (error) {
+    throw new Error(`Failed to delete file: ${error.message}`);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Get a signed URL for viewing a payslip PDF
+ */
+export async function getPayslipPdfUrl(filePath: string) {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  if (!filePath) {
+    throw new Error("File path is required");
+  }
+
+  // Check if user has access to this payslip
+  // File path format: {user_id}/{filename}
+  const fileUserId = filePath.split("/")[0];
+  
+  if (user.role !== "super_admin" && user.id !== fileUserId) {
+    throw new Error("Unauthorized access to this payslip");
+  }
+
+  // Generate signed URL valid for 1 hour
+  const { data, error } = await supabase.storage
+    .from("payslip-pdfs")
+    .createSignedUrl(filePath, 3600);
+
+  if (error) {
+    throw new Error(`Failed to generate URL: ${error.message}`);
+  }
+
+  return data.signedUrl;
 }

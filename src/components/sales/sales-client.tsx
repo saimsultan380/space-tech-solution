@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,13 @@ import {
   Target,
   Zap,
   Shield,
+  User,
+  Contact,
+  ChevronDown,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
 } from "@/components/ui/icons";
 import {
   DropdownRangeDatePicker,
@@ -62,6 +69,161 @@ function formatDateKarachi(date: string | Date): string {
     day: "numeric",
     timeZone: KARACHI_TIMEZONE,
   }).format(new Date(date));
+}
+
+// ─── Customer Info Popover ────────────────────────────────────────────────────
+function CustomerInfoPopover({ sale }: { sale: Sale }) {
+  const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const isInsurance = sale.sale_type === "insurance";
+  const name =
+    sale.customer?.name || sale.customer_name || sale.account_holder_name || "—";
+  const email = sale.customer?.email || sale.customer_email || null;
+  const phone = sale.customer?.phone || sale.customer_phone || null;
+  const address = sale.customer?.address || sale.service_address || null;
+  const dob = sale.customer?.dob || sale.dob || null;
+  const holder = isInsurance
+    ? sale.policy_holder_name || sale.account_holder_name || null
+    : sale.account_holder_name || null;
+  const accountNo = (sale.customer as { account_no?: string } | undefined)?.account_no || null;
+  const ssnLast4 = sale.ssn_encrypted
+    ? sale.ssn_encrypted.replace(/\D/g, "").slice(-4) || "••••"
+    : null;
+
+  type InfoRowProps = { icon: React.ReactNode; label: string; value: string | null | undefined };
+  const InfoRow = ({ icon, label, value }: InfoRowProps) => {
+    if (!value) return null;
+    return (
+      <div className="flex items-start gap-2 py-1.5">
+        <span className="mt-0.5 text-muted-foreground shrink-0">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
+            {label}
+          </p>
+          <p className="text-xs text-foreground break-words leading-snug">{value}</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-8 min-w-[80px] items-center justify-between gap-1 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap border border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40"
+        title="View customer info"
+      >
+        <User className="h-3.5 w-3.5 shrink-0" />
+        <span>Info</span>
+        <ChevronDown
+          className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in-0 zoom-in-95"
+        >
+          {/* Header */}
+          <div className="mb-1.5 flex items-center gap-2.5 border-b border-border pb-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+              {name
+                .split(/\s+/)
+                .filter(Boolean)
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase() || "?"}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+              <p className="text-[10px] text-muted-foreground">Customer Info</p>
+            </div>
+          </div>
+
+          {/* Info rows — all fields matching sale detail "Customer Info" card */}
+          <div className="divide-y divide-border/50">
+            <InfoRow
+              icon={<Mail className="h-3.5 w-3.5" />}
+              label="Email"
+              value={email}
+            />
+            <InfoRow
+              icon={<Phone className="h-3.5 w-3.5" />}
+              label="Phone"
+              value={phone}
+            />
+            <InfoRow
+              icon={<MapPin className="h-3.5 w-3.5" />}
+              label="Service Address"
+              value={address}
+            />
+            <InfoRow
+              icon={<User className="h-3.5 w-3.5" />}
+              label={isInsurance ? "Policy Holder" : "Account Holder"}
+              value={holder}
+            />
+            <InfoRow
+              icon={<Contact className="h-3.5 w-3.5" />}
+              label="Account / Policy No."
+              value={accountNo}
+            />
+            <InfoRow
+              icon={<Calendar className="h-3.5 w-3.5" />}
+              label="Date of Birth"
+              value={dob}
+            />
+            <InfoRow
+              icon={<Shield className="h-3.5 w-3.5" />}
+              label="SSN (last 4)"
+              value={ssnLast4}
+            />
+          </div>
+
+          {/* Footer: two separate links — customer profile + sale detail */}
+          <div className="mt-2.5 grid grid-cols-2 gap-1.5 border-t border-border pt-2.5">
+            <Link
+              href={`/dashboard/customers/${sale.customer_id}`}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <User className="h-3 w-3" />
+              Customer profile
+            </Link>
+            <Link
+              href={`/dashboard/sales/${sale.id}`}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <Eye className="h-3 w-3" />
+              Sale detail
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface SalesClientProps {
@@ -140,11 +302,11 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     staleTime: 30000,
   });
 
-  // React Query for fetching users (agents)
+  // React Query for fetching users (agents) — long staleTime since agent list rarely changes
   const { data: usersResponse, isLoading: usersLoading } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => getUsers(),
-    staleTime: 30000,
+    queryKey: ["users-agents"],
+    queryFn: () => getUsers({ pageSize: 100 }),
+    staleTime: 5 * 60 * 1000, // 5 minutes — agent list rarely changes
   });
 
   const {
@@ -261,7 +423,8 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     }
   };
 
-  const isLoading = salesLoading || usersLoading;
+  const isLoading = salesLoading; // Don't block on usersLoading — agents load independently in the filter
+  void usersLoading; // consumed below in the dropdown placeholder
 
   // Loading skeleton
   if (isLoading) {
@@ -575,6 +738,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     <TableHead>Amount</TableHead>
                     <TableHead>Agent Name</TableHead>
                     <TableHead className="min-w-[180px]">Date</TableHead>
+                    <TableHead className="w-[100px]">Customer</TableHead>
                     <TableHead className="w-[120px] text-right">
                       Actions
                     </TableHead>
@@ -636,6 +800,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             Recorded: {formatDateKarachi(sale.created_at)}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <CustomerInfoPopover sale={sale} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-0.5">

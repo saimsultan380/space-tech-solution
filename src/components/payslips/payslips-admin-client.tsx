@@ -20,6 +20,7 @@ import {
   clonePayslipToNextMonth,
   deletePayslip,
   markPayslipAsPaid,
+  getPayslipPdfUrl,
 } from "@/lib/actions/payslips";
 import type { Payslip } from "@/lib/types";
 import {
@@ -33,9 +34,12 @@ import {
   MoreHorizontal,
   Trash2,
   Eye,
+  FileText,
+  Upload,
 } from "@/components/ui/icons";
 import { PayslipFormDialog } from "./payslip-form-dialog";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
+import { UploadOldPayslipDialog } from "./upload-old-payslip-dialog";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -100,6 +104,7 @@ export function PayslipsAdminClient({
   } = payslipsResponse;
 
   const [showForm, setShowForm] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [editingPayslip, setEditingPayslip] = useState<Payslip | null>(null);
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -240,6 +245,17 @@ export function PayslipsAdminClient({
     }
   };
 
+  const handleViewUploadedPdf = async (pdfUrl: string) => {
+    try {
+      const signedUrl = await getPayslipPdfUrl(pdfUrl);
+      window.open(signedUrl, "_blank");
+    } catch (err) {
+      alert(
+        `Failed to load PDF: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -250,14 +266,23 @@ export function PayslipsAdminClient({
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/dashboard/payslips/history">
-            <Button variant="outline" className="border-border hover:bg-muted">
-              View History
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowUploadDialog(true)}
+              variant="outline"
+              className="flex-1 sm:flex-none border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+            >
+              <Upload className="h-4 w-4 mr-2" /> Upload Old Payslip
             </Button>
-          </Link>
+            <Link href="/dashboard/payslips/history" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full border-border hover:bg-muted">
+                View History
+              </Button>
+            </Link>
+          </div>
           <Button
             onClick={() => setShowForm(true)}
-            className="bg-primary hover:bg-primary/90"
+            className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" /> Generate Payslip
           </Button>
@@ -367,6 +392,7 @@ export function PayslipsAdminClient({
                   <TableHead>Pay Date</TableHead>
                   <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">PDF</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -404,6 +430,21 @@ export function PayslipsAdminClient({
                       >
                         {payslip.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {payslip.pdf_url ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleViewUploadedPdf(payslip.pdf_url!)}
+                          title="View uploaded PDF"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
@@ -505,17 +546,31 @@ export function PayslipsAdminClient({
             <Pencil className="h-3.5 w-3.5" />
             Edit
           </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
-            onClick={() => {
-              setMenuState(null);
-              void previewPayslipPdf(menuPayslip, companySettings);
-            }}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            Preview PDF
-          </button>
+          {menuPayslip.pdf_url ? (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
+              onClick={() => {
+                setMenuState(null);
+                handleViewUploadedPdf(menuPayslip.pdf_url!);
+              }}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              View Uploaded PDF
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
+              onClick={() => {
+                setMenuState(null);
+                void previewPayslipPdf(menuPayslip, companySettings);
+              }}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Preview PDF
+            </button>
+          )}
           <button
             type="button"
             className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-foreground hover:bg-muted"
@@ -525,7 +580,7 @@ export function PayslipsAdminClient({
             }}
           >
             <Download className="h-3.5 w-3.5" />
-            Download PDF
+            Download Generated PDF
           </button>
           {menuPayslip.status === "processed" && (
             <button
@@ -588,6 +643,13 @@ export function PayslipsAdminClient({
         <PayslipFormDialog
           open={showForm}
           onClose={() => setShowForm(false)}
+          employees={employees}
+        />
+      )}
+      {showUploadDialog && (
+        <UploadOldPayslipDialog
+          open={showUploadDialog}
+          onClose={() => setShowUploadDialog(false)}
           employees={employees}
         />
       )}
