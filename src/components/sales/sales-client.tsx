@@ -74,8 +74,35 @@ function formatDateKarachi(date: string | Date): string {
 // ─── Customer Info Popover ────────────────────────────────────────────────────
 function CustomerInfoPopover({ sale }: { sale: Sale }) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<"below" | "above">("below");
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    
+    // Calculate if there's enough space below the button
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - triggerRect.bottom;
+    const spaceAbove = triggerRect.top;
+    const popoverHeight = 400; // Approximate height of the popover
+    
+    // Position above if not enough space below
+    const shouldPositionAbove = spaceBelow < popoverHeight && spaceAbove > spaceBelow;
+    setPosition(shouldPositionAbove ? "above" : "below");
+    
+    // Scroll the card into view after a small delay to let it render
+    setTimeout(() => {
+      if (popoverRef.current) {
+        popoverRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+          inline: "nearest"
+        });
+      }
+    }, 10);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -143,7 +170,11 @@ function CustomerInfoPopover({ sale }: { sale: Sale }) {
       {open && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in-0 zoom-in-95"
+          className={`absolute right-0 z-50 w-80 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in-0 zoom-in-95 ${
+            position === "below" 
+              ? "top-full mt-1.5" 
+              : "bottom-full mb-1.5"
+          }`}
         >
           {/* Header */}
           <div className="mb-1.5 flex items-center gap-2.5 border-b border-border pb-2.5">
