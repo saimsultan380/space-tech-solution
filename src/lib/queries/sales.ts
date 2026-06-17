@@ -84,7 +84,7 @@ export async function getSales(filters?: {
   let query = supabase
     .from("sales")
     .select(
-      "*, customer:customers(id, name, email, phone), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)",
+      "*, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)",
       { count: "exact" }
     )
     .order("created_at", { ascending: false });

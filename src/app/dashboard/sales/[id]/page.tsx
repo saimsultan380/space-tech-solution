@@ -1,14 +1,11 @@
 import { requireAuth } from "@/lib/auth";
-import { getSale } from "@/lib/actions/sales";
-import { getNotes } from "@/lib/actions/notes";
-import { getPaymentsBySaleId } from "@/lib/actions/payments";
+import { createClient } from "@/lib/supabase/server";
 import { getDecryptedBankSecrets, getDecryptedCardSecrets } from "@/lib/payment-secrets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { NotesSection } from "@/components/shared/notes-section";
 import { decrypt } from "@/lib/encryption";
-import { getSaleAttachments } from "@/lib/actions/sale-attachments";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { SaleDetailNoteFields } from "@/components/sales/sale-detail-note-fields";
 import Link from "next/link";
@@ -63,13 +60,49 @@ export default async function SaleDetailPage(props: {
   const params = await props.params;
   const user = await requireAuth();
   const currency = user.preferred_currency || "USD";
-  const [saleData, notes, attachments, payments] = await Promise.all([
-    getSale(params.id),
-    getNotes({ sale_id: params.id }),
-    getSaleAttachments(params.id),
-    getPaymentsBySaleId(params.id),
+  const supabase = await createClient();
+
+  const [
+    { data: saleData, error: saleError },
+    { data: notesData, error: notesError },
+    { data: attachmentsData, error: attachmentsError },
+    { data: paymentsData, error: paymentsError },
+  ] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("*, customer:customers(*), agent:users!sales_agent_id_fkey(id, full_name, email), processor:users!sales_processor_id_fkey(id, full_name, email)")
+      .eq("id", params.id)
+      .single(),
+    supabase
+      .from("notes")
+      .select("id, content, created_at, updated_at, is_important, type, sale_id, customer_id, user_id, user:users(id, full_name, role)")
+      .eq("sale_id", params.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("sale_attachments")
+      .select("id, sale_id, file_name, file_path, file_url, mime_type, size_bytes, uploaded_by, created_at")
+      .eq("sale_id", params.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("payments")
+      .select("id, method, amount, card_last_four, card_exp, billing_address, merchant_name, bank_name, account_holder_name, created_at, encrypted_details, card_cvv_encrypted, routing_number_encrypted, account_number_encrypted")
+      .eq("sale_id", params.id)
+      .order("created_at", { ascending: false }),
   ]);
+
+  if (saleError) throw new Error(saleError.message);
+  if (notesError) throw new Error(notesError.message);
+  if (attachmentsError) throw new Error(attachmentsError.message);
+  if (paymentsError) throw new Error(paymentsError.message);
+
   const sale = saleData as unknown as SaleWithExtraDetails;
+  const notes = (notesData || []).map((note) => ({
+    ...note,
+    user: Array.isArray(note.user) ? note.user[0] ?? null : note.user ?? null,
+  })) as any[];
+  const attachments = attachmentsData || [];
+  const payments = paymentsData || [];
   const ssnValue = sale.ssn_encrypted ? decrypt(sale.ssn_encrypted) || "N/A" : "N/A";
   const customer = sale.customer as { name?: string; email?: string; account_no?: string } | null | undefined;
   const agentName =

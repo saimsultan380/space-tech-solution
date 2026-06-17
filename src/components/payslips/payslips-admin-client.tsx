@@ -27,8 +27,6 @@ import {
   Download,
   Plus,
   Send,
-  ChevronLeft,
-  ChevronRight,
   Pencil,
   Copy,
   MoreHorizontal,
@@ -43,6 +41,11 @@ import { UploadOldPayslipDialog } from "./upload-old-payslip-dialog";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import {
+  DropdownRangeDatePicker,
+  toDateRangeFromFilters,
+  toFilterDates,
+} from "@/components/ui/dropdown-range-date-picker";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -130,15 +133,9 @@ export function PayslipsAdminClient({
     });
   };
 
-  const {
-    inputRef,
-    inputValue: searchInput,
-    onInputChange,
-  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
   const statusFilter = searchParams.get("status") || "all";
-  const [activeMonth, setActiveMonth] = useState(() =>
-    new Date().toISOString().slice(0, 7),
-  );
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
   const [menuState, setMenuState] = useState<{
     id: string;
     x: number;
@@ -150,35 +147,17 @@ export function PayslipsAdminClient({
   const totals = useMemo(
     () => ({
       total: count,
-      paid: payslips.filter((p) => p.status === "paid").length, // This is only for the current page now
-      processed: payslips.filter((p) => p.status === "processed").length, // This is only for the current page now
+      paid: payslips.filter((p) => p.status === "paid").length,
+      processed: payslips.filter((p) => p.status === "processed").length,
     }),
     [payslips, count],
   );
 
-  const filteredPayslips = useMemo(() => {
-    // We still do some month filtering on client side for now as requested by existing logic
-    // but the search and status filters are now partially handled by the server
-    return payslips.filter((payslip) => {
-      if (!isPayslipInMonth(payslip, activeMonth)) return false;
-      return true;
-    });
-  }, [payslips, activeMonth]);
-
-  const monthLabel = useMemo(() => {
-    const [year, month] = activeMonth.split("-").map(Number);
-    const date = new Date(year, (month || 1) - 1, 1);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "long",
-      year: "numeric",
-    }).format(date);
-  }, [activeMonth]);
-
-  const shiftMonth = (delta: number) => {
-    const [year, month] = activeMonth.split("-").map(Number);
-    const date = new Date(year, (month || 1) - 1 + delta, 1);
-    setActiveMonth(toYearMonth(date));
-  };
+  const {
+    inputRef,
+    inputValue: searchInput,
+    onInputChange,
+  } = useDebouncedUrlSearchInput(searchParams, updateFilters);
 
   const menuPayslip = useMemo(
     () =>
@@ -328,30 +307,9 @@ export function PayslipsAdminClient({
             <CardTitle className="text-lg font-bold text-foreground">
               Payroll Register
             </CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
-                onClick={() => shiftMonth(-1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-[180px] rounded-lg border border-border bg-muted/30 px-3 py-2 text-center text-sm font-bold text-foreground">
-                {monthLabel}
-              </div>
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
-                onClick={() => shiftMonth(1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+          <div className="grid gap-3 md:grid-cols-[1fr_240px_160px]">
             <Input
               id="search_payslip"
               ref={inputRef}
@@ -361,6 +319,16 @@ export function PayslipsAdminClient({
               className="h-10"
               label="Search"
             />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-foreground">Period</span>
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
+                onApply={(range) =>
+                  updateFilters({ ...toFilterDates(range), page: 1 })
+                }
+                triggerClassName="h-10 w-full justify-start text-left font-normal border-border bg-background"
+              />
+            </div>
             <Select
               id="status_filter"
               label="Status"
@@ -376,10 +344,10 @@ export function PayslipsAdminClient({
         </CardHeader>
         <CardContent className="relative">
           <TableLoadingOverlay isLoading={isPending} />
-          {filteredPayslips.length === 0 ? (
+          {payslips.length === 0 ? (
             <EmptyState
               title="No payslips found"
-              description="Try another month or update your search and status filters."
+              description="Try adjusting your search or status filters."
             />
           ) : (
             <Table>
@@ -387,17 +355,14 @@ export function PayslipsAdminClient({
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Emp ID</TableHead>
-                  <TableHead>Department</TableHead>
                   <TableHead>Period</TableHead>
-                  <TableHead>Pay Date</TableHead>
-                  <TableHead>Net Pay</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">PDF</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayslips.map((payslip) => (
+                {payslips.map((payslip) => (
                   <TableRow key={payslip.id}>
                     <TableCell className="font-medium">
                       {payslip.user?.full_name || "N/A"}
@@ -405,21 +370,14 @@ export function PayslipsAdminClient({
                     <TableCell className="text-xs text-muted-foreground">
                       {payslip.employee_id_display || "-"}
                     </TableCell>
-                    <TableCell className="text-xs">
-                      {payslip.department || "-"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {formatDate(payslip.period_start)} -{" "}
-                      {formatDate(payslip.period_end)}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {formatDate(payslip.pay_date)}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(
-                        Number(payslip.net_pay || 0),
-                        payslip.currency || "PKR",
-                      )}
+                    <TableCell>
+                      <p className="text-xs font-medium text-foreground">
+                        {formatDate(payslip.period_start)} –{" "}
+                        {formatDate(payslip.period_end)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {new Date(payslip.period_start).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                      </p>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -673,24 +631,4 @@ export function PayslipsAdminClient({
   );
 }
 
-function toYearMonth(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
 
-function isPayslipInMonth(payslip: Payslip, activeMonth: string) {
-  const [year, month] = activeMonth.split("-").map(Number);
-  const monthStart = new Date(year, (month || 1) - 1, 1);
-  const monthEnd = new Date(year, month || 1, 0);
-
-  const periodStart = new Date(payslip.period_start);
-  const periodEnd = new Date(payslip.period_end);
-  const payDate = new Date(payslip.pay_date);
-
-  const overlapsPeriod = periodStart <= monthEnd && periodEnd >= monthStart;
-  const inPayMonth =
-    payDate.getFullYear() === year && payDate.getMonth() + 1 === (month || 1);
-
-  return overlapsPeriod || inPayMonth;
-}

@@ -20,12 +20,16 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payslip } from "@/lib/types";
 import {
   Download,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   FileText,
 } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import {
+  DropdownRangeDatePicker,
+  toDateRangeFromFilters,
+  toFilterDates,
+} from "@/components/ui/dropdown-range-date-picker";
 import { downloadPayslipPdf, previewPayslipPdf } from "@/lib/payslip-pdf";
 import { PayslipDetailDialog } from "./payslip-detail-dialog";
 import { getPayslipPdfUrl } from "@/lib/actions/payslips";
@@ -86,31 +90,10 @@ export function PayslipsMyClient({
     inputValue: searchInput,
     onInputChange,
   } = useDebouncedUrlSearchInput(searchParams, updateFilters);
-  const [activeMonth, setActiveMonth] = useState(() =>
-    new Date().toISOString().slice(0, 7),
-  );
+  const statusFilter = searchParams.get("status") || "all";
+  const fromDateFilter = searchParams.get("from_date") || "";
+  const toDateFilter = searchParams.get("to_date") || "";
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
-
-  const filteredPayslips = useMemo(() => {
-    return payslips.filter((payslip) => {
-      if (!isPayslipInMonth(payslip, activeMonth)) return false;
-      return true;
-    });
-  }, [payslips, activeMonth]);
-
-  const monthLabel = useMemo(() => {
-    const [year, month] = activeMonth.split("-").map(Number);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "long",
-      year: "numeric",
-    }).format(new Date(year, (month || 1) - 1, 1));
-  }, [activeMonth]);
-
-  const shiftMonth = (delta: number) => {
-    const [year, month] = activeMonth.split("-").map(Number);
-    const date = new Date(year, (month || 1) - 1 + delta, 1);
-    setActiveMonth(toYearMonth(date));
-  };
 
   const handleViewUploadedPdf = async (pdfUrl: string) => {
     try {
@@ -139,54 +122,56 @@ export function PayslipsMyClient({
               Payslip History
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
-                onClick={() => shiftMonth(-1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-[180px] rounded-lg border border-border bg-muted/30 px-3 py-2 text-center text-sm font-bold text-foreground">
-                {monthLabel}
-              </div>
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-9 w-9 rounded-lg border-border hover:bg-muted"
-                onClick={() => shiftMonth(1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
               <TableDataExport
-                filenameBase={`my-payslips-${activeMonth}`}
-                headers={["Period", "Pay Date", "Net Pay", "Status"]}
-                rows={filteredPayslips.map((p) => [
+                filenameBase="my-payslips"
+                headers={["Period", "Status"]}
+                rows={payslips.map((p) => [
                   `${formatDate(p.period_start)} - ${formatDate(p.period_end)}`,
-                  formatDate(p.pay_date),
-                  formatCurrency(Number(p.net_pay || 0), p.currency || "PKR"),
                   p.status,
                 ])}
-                disabled={filteredPayslips.length === 0}
+                disabled={payslips.length === 0}
               />
             </div>
           </div>
-          <Input
-            id="search_my_payslip"
-            ref={inputRef}
-            label="Search Payslips"
-            value={searchInput}
-            onChange={(e) => onInputChange(e.target.value)}
-            placeholder="Search by ID, department, position..."
-            className="h-10"
-          />
+          <div className="grid gap-3 md:grid-cols-[1fr_240px_160px]">
+            <Input
+              id="search_my_payslip"
+              ref={inputRef}
+              value={searchInput}
+              onChange={(e) => onInputChange(e.target.value)}
+              placeholder="Search by ID, department, position..."
+              className="h-10"
+              label="Search"
+            />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-foreground">Period</span>
+              <DropdownRangeDatePicker
+                value={toDateRangeFromFilters(fromDateFilter, toDateFilter)}
+                onApply={(range) =>
+                  updateFilters({ ...toFilterDates(range), page: 1 })
+                }
+                triggerClassName="h-10 w-full justify-start text-left font-normal border-border bg-background"
+              />
+            </div>
+            <Select
+              id="status_filter"
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => updateFilters({ status: e.target.value })}
+              options={[
+                { value: "all", label: "All" },
+                { value: "processed", label: "Processed" },
+                { value: "paid", label: "Paid" },
+              ]}
+            />
+          </div>
         </CardHeader>
         <CardContent className="relative">
           <TableLoadingOverlay isLoading={isPending} />
-          {filteredPayslips.length === 0 ? (
+          {payslips.length === 0 ? (
             <EmptyState
               title="No payslips found"
-              description="No payslip records match this month or search query."
+              description="No payslip records found."
             />
           ) : (
             <div className="overflow-x-auto">
@@ -194,25 +179,21 @@ export function PayslipsMyClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Period</TableHead>
-                    <TableHead>Pay Date</TableHead>
-                    <TableHead>Net Pay</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPayslips.map((payslip) => (
+                  {payslips.map((payslip) => (
                     <TableRow key={payslip.id}>
-                      <TableCell className="font-medium">
-                        {formatDate(payslip.period_start)} -{" "}
-                        {formatDate(payslip.period_end)}
-                      </TableCell>
-                      <TableCell>{formatDate(payslip.pay_date)}</TableCell>
-                      <TableCell className="font-bold text-foreground">
-                        {formatCurrency(
-                          Number(payslip.net_pay || 0),
-                          payslip.currency || "PKR",
-                        )}
+                      <TableCell>
+                        <p className="text-xs font-medium text-foreground">
+                          {formatDate(payslip.period_start)} –{" "}
+                          {formatDate(payslip.period_end)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {new Date(payslip.period_start).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -302,24 +283,4 @@ export function PayslipsMyClient({
   );
 }
 
-function toYearMonth(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
 
-function isPayslipInMonth(payslip: Payslip, activeMonth: string) {
-  const [year, month] = activeMonth.split("-").map(Number);
-  const monthStart = new Date(year, (month || 1) - 1, 1);
-  const monthEnd = new Date(year, month || 1, 0);
-
-  const periodStart = new Date(payslip.period_start);
-  const periodEnd = new Date(payslip.period_end);
-  const payDate = new Date(payslip.pay_date);
-
-  const overlapsPeriod = periodStart <= monthEnd && periodEnd >= monthStart;
-  const inPayMonth =
-    payDate.getFullYear() === year && payDate.getMonth() + 1 === (month || 1);
-
-  return overlapsPeriod || inPayMonth;
-}

@@ -105,6 +105,10 @@ export async function getPayslips(filters?: {
   page?: number;
   pageSize?: number;
   search?: string;
+  month?: string;
+  status?: string;
+  from_date?: string;
+  to_date?: string;
 }) {
   await requireRole(["super_admin"]);
   const supabase = await createClient();
@@ -112,19 +116,51 @@ export async function getPayslips(filters?: {
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
-  const query = supabase
+  let query = supabase
     .from("payslips")
     .select(
       "*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)",
       { count: "exact" },
-    )
-    .order("pay_date", { ascending: false });
+    );
+
+  if (filters?.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
+
+  if (filters?.from_date) {
+    query = query.gte("period_start", filters.from_date);
+  }
+  if (filters?.to_date) {
+    query = query.lte("period_end", filters.to_date);
+  }
+
+  if (filters?.month && filters.month !== "all") {
+    const [year, m] = filters.month.split("-").map(Number);
+    const startDate = `${filters.month}-01`;
+    const lastDay = new Date(year, m, 0).getDate();
+    const endDate = `${filters.month}-${String(lastDay).padStart(2, "0")}`;
+    query = query.gte("period_start", startDate).lte("period_start", endDate);
+  }
 
   if (filters?.search) {
-    // Note: Searching on joined fields might need a different approach in Supabase,
-    // but for now we'll assume the client filters or we search on basic fields.
-    // For exact match on user name we might need a separate query or RPC.
+    const searchVal = filters.search.trim();
+    if (searchVal) {
+      const { data: matchedUsers } = await supabase
+        .from("users")
+        .select("id")
+        .or(`full_name.ilike.%${searchVal}%,role.ilike.%${searchVal}%,employee_id.ilike.%${searchVal}%,department.ilike.%${searchVal}%`);
+      
+      const userIds = (matchedUsers || []).map((u) => u.id);
+      
+      if (userIds.length > 0) {
+        query = query.or(`user_id.in.(${userIds.join(",")}),department.ilike.%${searchVal}%,employee_id_display.ilike.%${searchVal}%`);
+      } else {
+        query = query.or(`department.ilike.%${searchVal}%,employee_id_display.ilike.%${searchVal}%`);
+      }
+    }
   }
+
+  query = query.order("pay_date", { ascending: false });
 
   const { data, error, count } = await query.range(
     offset,
@@ -149,6 +185,10 @@ export async function getPayslips(filters?: {
 export async function getMyPayslips(filters?: {
   page?: number;
   pageSize?: number;
+  month?: string;
+  status?: string;
+  from_date?: string;
+  to_date?: string;
 }) {
   const user = await requireAuth();
   const supabase = await createClient();
@@ -156,15 +196,36 @@ export async function getMyPayslips(filters?: {
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
-  const { data, error, count } = await supabase
+  let query = supabase
     .from("payslips")
     .select(
       "*, user:users!payslips_user_id_fkey(id, full_name, role, email, employee_id), generator:users!payslips_generated_by_fkey(id, full_name)",
       { count: "exact" },
     )
-    .eq("user_id", user.id)
-    .order("pay_date", { ascending: false })
-    .range(offset, offset + pageSize - 1);
+    .eq("user_id", user.id);
+
+  if (filters?.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
+
+  if (filters?.from_date) {
+    query = query.gte("period_start", filters.from_date);
+  }
+  if (filters?.to_date) {
+    query = query.lte("period_end", filters.to_date);
+  }
+
+  if (filters?.month && filters.month !== "all") {
+    const [year, m] = filters.month.split("-").map(Number);
+    const startDate = `${filters.month}-01`;
+    const lastDay = new Date(year, m, 0).getDate();
+    const endDate = `${filters.month}-${String(lastDay).padStart(2, "0")}`;
+    query = query.gte("period_start", startDate).lte("period_start", endDate);
+  }
+
+  query = query.order("pay_date", { ascending: false });
+
+  const { data, error, count } = await query.range(offset, offset + pageSize - 1);
 
   if (error) throw new Error(error.message);
 

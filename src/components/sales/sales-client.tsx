@@ -56,6 +56,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { getSales } from "@/lib/queries/sales";
 import { getUsers } from "@/lib/queries/users";
@@ -73,53 +74,6 @@ function formatDateKarachi(date: string | Date): string {
 
 // ─── Customer Info Popover ────────────────────────────────────────────────────
 function CustomerInfoPopover({ sale }: { sale: Sale }) {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<"below" | "above">("below");
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    
-    // Calculate if there's enough space below the button
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-    const popoverHeight = 400; // Approximate height of the popover
-    
-    // Position above if not enough space below
-    const shouldPositionAbove = spaceBelow < popoverHeight && spaceAbove > spaceBelow;
-    setPosition(shouldPositionAbove ? "above" : "below");
-    
-    // Scroll the card into view after a small delay to let it render
-    setTimeout(() => {
-      if (popoverRef.current) {
-        popoverRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-          inline: "nearest"
-        });
-      }
-    }, 10);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
   const isInsurance = sale.sale_type === "insurance";
   const name =
     sale.customer?.name || sale.customer_name || sale.account_holder_name || "—";
@@ -152,108 +106,95 @@ function CustomerInfoPopover({ sale }: { sale: Sale }) {
   };
 
   return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 min-w-[80px] items-center justify-between gap-1 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap border border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40"
-        title="View customer info"
-      >
-        <User className="h-3.5 w-3.5 shrink-0" />
-        <span>Info</span>
-        <ChevronDown
-          className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <div
-          ref={popoverRef}
-          className={`absolute right-0 z-50 w-80 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in-0 zoom-in-95 ${
-            position === "below" 
-              ? "top-full mt-1.5" 
-              : "bottom-full mb-1.5"
-          }`}
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 min-w-[80px] items-center justify-between gap-1 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap border border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40"
+          title="View customer info"
         >
-          {/* Header */}
-          <div className="mb-1.5 flex items-center gap-2.5 border-b border-border pb-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-              {name
-                .split(/\s+/)
-                .filter(Boolean)
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase() || "?"}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">{name}</p>
-              <p className="text-[10px] text-muted-foreground">Customer Info</p>
-            </div>
-          </div>
+          <User className="h-3.5 w-3.5 shrink-0" />
+          <span>Info</span>
+          <ChevronDown className="h-3 w-3 shrink-0" />
+        </button>
+      </PopoverTrigger>
 
-          {/* Info rows — all fields matching sale detail "Customer Info" card */}
-          <div className="divide-y divide-border/50">
-            <InfoRow
-              icon={<Mail className="h-3.5 w-3.5" />}
-              label="Email"
-              value={email}
-            />
-            <InfoRow
-              icon={<Phone className="h-3.5 w-3.5" />}
-              label="Phone"
-              value={phone}
-            />
-            <InfoRow
-              icon={<MapPin className="h-3.5 w-3.5" />}
-              label="Service Address"
-              value={address}
-            />
-            <InfoRow
-              icon={<User className="h-3.5 w-3.5" />}
-              label={isInsurance ? "Policy Holder" : "Account Holder"}
-              value={holder}
-            />
-            <InfoRow
-              icon={<Contact className="h-3.5 w-3.5" />}
-              label="Account / Policy No."
-              value={accountNo}
-            />
-            <InfoRow
-              icon={<Calendar className="h-3.5 w-3.5" />}
-              label="Date of Birth"
-              value={dob}
-            />
-            <InfoRow
-              icon={<Shield className="h-3.5 w-3.5" />}
-              label="SSN (last 4)"
-              value={ssnLast4}
-            />
+      <PopoverContent align="end" className="w-80 p-3 shadow-2xl bg-popover border-border">
+        {/* Header */}
+        <div className="mb-1.5 flex items-center gap-2.5 border-b border-border pb-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+            {name
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase() || "?"}
           </div>
-
-          {/* Footer: two separate links — customer profile + sale detail */}
-          <div className="mt-2.5 grid grid-cols-2 gap-1.5 border-t border-border pt-2.5">
-            <Link
-              href={`/dashboard/customers/${sale.customer_id}`}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              <User className="h-3 w-3" />
-              Customer profile
-            </Link>
-            <Link
-              href={`/dashboard/sales/${sale.id}`}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              <Eye className="h-3 w-3" />
-              Sale detail
-            </Link>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+            <p className="text-[10px] text-muted-foreground">Customer Info</p>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Info rows — all fields matching sale detail "Customer Info" card */}
+        <div className="divide-y divide-border/50">
+          <InfoRow
+            icon={<Mail className="h-3.5 w-3.5" />}
+            label="Email"
+            value={email}
+          />
+          <InfoRow
+            icon={<Phone className="h-3.5 w-3.5" />}
+            label="Phone"
+            value={phone}
+          />
+          <InfoRow
+            icon={<MapPin className="h-3.5 w-3.5" />}
+            label="Service Address"
+            value={address}
+          />
+          <InfoRow
+            icon={<User className="h-3.5 w-3.5" />}
+            label={isInsurance ? "Policy Holder" : "Account Holder"}
+            value={holder}
+          />
+          <InfoRow
+            icon={<Contact className="h-3.5 w-3.5" />}
+            label="Account / Policy No."
+            value={accountNo}
+          />
+          <InfoRow
+            icon={<Calendar className="h-3.5 w-3.5" />}
+            label="Date of Birth"
+            value={dob}
+          />
+          <InfoRow
+            icon={<Shield className="h-3.5 w-3.5" />}
+            label="SSN (last 4)"
+            value={ssnLast4}
+          />
+        </div>
+
+        {/* Footer: two separate links — customer profile + sale detail */}
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5 border-t border-border pt-2.5">
+          <Link
+            href={`/dashboard/customers/${sale.customer_id}`}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+          >
+            <User className="h-3 w-3" />
+            Customer profile
+          </Link>
+          <Link
+            href={`/dashboard/sales/${sale.id}`}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+          >
+            <Eye className="h-3 w-3" />
+            Sale detail
+          </Link>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
