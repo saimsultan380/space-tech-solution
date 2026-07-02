@@ -2,6 +2,24 @@ import { createClient } from "@/lib/supabase/client";
 import { sanitizeFilterValue } from "@/lib/utils";
 import type { CustomerListItem } from "@/lib/types";
 
+export async function getCallLogAgents(): Promise<string[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("customers")
+    .select("created_by_user:users!customers_created_by_fkey(full_name)")
+    .eq("source", "call_log")
+    .is("deleted_at", null);
+
+  if (error) return [];
+
+  const unique = new Map<string, string>();
+  (data || []).forEach((row: { created_by_user?: { full_name?: string } | null }) => {
+    const name = String(row.created_by_user?.full_name || "").trim();
+    if (name) unique.set(name.toLowerCase(), name);
+  });
+  return Array.from(unique.values()).sort((a, b) => a.localeCompare(b));
+}
+
 function createdAtDayBoundsUtc(yyyyMmDd: string): { start: string; end: string } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd.trim())) return null;
   const [y, m, d] = yyyyMmDd.trim().split("-").map(Number);

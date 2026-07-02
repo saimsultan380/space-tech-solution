@@ -55,7 +55,7 @@ import {
   Tooltip,
 } from "recharts";
 import { useTheme } from "next-themes";
-import { getCustomers } from "@/lib/queries/customers";
+import { getCustomers, getCallLogAgents } from "@/lib/queries/customers";
 
 interface CustomersClientProps {
   userRole: UserRole;
@@ -138,6 +138,12 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     pageSize = 10,
   } = customersResponse || {};
 
+  const { data: allAgents = [] } = useQuery({
+    queryKey: ["call-log-agents"],
+    queryFn: () => getCallLogAgents(),
+    staleTime: 60000,
+  });
+
   // Delete customer mutation with optimistic updates
   const deleteCustomerMutation = useMutation({
     mutationFn: async (customerId: string) => {
@@ -210,15 +216,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     userRole === "sales_agent" ||
     userRole === "processor";
 
-  const agentOptions = useMemo(() => {
-    const unique = new Map<string, string>();
-    customers.forEach((c) => {
-      const label = String(c.created_by_user?.full_name || "").trim();
-      if (!label) return;
-      unique.set(label.toLowerCase(), label);
-    });
-    return Array.from(unique.values()).sort((a, b) => a.localeCompare(b));
-  }, [customers]);
+  const agentOptions = allAgents;
 
   const filteredAgentOptions = useMemo(() => {
     const q = agentFilterSearch.trim().toLowerCase();
@@ -248,7 +246,8 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   ]);
 
   const stats = useMemo(() => {
-    const totalResponses = count;
+    const isAgentFiltered = Boolean(agentFilterValue.trim());
+    const totalResponses = isAgentFiltered ? visibleCustomers.length : count;
     const uniqueAgents = new Set(
       visibleCustomers
         .map((c) => String(c.created_by_user?.full_name || "").trim())
@@ -268,8 +267,9 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
       totalAgents: uniqueAgents.size,
       callsToday,
       filteredOnPage: visibleCustomers.length,
+      isAgentFiltered,
     };
-  }, [count, visibleCustomers]);
+  }, [count, visibleCustomers, agentFilterValue]);
 
   const pieData = useMemo(() => {
     const byAgent = new Map<string, number>();
@@ -490,7 +490,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
         <StatCard
           title="Total Responses"
           value={stats.totalResponses}
-          description="All time"
+          description={stats.isAgentFiltered ? "On this page" : "All time"}
           icon={<Users className="h-5 w-5" />}
           colorClass="bg-blue-500"
         />
