@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Linkedin, Twitter, Mail } from "@/components/ui/icons";
 
 export default function Footer() {
@@ -10,8 +11,14 @@ export default function Footer() {
 
           {/* Column 1 - Brand */}
           <div className="col-span-1 md:col-span-6 flex flex-col items-start">
-            <Link href="/" className="text-[var(--accent-cyan)] font-bold text-xl tracking-wider mb-6" style={{ fontFamily: "var(--font-poppins)" }}>
-              [ Space Tech Solution ]
+            <Link href="/" className="mb-6">
+              <Image
+                src="/space-tech-logo.png"
+                alt="Space Tech Solution"
+                width={260}
+                height={85}
+                className="h-20 w-auto object-contain"
+              />
             </Link>
             <p className="text-[var(--accent-white)] text-lg mb-4 leading-relaxed" style={{ fontFamily: "var(--font-poppins)" }}>
               &quot;Run your call center smarter,<br />faster, and with zero chaos.&quot;

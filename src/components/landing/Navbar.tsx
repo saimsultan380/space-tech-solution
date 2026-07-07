@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Navbar() {
   const navRef = useRef<HTMLElement>(null);
@@ -64,8 +65,15 @@ export default function Navbar() {
       `}</style>
 
       {/* Logo */}
-      <Link href="/" className="text-[var(--accent-cyan)] font-bold text-lg sm:text-xl tracking-wider" style={{ fontFamily: "var(--font-poppins)" }}>
-        [ Space Tech Solution ]
+      <Link href="/" className="flex items-center">
+        <Image
+          src="/space-tech-logo.png"
+          alt="Space Tech Solution"
+          width={220}
+          height={72}
+          className="h-14 w-auto object-contain"
+          priority
+        />
       </Link>
 
       {/* Center Links (Hidden on mobile) */}
