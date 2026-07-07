@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   DashboardClient,
   AgentDashboard,
   ProcessorDashboard,
   DashboardSkeleton,
 } from "./dashboard-lazy";
-import { Card, CardContent } from "@/components/ui/card";
 import type { AppUser, Payslip, AttendanceSettings } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
 import {
@@ -30,6 +26,11 @@ import {
   type AgentDashboardStats,
   type AttendanceRecord,
 } from "@/lib/queries/analytics";
+
+// Settings that rarely change — cache for 5 minutes on the client.
+const SETTINGS_STALE_MS = 5 * 60 * 1000;
+// Dashboard stats — refresh every 60 seconds.
+const STATS_STALE_MS = 60 * 1000;
 
 const defaultStats: DashboardStats = {
   totalSales: 0,
@@ -64,48 +65,15 @@ const defaultProcStats = {
   weekRecordedRevenue: 0,
 };
 
+// User is resolved server-side in dashboard/page.tsx — no client-side auth
+// round-trip needed here.
 export function DashboardWrapper({
+  user,
   searchParams,
 }: {
+  user: AppUser;
   searchParams?: { month?: string };
 }) {
-  const router = useRouter();
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Get authenticated user
-  useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
-
-      if (!data.user) {
-        router.push("/login");
-        return;
-      }
-
-      // Convert to AppUser type - fetch user metadata
-      const { data: userData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", data.user.id)
-        .single();
-
-      if (userData) {
-        setUser(userData as AppUser);
-      }
-      setIsLoading(false);
-    };
-
-    getUser();
-  }, [router]);
-
-  // If no user or still loading auth, show skeleton
-  if (isLoading || !user) {
-    return <DashboardSkeleton />;
-  }
-
-  // Render appropriate dashboard based on user role
   if (user.role === "sales_agent") {
     return (
       <AgentDashboardWrapper
@@ -119,60 +87,52 @@ export function DashboardWrapper({
     return <ProcessorDashboardWrapper user={user} />;
   }
 
-  // Admin dashboard
   return <AdminDashboardWrapper user={user} />;
 }
 
 function AdminDashboardWrapper({ user }: { user: AppUser }) {
-  // Fetch dashboard stats
   const { data: stats = defaultStats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: getDashboardStats,
-    staleTime: 30000,
+    staleTime: STATS_STALE_MS,
   });
 
-  // Fetch today's attendance
   const { data: todayAttendance = null, isLoading: attendanceLoading } =
     useQuery({
-      queryKey: ["today-attendance"],
-      queryFn: getTodayAttendance,
-      staleTime: 30000,
+      queryKey: ["today-attendance", user.id],
+      queryFn: () => getTodayAttendance(user.id),
+      staleTime: STATS_STALE_MS,
     });
 
-  // Fetch sales per agent
   const { data: salesPerAgent = [], isLoading: salesPerAgentLoading } =
     useQuery({
       queryKey: ["sales-per-agent"],
       queryFn: getSalesPerAgent,
-      staleTime: 30000,
+      staleTime: STATS_STALE_MS,
     });
 
-  // Fetch revenue over time
   const { data: revenueData = [], isLoading: revenueLoading } = useQuery({
     queryKey: ["revenue-over-time"],
     queryFn: () => getRevenueOverTime("day"),
-    staleTime: 30000,
+    staleTime: STATS_STALE_MS,
   });
 
-  // Fetch recent payslips
   const { data: recentPayslips = [], isLoading: payslipsLoading } = useQuery({
-    queryKey: ["recent-payslips"],
-    queryFn: () => getRecentPayslips(5),
-    staleTime: 30000,
+    queryKey: ["recent-payslips", user.id],
+    queryFn: () => getRecentPayslips(5, user.id),
+    staleTime: SETTINGS_STALE_MS,
   });
 
-  // Fetch attendance settings
   const { data: attendanceSettings, isLoading: settingsLoading } = useQuery({
     queryKey: ["attendance-settings"],
     queryFn: getAttendanceSettings,
-    staleTime: 30000,
+    staleTime: SETTINGS_STALE_MS,
   });
 
-  // Fetch company settings
   const { data: companySettings, isLoading: companyLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: getCompanySettings,
-    staleTime: 30000,
+    staleTime: SETTINGS_STALE_MS,
   });
 
   const isLoading =
@@ -209,49 +169,43 @@ function AgentDashboardWrapper({
   user: AppUser;
   month: string;
 }) {
-  // Fetch agent stats
   const { data: stats = defaultAgentStats, isLoading: statsLoading } = useQuery(
     {
-      queryKey: ["agent-dashboard-stats", month],
-      queryFn: () => getAgentDashboardStats(month),
-      staleTime: 30000,
+      queryKey: ["agent-dashboard-stats", month, user.id],
+      queryFn: () => getAgentDashboardStats(month, user.id),
+      staleTime: STATS_STALE_MS,
     },
   );
 
-  // Fetch agent recent sales
   const { data: recentSales = [], isLoading: salesLoading } = useQuery({
-    queryKey: ["agent-recent-sales", month],
-    queryFn: () => getAgentRecentSales(month),
-    staleTime: 30000,
+    queryKey: ["agent-recent-sales", month, user.id],
+    queryFn: () => getAgentRecentSales(month, user.id),
+    staleTime: STATS_STALE_MS,
   });
 
-  // Fetch today's attendance
   const { data: todayAttendance = null, isLoading: attendanceLoading } =
     useQuery({
-      queryKey: ["today-attendance"],
-      queryFn: getTodayAttendance,
-      staleTime: 30000,
+      queryKey: ["today-attendance", user.id],
+      queryFn: () => getTodayAttendance(user.id),
+      staleTime: STATS_STALE_MS,
     });
 
-  // Fetch recent payslips
   const { data: recentPayslips = [], isLoading: payslipsLoading } = useQuery({
-    queryKey: ["recent-payslips"],
-    queryFn: () => getRecentPayslips(5),
-    staleTime: 30000,
+    queryKey: ["recent-payslips", user.id],
+    queryFn: () => getRecentPayslips(5, user.id),
+    staleTime: SETTINGS_STALE_MS,
   });
 
-  // Fetch attendance settings
   const { data: attendanceSettings, isLoading: settingsLoading } = useQuery({
     queryKey: ["attendance-settings"],
     queryFn: getAttendanceSettings,
-    staleTime: 30000,
+    staleTime: SETTINGS_STALE_MS,
   });
 
-  // Fetch company settings
   const { data: companySettings, isLoading: companyLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: getCompanySettings,
-    staleTime: 30000,
+    staleTime: SETTINGS_STALE_MS,
   });
 
   const isLoading =
@@ -281,40 +235,35 @@ function AgentDashboardWrapper({
 }
 
 function ProcessorDashboardWrapper({ user }: { user: AppUser }) {
-  // Fetch processor stats
   const { data: stats = defaultProcStats, isLoading: statsLoading } = useQuery({
     queryKey: ["processor-dashboard-stats"],
     queryFn: getProcessorDashboardStats,
-    staleTime: 30000,
+    staleTime: STATS_STALE_MS,
   });
 
-  // Fetch today's attendance
   const { data: todayAttendance = null, isLoading: attendanceLoading } =
     useQuery({
-      queryKey: ["today-attendance"],
-      queryFn: getTodayAttendance,
-      staleTime: 30000,
+      queryKey: ["today-attendance", user.id],
+      queryFn: () => getTodayAttendance(user.id),
+      staleTime: STATS_STALE_MS,
     });
 
-  // Fetch recent payslips
   const { data: recentPayslips = [], isLoading: payslipsLoading } = useQuery({
-    queryKey: ["recent-payslips"],
-    queryFn: () => getRecentPayslips(5),
-    staleTime: 30000,
+    queryKey: ["recent-payslips", user.id],
+    queryFn: () => getRecentPayslips(5, user.id),
+    staleTime: SETTINGS_STALE_MS,
   });
 
-  // Fetch attendance settings
   const { data: attendanceSettings, isLoading: settingsLoading } = useQuery({
     queryKey: ["attendance-settings"],
     queryFn: getAttendanceSettings,
-    staleTime: 30000,
+    staleTime: SETTINGS_STALE_MS,
   });
 
-  // Fetch company settings
   const { data: companySettings, isLoading: companyLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: getCompanySettings,
-    staleTime: 30000,
+    staleTime: SETTINGS_STALE_MS,
   });
 
   const isLoading =

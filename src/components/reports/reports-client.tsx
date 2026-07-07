@@ -85,6 +85,9 @@ interface EmployeeStat {
   revenue: number;
   daysPresent: number;
   totalHours: number;
+  callLogResponses: number;
+  chargebacks: number;
+  chargebackRatio: number;
 }
 
 interface ReportsClientProps {
@@ -141,10 +144,12 @@ export function ReportsClient({ month }: ReportsClientProps) {
       staleTime: 30000,
     });
 
+  // Only fetch the active revenue period — the other two load lazily when selected.
   const { data: revenueDaily = [], isLoading: revenueLoadingDaily } = useQuery({
     queryKey: ["reports-revenue", "daily"],
     queryFn: () => getRevenueOverTime("day"),
     staleTime: 30000,
+    enabled: revenuePeriod === "daily",
   });
 
   const { data: revenueWeekly = [], isLoading: revenueLoadingWeekly } =
@@ -152,6 +157,7 @@ export function ReportsClient({ month }: ReportsClientProps) {
       queryKey: ["reports-revenue", "weekly"],
       queryFn: () => getRevenueOverTime("week"),
       staleTime: 30000,
+      enabled: revenuePeriod === "weekly",
     });
 
   const { data: revenueMonthly = [], isLoading: revenueLoadingMonthly } =
@@ -159,6 +165,7 @@ export function ReportsClient({ month }: ReportsClientProps) {
       queryKey: ["reports-revenue", "monthly"],
       queryFn: () => getRevenueOverTime("month"),
       staleTime: 30000,
+      enabled: revenuePeriod === "monthly",
     });
 
   const { data: chargebacksPerEmployee = [], isLoading: chargebacksLoading } =
@@ -255,6 +262,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
         formatCurrency(emp.revenue, currency),
         emp.daysPresent,
         `${emp.totalHours}h`,
+        emp.callLogResponses,
+        emp.chargebacks,
+        `${emp.chargebackRatio}%`,
       ]),
     [employeeMonthlyStats, currency],
   );
@@ -379,6 +389,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
                   "Revenue",
                   "Days Present",
                   "Hours Worked",
+                  "Call Log Responses",
+                  "Chargebacks",
+                  "CB Ratio",
                 ]}
                 rows={employeePerformanceExportRows}
                 disabled={employeeMonthlyStats.length === 0}
@@ -406,6 +419,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
                     <TableHead>Revenue</TableHead>
                     <TableHead>Days Present</TableHead>
                     <TableHead>Hours Worked</TableHead>
+                    <TableHead>Call Log Responses</TableHead>
+                    <TableHead>Chargebacks</TableHead>
+                    <TableHead>CB Ratio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -433,6 +449,35 @@ export function ReportsClient({ month }: ReportsClientProps) {
                       </TableCell>
                       <TableCell>{emp.daysPresent}</TableCell>
                       <TableCell>{emp.totalHours}h</TableCell>
+                      <TableCell>
+                        <span className="text-sky-600 font-medium">
+                          {emp.callLogResponses}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            emp.chargebacks > 0
+                              ? "text-red-600 font-semibold"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {emp.chargebacks}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            emp.chargebackRatio > 10
+                              ? "text-red-600 font-semibold"
+                              : emp.chargebackRatio > 0
+                                ? "text-amber-600 font-medium"
+                                : "text-muted-foreground"
+                          }
+                        >
+                          {emp.chargebackRatio}%
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

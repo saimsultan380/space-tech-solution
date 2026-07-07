@@ -1251,6 +1251,7 @@ export type Database = {
           pay_date: string
           pay_days: number | null
           pay_rate: number | null
+          pdf_url: string | null
           period_end: string
           period_start: string
           remaining: number | null
@@ -1290,6 +1291,7 @@ export type Database = {
           pay_date: string
           pay_days?: number | null
           pay_rate?: number | null
+          pdf_url?: string | null
           period_end: string
           period_start: string
           remaining?: number | null
@@ -1329,6 +1331,7 @@ export type Database = {
           pay_date?: string
           pay_days?: number | null
           pay_rate?: number | null
+          pdf_url?: string | null
           period_end?: string
           period_start?: string
           remaining?: number | null
@@ -1763,6 +1766,20 @@ export type Database = {
       ensure_self_chat: { Args: { p_user_id: string }; Returns: string }
       ensure_user_employee_id: { Args: { p_user_id: string }; Returns: string }
       generate_employee_id: { Args: never; Returns: string }
+      get_agent_dashboard_stats: {
+        Args: { p_agent_id: string; p_month: string }
+        Returns: {
+          approved_sales: number
+          month_revenue: number
+          month_sales: number
+          pending_sales: number
+          rejected_sales: number
+          today_revenue: number
+          today_sales: number
+          total_revenue: number
+          total_sales: number
+        }[]
+      }
       get_agent_monthly_trends: {
         Args: { p_agent_id: string; p_months?: number }
         Returns: {
@@ -1829,6 +1846,14 @@ export type Database = {
           last_message_created_at: string
           last_message_sender_name: string
           name: string
+        }[]
+      }
+      get_processor_dashboard_stats: {
+        Args: never
+        Returns: {
+          sales_this_week: number
+          total_sales: number
+          week_recorded_revenue: number
         }[]
       }
       get_revenue_over_time: {

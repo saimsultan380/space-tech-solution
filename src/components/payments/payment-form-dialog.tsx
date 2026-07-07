@@ -35,8 +35,11 @@ export function PaymentFormDialog({ open, onClose }: PaymentFormDialogProps) {
       const { data } = await supabase
         .from("sales")
         .select("id, company_name, customer_id, charged_amount")
-        .eq("status", "approved");
-      
+        .eq("status", "approved")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
       const mappedSales = (data || []).map((s) => ({
         id: s.id,
         company_name: s.company_name || "",

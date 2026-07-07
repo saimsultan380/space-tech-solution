@@ -71,7 +71,6 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   const [showChart, setShowChart] = useState(false);
   const [agentFilterOpen, setAgentFilterOpen] = useState(false);
   const [agentFilterSearch, setAgentFilterSearch] = useState("");
-  const [agentFilterValue, setAgentFilterValue] = useState<string>("");
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -88,6 +87,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   const page = Number(searchParams.get("page")) || 1;
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
+  const agentFilter = searchParams.get("agent") || "";
 
   const updateFilters = (
     updates: Record<string, string | number | undefined>,
@@ -119,7 +119,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["customers", page, urlSearch, fromDateFilter, toDateFilter],
+    queryKey: ["customers", page, urlSearch, fromDateFilter, toDateFilter, agentFilter],
     queryFn: () =>
       getCustomers({
         page,
@@ -127,6 +127,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
         search: urlSearch,
         createdFromDate: fromDateFilter || undefined,
         createdToDate: toDateFilter || undefined,
+        agentName: agentFilter || undefined,
       }),
     staleTime: 30000,
   });
@@ -151,22 +152,20 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
       return deleteCustomer(customerId);
     },
     onMutate: async (customerId: string) => {
-      // Cancel outgoing queries
       await queryClient.cancelQueries({
         queryKey: ["customers"],
       });
 
-      // Snapshot previous data
       const queryKey = [
         "customers",
         page,
         urlSearch,
         fromDateFilter,
         toDateFilter,
+        agentFilter,
       ];
       const previousCustomersResponse = queryClient.getQueryData(queryKey);
 
-      // Optimistically update cache
       queryClient.setQueryData(queryKey, (old: typeof customersResponse) => {
         if (!old) return old;
         return {
@@ -180,7 +179,6 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
       return { previousCustomersResponse };
     },
     onError: (_err, _customerId, context) => {
-      // Rollback on error
       if (context?.previousCustomersResponse) {
         const queryKey = [
           "customers",
@@ -188,6 +186,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
           urlSearch,
           fromDateFilter,
           toDateFilter,
+          agentFilter,
         ];
         queryClient.setQueryData(queryKey, context.previousCustomersResponse);
       }
@@ -216,24 +215,14 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     userRole === "sales_agent" ||
     userRole === "processor";
 
-  const agentOptions = allAgents;
-
   const filteredAgentOptions = useMemo(() => {
     const q = agentFilterSearch.trim().toLowerCase();
-    if (!q) return agentOptions;
-    return agentOptions.filter((name) => name.toLowerCase().includes(q));
-  }, [agentFilterSearch, agentOptions]);
+    if (!q) return allAgents;
+    return allAgents.filter((name) => name.toLowerCase().includes(q));
+  }, [agentFilterSearch, allAgents]);
 
-  const visibleCustomers = useMemo(() => {
-    const chosen = agentFilterValue.trim().toLowerCase();
-    if (!chosen) return customers;
-    return customers.filter((c) =>
-      String(c.created_by_user?.full_name || "")
-        .trim()
-        .toLowerCase()
-        .includes(chosen),
-    );
-  }, [customers, agentFilterValue]);
+  // Server-side filtering handles agent — customers IS the filtered result
+  const visibleCustomers = customers;
 
   const exportRows = visibleCustomers.map((c) => [
     c.name,
@@ -246,10 +235,9 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   ]);
 
   const stats = useMemo(() => {
-    const isAgentFiltered = Boolean(agentFilterValue.trim());
-    const totalResponses = isAgentFiltered ? visibleCustomers.length : count;
+    const isFiltered = Boolean(agentFilter.trim()) || Boolean(fromDateFilter) || Boolean(toDateFilter) || Boolean(urlSearch);
     const uniqueAgents = new Set(
-      visibleCustomers
+      customers
         .map((c) => String(c.created_by_user?.full_name || "").trim())
         .filter(Boolean),
     );
@@ -258,18 +246,18 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
       d.getFullYear() === todayLocal.getFullYear() &&
       d.getMonth() === todayLocal.getMonth() &&
       d.getDate() === todayLocal.getDate();
-    const callsToday = visibleCustomers.filter((c) => {
+    const callsToday = customers.filter((c) => {
       const date = new Date(c.created_at);
       return !Number.isNaN(date.getTime()) && isSameLocalDay(date);
     }).length;
     return {
-      totalResponses,
+      totalResponses: count,
       totalAgents: uniqueAgents.size,
       callsToday,
-      filteredOnPage: visibleCustomers.length,
-      isAgentFiltered,
+      filteredOnPage: customers.length,
+      isFiltered,
     };
-  }, [count, visibleCustomers, agentFilterValue]);
+  }, [count, customers, agentFilter, fromDateFilter, toDateFilter, urlSearch]);
 
   const pieData = useMemo(() => {
     const byAgent = new Map<string, number>();
@@ -490,7 +478,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
         <StatCard
           title="Total Responses"
           value={stats.totalResponses}
-          description={stats.isAgentFiltered ? "On this page" : "All time"}
+          description={stats.isFiltered ? "Filtered" : "All time"}
           icon={<Users className="h-5 w-5" />}
           colorClass="bg-blue-500"
         />
@@ -511,7 +499,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
         <StatCard
           title="Visible Rows"
           value={stats.filteredOnPage}
-          description={agentFilterValue ? "Filtered" : "Current page"}
+          description={stats.isFiltered ? "Filtered" : "Current page"}
           icon={<Filter className="h-5 w-5" />}
           colorClass="bg-amber-500"
         />
@@ -622,7 +610,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                     className="h-11 w-full justify-between sm:h-11 sm:w-[260px]"
                   >
                     <span className="truncate">
-                      {agentFilterValue ? agentFilterValue : "Filter by agent"}
+                      {agentFilter ? agentFilter : "Filter by agent"}
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
@@ -642,12 +630,13 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                       <button
                         type="button"
                         onClick={() => {
-                          setAgentFilterValue("");
+                          updateFilters({ agent: undefined });
                           setAgentFilterOpen(false);
+                          setAgentFilterSearch("");
                         }}
                         className={
                           "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-muted " +
-                          (!agentFilterValue ? "bg-muted" : "")
+                          (!agentFilter ? "bg-muted" : "")
                         }
                       >
                         <span className="truncate">All agents</span>
@@ -657,12 +646,13 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                           key={name}
                           type="button"
                           onClick={() => {
-                            setAgentFilterValue(name);
+                            updateFilters({ agent: name });
                             setAgentFilterOpen(false);
+                            setAgentFilterSearch("");
                           }}
                           className={
                             "flex w-full items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-muted " +
-                            (agentFilterValue === name ? "bg-muted" : "")
+                            (agentFilter === name ? "bg-muted" : "")
                           }
                         >
                           <span className="truncate">{name}</span>
@@ -674,23 +664,25 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                         </div>
                       )}
                     </div>
-                    {(agentFilterValue || agentFilterSearch) && (
+                    {(agentFilter || agentFilterSearch) && (
                       <div className="flex items-center justify-between">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setAgentFilterValue("");
+                            updateFilters({ agent: undefined });
                             setAgentFilterSearch("");
                           }}
                           className="h-9"
                         >
                           Clear
                         </Button>
-                        <p className="text-xs text-muted-foreground">
-                          {visibleCustomers.length} visible
-                        </p>
+                        {agentFilter && (
+                          <p className="text-xs text-muted-foreground">
+                            {count} total
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -714,15 +706,16 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
             <EmptyState
               title="No call logs responses found"
               description={
-                urlSearch || fromDateFilter || toDateFilter
-                  ? "Try adjusting your search or created date filter"
+                urlSearch || fromDateFilter || toDateFilter || agentFilter
+                  ? "Try adjusting your search, agent, or date filter"
                   : "Add your first call log response to get started"
               }
               action={
                 canManageCallLogs &&
                 !urlSearch &&
                 !fromDateFilter &&
-                !toDateFilter ? (
+                !toDateFilter &&
+                !agentFilter ? (
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4" /> Add Call Log Response
                   </Button>

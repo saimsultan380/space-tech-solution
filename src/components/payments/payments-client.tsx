@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/loading";
 import { TableDataExport } from "@/components/ui/table-data-export";
+import { Pagination } from "@/components/ui/pagination";
 import { PaymentFormDialog } from "./payment-form-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
@@ -32,12 +34,25 @@ interface PaymentsClientProps {
     customer: { id: string; name: string } | null;
   }>;
   userRole: UserRole;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  pageSize: number;
 }
 
-export function PaymentsClient({ payments, userRole }: PaymentsClientProps) {
+export function PaymentsClient({ payments, userRole, page, totalPages, totalCount, pageSize }: PaymentsClientProps) {
   const [showForm, setShowForm] = useState(false);
   const canCreate = userRole === "super_admin" || userRole === "sales_agent";
   const { currency } = useCurrency();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const handlePageChange = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(p));
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -57,7 +72,7 @@ export function PaymentsClient({ payments, userRole }: PaymentsClientProps) {
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-sm text-muted-foreground">
-              {payments.length} payment{payments.length !== 1 ? "s" : ""}
+              {totalCount} payment{totalCount !== 1 ? "s" : ""}
             </CardTitle>
             <TableDataExport
               filenameBase="payments"
@@ -121,6 +136,13 @@ export function PaymentsClient({ payments, userRole }: PaymentsClientProps) {
             </Table>
           )}
         </CardContent>
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          totalItems={totalCount}
+          pageSize={pageSize}
+        />
       </Card>
 
       {showForm && <PaymentFormDialog open onClose={() => setShowForm(false)} />}

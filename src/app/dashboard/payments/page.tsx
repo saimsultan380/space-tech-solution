@@ -2,9 +2,16 @@ import { requireAuth } from "@/lib/auth";
 import { getPayments } from "@/lib/actions/payments";
 import { PaymentsClient } from "@/components/payments/payments-client";
 
-export default async function PaymentsPage() {
-  const user = await requireAuth();
-  const result = await getPayments();
+export default async function PaymentsPage(props: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const [user, searchParams] = await Promise.all([
+    requireAuth(),
+    props.searchParams,
+  ]);
+  const page = Number(searchParams.page) || 1;
+
+  const result = await getPayments({ page, pageSize: 20 });
 
   const formattedPayments = result.data.map((p) => {
     const saleResult = p.sale as unknown as { id: string; company_name: string; status: string } | null;
@@ -28,5 +35,14 @@ export default async function PaymentsPage() {
     };
   });
 
-  return <PaymentsClient payments={formattedPayments} userRole={user.role} />;
+  return (
+    <PaymentsClient
+      payments={formattedPayments}
+      userRole={user.role}
+      page={result.page}
+      totalPages={result.totalPages}
+      totalCount={result.count}
+      pageSize={result.pageSize}
+    />
+  );
 }

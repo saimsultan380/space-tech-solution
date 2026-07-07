@@ -34,6 +34,16 @@ interface ChargebacksPerEmployeeRow {
   count: number;
 }
 
+interface CallLogRow {
+  created_by: string;
+}
+
+interface ChargebackRpcRow {
+  agent_id: string;
+  name: string;
+  count: number;
+}
+
 interface AttendanceRow {
   user_id: string;
   date: string;
@@ -317,26 +327,51 @@ export async function getEmployeeMonthlyStats(month?: string) {
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     const monthEnd = nextMonth.toISOString().split("T")[0];
 
-    const [salesRes, attendanceRes, usersRes] = await Promise.all([
-      supabase
-        .from("sales")
-        .select("agent_id, status, charged_amount, sale_date, created_at")
-        .gte("created_at", `${monthStart}T00:00:00.000Z`)
-        .lt("created_at", `${monthEnd}T00:00:00.000Z`),
-      supabase
-        .from("attendance")
-        .select("user_id, date, check_in, check_out")
-        .gte("date", monthStart)
-        .lt("date", monthEnd),
-      supabase
-        .from("users")
-        .select("id, full_name, role")
-        .eq("is_active", true),
-    ]);
+    const [salesRes, attendanceRes, usersRes, callLogsRes, chargebacksRes] =
+      await Promise.all([
+        supabase
+          .from("sales")
+          .select("agent_id, status, charged_amount, sale_date, created_at")
+          .gte("created_at", `${monthStart}T00:00:00.000Z`)
+          .lt("created_at", `${monthEnd}T00:00:00.000Z`),
+        supabase
+          .from("attendance")
+          .select("user_id, date, check_in, check_out")
+          .gte("date", monthStart)
+          .lt("date", monthEnd),
+        supabase
+          .from("users")
+          .select("id, full_name, role")
+          .eq("is_active", true),
+        supabase
+          .from("customers")
+          .select("created_by")
+          .eq("source", "call_log")
+          .is("deleted_at", null)
+          .gte("created_at", `${monthStart}T00:00:00.000Z`)
+          .lt("created_at", `${monthEnd}T00:00:00.000Z`),
+        supabase.rpc("get_chargebacks_per_employee_stats", {
+          target_month: targetMonth as any,
+        }),
+      ]);
 
     const users = (usersRes.data || []) as EmployeeUserRow[];
     const sales = (salesRes.data || []) as EmployeeSaleRow[];
     const attendance = (attendanceRes.data || []) as EmployeeAttendanceRow[];
+
+    const callLogsMap = new Map<string, number>();
+    ((callLogsRes.data || []) as CallLogRow[]).forEach((cl) => {
+      if (cl.created_by) {
+        callLogsMap.set(cl.created_by, (callLogsMap.get(cl.created_by) || 0) + 1);
+      }
+    });
+
+    const chargebacksMap = new Map<string, number>();
+    ((chargebacksRes.data || []) as ChargebackRpcRow[]).forEach((row) => {
+      if (row.agent_id) {
+        chargebacksMap.set(row.agent_id, Number(row.count));
+      }
+    });
 
     return users.map((u: EmployeeUserRow) => {
       const userSales = sales.filter((s) => s.agent_id === u.id);
@@ -353,6 +388,12 @@ export async function getEmployeeMonthlyStats(month?: string) {
         0,
       );
 
+      const cbCount = chargebacksMap.get(u.id) || 0;
+      const chargebackRatio =
+        userSales.length > 0
+          ? Math.round((cbCount / userSales.length) * 1000) / 10
+          : 0;
+
       return {
         id: u.id,
         name: u.full_name,
@@ -368,6 +409,9 @@ export async function getEmployeeMonthlyStats(month?: string) {
           ),
         daysPresent: userAttendance.length,
         totalHours: Math.round(totalHours * 10) / 10,
+        callLogResponses: callLogsMap.get(u.id) || 0,
+        chargebacks: cbCount,
+        chargebackRatio,
       };
     });
   } catch (error) {

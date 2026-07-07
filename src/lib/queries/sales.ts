@@ -91,37 +91,36 @@ export async function getSales(filters?: {
 
   query = applySalesFilters(query, filters);
 
+  // Embed chargebacks as a nested select — single query, no separate round-trip
+  // and no URL-length issues from a large `.in()` list.
   const statsQuery = applySalesFilters(
-    supabase.from("sales").select("id, sale_type, amount, charged_amount"),
+    supabase
+      .from("sales")
+      .select("id, sale_type, amount, charged_amount, chargebacks(sale_id)"),
     filters,
   );
 
-  // ── Run all 3 queries in parallel (was: chargebacks fetched serially after the first two) ──
-  const chargebacksQuery =
-    supabase
-      .from("chargebacks")
-      .select("sale_id");
-
+  // ── Run page + stats queries in parallel ─────────────────────────────────
   const [
     { data, error, count },
     { data: statsRows, error: statsError },
-    { data: chargebackRows, error: chargebackError },
   ] = await Promise.all([
     query.range(offset, offset + pageSize - 1),
     statsQuery,
-    chargebacksQuery,
   ]);
 
   if (error) throw new Error(error.message);
   if (statsError) throw new Error(statsError.message);
-  if (chargebackError) throw new Error(chargebackError.message);
 
   const rows = (statsRows || []) as Array<{
     id: string;
     sale_type: string | null;
     amount: number | null;
     charged_amount: number | null;
+    chargebacks: Array<{ sale_id: string }> | null;
   }>;
+
+  let chargebackImpactedAmount = 0;
   const totals = rows.reduce(
     (acc, row) => {
       const amount = Number(row.amount || 0);
@@ -130,20 +129,13 @@ export async function getSales(filters?: {
       acc.totalChargedAmount += charged;
       if (row.sale_type === "utility") acc.utilityCount += 1;
       if (row.sale_type === "insurance") acc.insuranceCount += 1;
+      if (row.chargebacks && row.chargebacks.length > 0) {
+        chargebackImpactedAmount += charged;
+      }
       return acc;
     },
     { totalAmount: 0, totalChargedAmount: 0, utilityCount: 0, insuranceCount: 0 },
   );
-
-  const chargebackSaleIds = new Set(
-    (chargebackRows || []).map((r) => (r as { sale_id: string }).sale_id),
-  );
-  let chargebackImpactedAmount = 0;
-  for (const row of rows) {
-    if (chargebackSaleIds.has(row.id)) {
-      chargebackImpactedAmount += Number(row.charged_amount || 0);
-    }
-  }
 
   const netTotalChargedAmount = totals.totalChargedAmount - chargebackImpactedAmount;
   const totalRecords = rows.length;

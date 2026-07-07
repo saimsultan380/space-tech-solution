@@ -94,12 +94,14 @@ export async function getProcessingAccountStats(filters?: {
 
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase().trim();
+    // Encrypted fields can only be searched by decrypting each row in JS.
+    // Cap at 300 so we don't decrypt thousands of rows on every keystroke.
     let q = supabase
       .from("processing_accounts")
       .select(
         "id, status, account_holder_name, billing_address, notes, expiration_date, account_type, routing_number_encrypted, account_number_encrypted, card_number_encrypted, cvv_encrypted",
       )
-      .limit(1000);
+      .limit(300);
     q = applyStructuralFilters(q);
     const { data } = await q;
 
@@ -214,11 +216,12 @@ export async function getProcessingAccounts(filters?: {
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase().trim();
 
+    // Cap at 300 rows to avoid decrypting thousands of entries in JS.
     let q = supabase
       .from("processing_accounts")
       .select(FULL_SELECT)
       .order("created_at", { ascending: false })
-      .limit(1000);
+      .limit(300);
     q = applyStructural(q);
 
     const { data, error } = await q;

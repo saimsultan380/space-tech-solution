@@ -674,34 +674,42 @@ export async function getMarketingEntriesPage(filters?: {
   const requestedPage = Math.max(1, filters?.page ?? 1);
   const pageSize = Math.min(100, Math.max(5, filters?.pageSize ?? 10));
 
+  // Run COUNT and first-page DATA in parallel — avoids serial round-trips.
   let countQuery = supabase
     .from("marketing_entries")
     .select("id", { count: "exact", head: true });
-
   countQuery = applyMarketingEntryFilters(countQuery, filters);
 
-  const { count, error: countError } = await countQuery;
+  // Fetch page 1 optimistically; if the resolved page differs we re-fetch below.
+  const offset = (requestedPage - 1) * pageSize;
+  let dataQuery = supabase
+    .from("marketing_entries")
+    .select(
+      "id, entry_date, campaign, budget_assigned, calls_landed, dropped_calls, sales_acquired, created_by, created_at, updated_at",
+    )
+    .order("entry_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  dataQuery = applyMarketingEntryFilters(dataQuery, filters);
+
+  const [
+    { count, error: countError },
+    { data: pageData, error: dataError },
+  ] = await Promise.all([
+    countQuery,
+    dataQuery.range(offset, offset + pageSize - 1),
+  ]);
+
   if (countError) throw new Error(countError.message);
+  if (dataError) throw new Error(dataError.message);
 
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = total === 0 ? 1 : Math.min(requestedPage, totalPages);
-  const offset = (page - 1) * pageSize;
-
-  let dataQuery = supabase
-    .from("marketing_entries")
-    .select("id, entry_date, campaign, budget_assigned, calls_landed, dropped_calls, sales_acquired, created_by, created_at, updated_at")
-    .order("entry_date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  dataQuery = applyMarketingEntryFilters(dataQuery, filters);
-
-  const { data, error } = await dataQuery.range(offset, offset + pageSize - 1);
-
-  if (error) throw new Error(error.message);
 
   return {
-    data: (data || []).map((entry: Record<string, unknown>) => mapMarketingEntryRow(entry)),
+    data: (pageData || []).map((entry: Record<string, unknown>) =>
+      mapMarketingEntryRow(entry),
+    ),
     count: total,
     page,
     pageSize,
@@ -732,12 +740,41 @@ export async function getMarketingEntryStatsAndChart(filters?: {
   endDate?: string;
   campaign?: MarketingEntryCampaign | "all";
 }) {
-  const entries = await getMarketingEntries(filters);
+  await requireRole(["super_admin", "processor"]);
+  const supabase = await createClient();
 
-  const totalBudget = entries.reduce((sum, e) => sum + Number(e.budget_assigned || 0), 0);
-  const totalLeads = entries.reduce((sum, e) => sum + Number(e.calls_landed || 0), 0);
-  const totalSales = entries.reduce((sum, e) => sum + Number(e.sales_acquired || 0), 0);
-  const totalDropped = entries.reduce((sum, e) => sum + Number(e.dropped_calls || 0), 0);
+  // Fetch only the columns needed for chart + stats — no id, dates metadata.
+  // Ordered by entry_date ASC for chart rendering.
+  let query = supabase
+    .from("marketing_entries")
+    .select(
+      "entry_date, budget_assigned, calls_landed, dropped_calls, sales_acquired",
+    )
+    .order("entry_date", { ascending: true });
+
+  query = applyMarketingEntryFilters(query, filters);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const entries = (data || []) as Array<{
+    entry_date: string;
+    budget_assigned: number;
+    calls_landed: number;
+    dropped_calls: number;
+    sales_acquired: number;
+  }>;
+
+  let totalBudget = 0,
+    totalLeads = 0,
+    totalSales = 0,
+    totalDropped = 0;
+  for (const e of entries) {
+    totalBudget += Number(e.budget_assigned || 0);
+    totalLeads += Number(e.calls_landed || 0);
+    totalSales += Number(e.sales_acquired || 0);
+    totalDropped += Number(e.dropped_calls || 0);
+  }
 
   const avgConversionRate = totalLeads > 0 ? (totalSales / totalLeads) * 100 : 0;
   const avgDropRate = totalLeads > 0 ? (totalDropped / totalLeads) * 100 : 0;
@@ -755,25 +792,25 @@ export async function getMarketingEntryStatsAndChart(filters?: {
     avgCostPerSale: Number(avgCostPerSale.toFixed(2)),
   };
 
-  const sortedEntries = [...entries].sort(
-    (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
-  );
-
   const chartData = {
-    budgetVsSales: sortedEntries.map((e) => ({
+    budgetVsSales: entries.map((e) => ({
       date: e.entry_date,
       budget: Number(e.budget_assigned || 0),
       sales: Number(e.sales_acquired || 0),
     })),
-    leadsVsConversions: sortedEntries.map((e) => ({
+    leadsVsConversions: entries.map((e) => ({
       date: e.entry_date,
       leads: Number(e.calls_landed || 0),
       conversions: Number(e.sales_acquired || 0),
     })),
-    dropRatioTrend: sortedEntries.map((e) => ({
-      date: e.entry_date,
-      dropRate: e.drop_rate,
-    })),
+    dropRatioTrend: entries.map((e) => {
+      const leads = Number(e.calls_landed || 0);
+      const dropped = Number(e.dropped_calls || 0);
+      return {
+        date: e.entry_date,
+        dropRate: leads > 0 ? Number(((dropped / leads) * 100).toFixed(2)) : 0,
+      };
+    }),
   };
 
   return { stats, chartData };

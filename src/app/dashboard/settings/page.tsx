@@ -14,12 +14,14 @@ export default async function SettingsPage() {
     role: "super_admin" | "sales_agent" | "processor";
     allowed_modules: string[] | null;
   }> = [];
-  let attendanceSettings = await getAttendanceSettings();
-  const companySettings = await getCompanySettings();
 
-  if (user.role === "super_admin") {
-    const [usersResponse, settings] = await Promise.all([getUsers(), getAttendanceSettings()]);
-    attendanceSettings = settings;
+  const [attendanceSettings, companySettings, usersResponse] = await Promise.all([
+    getAttendanceSettings(),
+    getCompanySettings(),
+    user.role === "super_admin" ? getUsers({ pageSize: 500 }) : Promise.resolve(null),
+  ]);
+
+  if (user.role === "super_admin" && usersResponse) {
     manageableUsers = usersResponse.data.map((entry: AppUser) => ({
       id: entry.id,
       full_name: entry.full_name,

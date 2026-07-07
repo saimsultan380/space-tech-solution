@@ -31,20 +31,24 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     }
   );
 
+  // Use getSession() — reads the JWT from the cookie without a server roundtrip.
+  // getUser() would make a network call to Supabase Auth on every navigation,
+  // adding 200-2700ms of latency. Security verification still happens in each
+  // page's requireAuth() call which uses getUser().
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const isAuthPage = request.nextUrl.pathname === "/login";
   const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard");
 
-  if (!user && isDashboardPage) {
+  if (!session && isDashboardPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
+  if (session && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

@@ -53,162 +53,100 @@ export interface AttendanceRecord {
   check_out: string | null;
 }
 
+// ── Admin dashboard stats via RPC (single server-side aggregation) ──────────
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = createClient();
 
   try {
-    // Get total sales
-    const { data: salesData } = await supabase
-      .from("sales")
-      .select("id, status, charged_amount, customer_id", { count: "exact" })
-      .is("deleted_at", null);
+    const { data, error } = await supabase.rpc("get_dashboard_analytics");
 
-    // Get chargebacks
-    const { data: chargebacksData } = await supabase
-      .from("chargebacks")
-      .select("id, status", { count: "exact" })
-      .is("deleted_at", null);
+    if (error || !data || (data as any[]).length === 0) {
+      return emptyDashboardStats();
+    }
 
-    // Get unique customers
-    const { data: customersData } = await supabase
-      .from("customers")
-      .select("id", { count: "exact" })
-      .is("deleted_at", null);
+    const stats = (data as any[])[0];
+    const totalSales = Number(stats.total_sales);
+    const rejectedSales = Number(stats.rejected_sales ?? 0);
+    const approvedSales = totalSales - rejectedSales;
 
-    // Get pending leaves
-    const { data: leavesData } = await supabase
-      .from("leaves")
-      .select("id", { count: "exact" })
-      .eq("status", "pending")
-      .is("deleted_at", null);
-
-    // Get today's on leave
-    const today = new Date().toISOString().split("T")[0];
-    const { data: todayLeaveData } = await supabase
-      .from("leaves")
-      .select("id", { count: "exact" })
-      .eq("status", "approved")
-      .lte("from_date", today)
-      .gte("to_date", today)
-      .is("deleted_at", null);
-
-    const stats: DashboardStats = {
-      totalSales: salesData?.length || 0,
-      totalRevenue:
-        salesData?.reduce((sum, sale) => sum + (sale.charged_amount || 0), 0) ||
-        0,
-      totalCustomers: customersData?.length || 0,
-      pendingSales:
-        salesData?.filter((s) => s.status === "pending").length || 0,
-      approvedSales:
-        salesData?.filter((s) => s.status === "approved").length || 0,
-      rejectedSales:
-        salesData?.filter((s) => s.status === "rejected").length || 0,
-      totalChargebacks: chargebacksData?.length || 0,
-      openChargebacks:
-        chargebacksData?.filter((c) => c.status === "open").length || 0,
-      pendingLeaves: leavesData?.length || 0,
-      todayOnLeave: todayLeaveData?.length || 0,
-      conversionRate: "0",
+    return {
+      totalSales,
+      totalRevenue: Number(stats.total_revenue ?? 0),
+      totalCustomers: Number(stats.total_customers ?? 0),
+      pendingSales: 0,
+      approvedSales,
+      rejectedSales,
+      totalChargebacks: Number(stats.total_chargebacks ?? 0),
+      openChargebacks: Number(stats.open_chargebacks ?? 0),
+      pendingLeaves: Number(stats.pending_leaves ?? 0),
+      todayOnLeave: Number(stats.today_on_leave ?? 0),
+      conversionRate:
+        totalSales > 0 ? ((approvedSales / totalSales) * 100).toFixed(1) : "0",
     };
-
-    return stats;
   } catch (error) {
     console.error("Failed to fetch dashboard stats:", error);
-    return {
-      totalSales: 0,
-      totalRevenue: 0,
-      totalCustomers: 0,
-      pendingSales: 0,
-      approvedSales: 0,
-      rejectedSales: 0,
-      totalChargebacks: 0,
-      openChargebacks: 0,
-      pendingLeaves: 0,
-      todayOnLeave: 0,
-      conversionRate: "0",
-    };
+    return emptyDashboardStats();
   }
 }
 
+function emptyDashboardStats(): DashboardStats {
+  return {
+    totalSales: 0,
+    totalRevenue: 0,
+    totalCustomers: 0,
+    pendingSales: 0,
+    approvedSales: 0,
+    rejectedSales: 0,
+    totalChargebacks: 0,
+    openChargebacks: 0,
+    pendingLeaves: 0,
+    todayOnLeave: 0,
+    conversionRate: "0",
+  };
+}
+
+// ── Sales per agent via RPC ───────────────────────────────────────────────────
 export async function getSalesPerAgent(): Promise<SalesPerAgentData[]> {
   const supabase = createClient();
 
   try {
-    const { data } = await supabase
-      .from("sales")
-      .select("agent_id, charged_amount, status, created_by_user(full_name)")
-      .is("deleted_at", null);
-
-    if (!data) return [];
-
-    // Group by agent
-    const agentMap = new Map<
-      string,
-      { name: string; total: number; approved: number; revenue: number }
-    >();
-
-    data.forEach((sale: any) => {
-      const agentName = sale.created_by_user?.full_name || "Unknown";
-      if (!agentMap.has(agentName)) {
-        agentMap.set(agentName, {
-          name: agentName,
-          total: 0,
-          approved: 0,
-          revenue: 0,
-        });
-      }
-      const agent = agentMap.get(agentName)!;
-      agent.total += 1;
-      if (sale.status === "approved") {
-        agent.approved += 1;
-      }
-      agent.revenue += sale.charged_amount || 0;
+    const { data, error } = await supabase.rpc("get_sales_per_agent_stats", {
+      target_month: null as unknown as string,
     });
 
-    return Array.from(agentMap.values());
+    if (error) {
+      console.error("Error fetching sales per agent:", error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      name: row.name,
+      total: Number(row.total),
+      approved: Number(row.approved),
+      revenue: Number(row.revenue),
+    }));
   } catch (error) {
     console.error("Failed to fetch sales per agent:", error);
     return [];
   }
 }
 
+// ── Revenue over time via RPC ─────────────────────────────────────────────────
 export async function getRevenueOverTime(
   period: "day" | "week" | "month" = "day",
 ): Promise<RevenueData[]> {
   const supabase = createClient();
 
   try {
-    const { data } = await supabase
-      .from("sales")
-      .select("created_at, charged_amount")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true });
-
-    if (!data) return [];
-
-    // Group by period
-    const dateMap = new Map<string, number>();
-
-    data.forEach((sale: any) => {
-      const date = new Date(sale.created_at);
-      let key: string;
-
-      if (period === "day") {
-        key = date.toISOString().split("T")[0];
-      } else if (period === "week") {
-        const week = Math.floor((date.getDate() - date.getDay() + 6) / 7);
-        key = `Week ${week}`;
-      } else {
-        key = date.toISOString().substring(0, 7);
-      }
-
-      dateMap.set(key, (dateMap.get(key) || 0) + (sale.charged_amount || 0));
+    const { data, error } = await supabase.rpc("get_revenue_over_time", {
+      period_type: period,
     });
 
-    return Array.from(dateMap.entries()).map(([date, revenue]) => ({
-      date,
-      revenue,
+    if (error || !data) return [];
+
+    return (data as Array<{ date: string; revenue: number }>).map((row) => ({
+      date: row.date,
+      revenue: Number(row.revenue),
     }));
   } catch (error) {
     console.error("Failed to fetch revenue over time:", error);
@@ -216,95 +154,70 @@ export async function getRevenueOverTime(
   }
 }
 
+// ── Agent dashboard stats — single RPC call (all aggregations server-side) ───
 export async function getAgentDashboardStats(
   month: string,
+  agentId?: string,
 ): Promise<AgentDashboardStats> {
   const supabase = createClient();
 
   try {
-    // Get current user's sales data
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      throw new Error("No authenticated user");
+    let userId = agentId;
+    if (!userId) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("No authenticated user");
+      userId = userData.user.id;
     }
 
-    const { data: salesData } = await supabase
-      .from("sales")
-      .select("created_at, charged_amount, status")
-      .eq("agent_id", userData.user.id)
-      .is("deleted_at", null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc(
+      "get_agent_dashboard_stats",
+      { p_agent_id: userId, p_month: month },
+    );
 
-    const stats: AgentDashboardStats = {
-      totalSales: salesData?.length || 0,
-      todaySales: 0,
-      todayRevenue: 0,
-      monthSales: 0,
-      monthRevenue: 0,
-      pendingSales:
-        salesData?.filter((s) => s.status === "pending").length || 0,
-      approvedSales:
-        salesData?.filter((s) => s.status === "approved").length || 0,
-      rejectedSales:
-        salesData?.filter((s) => s.status === "rejected").length || 0,
-      totalRevenue:
-        salesData?.reduce((sum, sale) => sum + (sale.charged_amount || 0), 0) ||
-        0,
+    if (error || !data || (data as any[]).length === 0) {
+      console.error("Agent dashboard RPC failed, falling back:", error);
+      return emptyAgentStats();
+    }
+
+    const row = (data as any[])[0];
+    return {
+      totalSales: Number(row.total_sales ?? 0),
+      pendingSales: Number(row.pending_sales ?? 0),
+      approvedSales: Number(row.approved_sales ?? 0),
+      rejectedSales: Number(row.rejected_sales ?? 0),
+      totalRevenue: Number(row.total_revenue ?? 0),
+      monthSales: Number(row.month_sales ?? 0),
+      monthRevenue: Number(row.month_revenue ?? 0),
+      todaySales: Number(row.today_sales ?? 0),
+      todayRevenue: Number(row.today_revenue ?? 0),
       totalCustomers: 0,
     };
-
-    // Filter for month
-    if (salesData) {
-      const monthStart = `${month}-01`;
-      const monthEnd = new Date(
-        parseInt(month.split("-")[0]),
-        parseInt(month.split("-")[1]),
-        0,
-      )
-        .toISOString()
-        .split("T")[0];
-
-      const monthSales = salesData.filter((s) => {
-        const saleDate = s.created_at.split("T")[0];
-        return saleDate >= monthStart && saleDate <= monthEnd;
-      });
-
-      stats.monthSales = monthSales.length;
-      stats.monthRevenue = monthSales.reduce(
-        (sum, sale) => sum + (sale.charged_amount || 0),
-        0,
-      );
-
-      // Today's sales
-      const today = new Date().toISOString().split("T")[0];
-      const todaySales = salesData.filter(
-        (s) => s.created_at.split("T")[0] === today,
-      );
-      stats.todaySales = todaySales.length;
-      stats.todayRevenue = todaySales.reduce(
-        (sum, sale) => sum + (sale.charged_amount || 0),
-        0,
-      );
-    }
-
-    return stats;
   } catch (error) {
     console.error("Failed to fetch agent dashboard stats:", error);
-    return {
-      totalSales: 0,
-      todaySales: 0,
-      todayRevenue: 0,
-      monthSales: 0,
-      monthRevenue: 0,
-      pendingSales: 0,
-      approvedSales: 0,
-      rejectedSales: 0,
-      totalRevenue: 0,
-      totalCustomers: 0,
-    };
+    return emptyAgentStats();
   }
 }
 
-export async function getAgentRecentSales(month: string): Promise<
+function emptyAgentStats(): AgentDashboardStats {
+  return {
+    totalSales: 0,
+    todaySales: 0,
+    todayRevenue: 0,
+    monthSales: 0,
+    monthRevenue: 0,
+    pendingSales: 0,
+    approvedSales: 0,
+    rejectedSales: 0,
+    totalRevenue: 0,
+    totalCustomers: 0,
+  };
+}
+
+export async function getAgentRecentSales(
+  month: string,
+  agentId?: string,
+): Promise<
   Array<{
     id: string;
     company_name: string;
@@ -316,9 +229,11 @@ export async function getAgentRecentSales(month: string): Promise<
   const supabase = createClient();
 
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      throw new Error("No authenticated user");
+    let userId = agentId;
+    if (!userId) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("No authenticated user");
+      userId = userData.user.id;
     }
 
     const { data } = await supabase
@@ -329,7 +244,7 @@ export async function getAgentRecentSales(month: string): Promise<
         created_at,
         customers(name, company)`,
       )
-      .eq("agent_id", userData.user.id)
+      .eq("agent_id", userId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(10);
@@ -349,58 +264,45 @@ export async function getAgentRecentSales(month: string): Promise<
   }
 }
 
+// ── Processor dashboard stats — single RPC call ──────────────────────────────
 export async function getProcessorDashboardStats(): Promise<ProcessorDashboardStats> {
   const supabase = createClient();
 
   try {
-    const { data: salesData } = await supabase
-      .from("sales")
-      .select("created_at, charged_amount")
-      .is("deleted_at", null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc(
+      "get_processor_dashboard_stats",
+    );
 
-    if (!salesData) {
-      return {
-        totalSales: 0,
-        salesThisWeek: 0,
-        weekRecordedRevenue: 0,
-      };
+    if (error || !data || (data as any[]).length === 0) {
+      console.error("Processor dashboard RPC failed, falling back:", error);
+      return { totalSales: 0, salesThisWeek: 0, weekRecordedRevenue: 0 };
     }
 
-    // Get week's data
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
-
-    const weekSales = salesData.filter((sale) => {
-      const saleDate = new Date(sale.created_at);
-      return saleDate >= weekStart;
-    });
-
+    const row = (data as any[])[0];
     return {
-      totalSales: salesData.length,
-      salesThisWeek: weekSales.length,
-      weekRecordedRevenue: weekSales.reduce(
-        (sum, sale) => sum + (sale.charged_amount || 0),
-        0,
-      ),
+      totalSales: Number(row.total_sales ?? 0),
+      salesThisWeek: Number(row.sales_this_week ?? 0),
+      weekRecordedRevenue: Number(row.week_recorded_revenue ?? 0),
     };
   } catch (error) {
     console.error("Failed to fetch processor dashboard stats:", error);
-    return {
-      totalSales: 0,
-      salesThisWeek: 0,
-      weekRecordedRevenue: 0,
-    };
+    return { totalSales: 0, salesThisWeek: 0, weekRecordedRevenue: 0 };
   }
 }
 
-export async function getTodayAttendance(): Promise<AttendanceRecord | null> {
+// ── Today's attendance — filtered by user and date at DB level ───────────────
+export async function getTodayAttendance(
+  userId?: string,
+): Promise<AttendanceRecord | null> {
   const supabase = createClient();
 
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      return null;
+    let uid = userId;
+    if (!uid) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return null;
+      uid = userData.user.id;
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -408,7 +310,7 @@ export async function getTodayAttendance(): Promise<AttendanceRecord | null> {
     const { data } = await supabase
       .from("attendance")
       .select("id, check_in, check_out")
-      .eq("user_id", userData.user.id)
+      .eq("user_id", uid)
       .eq("date", today)
       .single();
 
@@ -419,19 +321,25 @@ export async function getTodayAttendance(): Promise<AttendanceRecord | null> {
   }
 }
 
-export async function getRecentPayslips(limit: number = 5): Promise<Payslip[]> {
+// ── Recent payslips — filtered and limited at DB level ───────────────────────
+export async function getRecentPayslips(
+  limit: number = 5,
+  userId?: string,
+): Promise<Payslip[]> {
   const supabase = createClient();
 
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      return [];
+    let uid = userId;
+    if (!uid) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return [];
+      uid = userData.user.id;
     }
 
     const { data } = await supabase
       .from("payslips")
       .select("*")
-      .eq("user_id", userData.user.id)
+      .eq("user_id", uid)
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -442,6 +350,7 @@ export async function getRecentPayslips(limit: number = 5): Promise<Payslip[]> {
   }
 }
 
+// ── Attendance settings — single-row lookup ──────────────────────────────────
 export async function getAttendanceSettings(): Promise<
   AttendanceSettings & {
     shift_start_12h: string;
@@ -459,26 +368,9 @@ export async function getAttendanceSettings(): Promise<
       .eq("id", 1)
       .single();
 
-    if (!data) {
-      throw new Error("No attendance settings found");
-    }
+    if (!data) throw new Error("No attendance settings found");
 
-    const format12Hour = (time24: string) => {
-      const [h = "0", m = "00"] = time24.split(":");
-      const hour = Number(h);
-      const minutes = m.slice(0, 2);
-      const suffix = hour >= 12 ? "PM" : "AM";
-      const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-      return `${String(hour12).padStart(2, "0")}:${minutes} ${suffix}`;
-    };
-
-    return {
-      ...data,
-      shift_start_12h: format12Hour(data.shift_start_time),
-      late_after_12h: format12Hour(data.late_after_time),
-      shift_end_12h: format12Hour(data.shift_end_time),
-      checkout_latest_12h: format12Hour(data.checkout_latest_time),
-    } as AttendanceSettings & {
+    return { ...data, ...format12HourFields(data) } as AttendanceSettings & {
       shift_start_12h: string;
       late_after_12h: string;
       shift_end_12h: string;
@@ -486,38 +378,52 @@ export async function getAttendanceSettings(): Promise<
     };
   } catch (error) {
     console.error("Failed to fetch attendance settings:", error);
-    const defaultTime = "09:00:00";
-    const format12Hour = (time24: string) => {
-      const [h = "0", m = "00"] = time24.split(":");
-      const hour = Number(h);
-      const minutes = m.slice(0, 2);
-      const suffix = hour >= 12 ? "PM" : "AM";
-      const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-      return `${String(hour12).padStart(2, "0")}:${minutes} ${suffix}`;
-    };
-    return {
-      id: 1,
-      shift_start_time: "09:00:00",
-      late_after_time: "09:15:00",
-      shift_end_time: "18:00:00",
-      checkout_latest_time: "23:00:00",
-      checkout_grace_minutes: 0,
-      allow_early_checkout: false,
-      early_checkout_minutes: 0,
-      notify_after_minutes: 60,
-      auto_leave_after_minutes: 240,
-      auto_leave_enabled: true,
-      auto_leave_type: "casual",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      shift_start_12h: "09:00 AM",
-      late_after_12h: "09:15 AM",
-      shift_end_12h: "06:00 PM",
-      checkout_latest_12h: "11:00 PM",
-    };
+    return defaultAttendanceSettings();
   }
 }
 
+function format12Hour(time24: string): string {
+  const [h = "0", m = "00"] = time24.split(":");
+  const hour = Number(h);
+  const minutes = m.slice(0, 2);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${String(hour12).padStart(2, "0")}:${minutes} ${suffix}`;
+}
+
+function format12HourFields(data: any) {
+  return {
+    shift_start_12h: format12Hour(data.shift_start_time),
+    late_after_12h: format12Hour(data.late_after_time),
+    shift_end_12h: format12Hour(data.shift_end_time),
+    checkout_latest_12h: format12Hour(data.checkout_latest_time),
+  };
+}
+
+function defaultAttendanceSettings() {
+  return {
+    id: 1,
+    shift_start_time: "09:00:00",
+    late_after_time: "09:15:00",
+    shift_end_time: "18:00:00",
+    checkout_latest_time: "23:00:00",
+    checkout_grace_minutes: 0,
+    allow_early_checkout: false,
+    early_checkout_minutes: 0,
+    notify_after_minutes: 60,
+    auto_leave_after_minutes: 240,
+    auto_leave_enabled: true,
+    auto_leave_type: "casual",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    shift_start_12h: "09:00 AM",
+    late_after_12h: "09:15 AM",
+    shift_end_12h: "06:00 PM",
+    checkout_latest_12h: "11:00 PM",
+  };
+}
+
+// ── Company settings — single-row lookup ─────────────────────────────────────
 export async function getCompanySettings(): Promise<CompanySettings> {
   const supabase = createClient();
 
@@ -527,9 +433,7 @@ export async function getCompanySettings(): Promise<CompanySettings> {
       .select("*")
       .single();
 
-    if (!data) {
-      throw new Error("No company settings found");
-    }
+    if (!data) throw new Error("No company settings found");
 
     return data as CompanySettings;
   } catch (error) {

@@ -17,23 +17,24 @@ export default async function AttendancePage(props: {
 
   const isSuperAdmin = user.role === "super_admin";
 
+  const page = Number(searchParams.page) || 1;
+
   const attendanceFilters = {
     month,
     user_id,
-    page: 1,
-    pageSize: 1000,
+    page,
+    pageSize: 50,
   };
-  const summaryMonth = month;
 
   const [attendanceResponse, usersResponse, monthlySummary, leaves, attendanceSettings] = await Promise.all([
     getAttendance(attendanceFilters),
-    getUsers(),
+    getUsers({ pageSize: 500 }),
     isSuperAdmin
-      ? getMonthlyAttendanceSummary(summaryMonth)
-      : getMonthlyAttendanceSummary(summaryMonth, user.id),
+      ? getMonthlyAttendanceSummary(month)
+      : getMonthlyAttendanceSummary(month, user.id),
     isSuperAdmin
-      ? getAllLeaves({ status: "approved" })
-      : getLeavesForCurrentUser({ status: "approved" }),
+      ? getAllLeaves({ status: "approved", month, pageSize: 500 })
+      : getLeavesForCurrentUser({ status: "approved", month, pageSize: 500 }),
     getAttendanceSettings(),
   ]);
 

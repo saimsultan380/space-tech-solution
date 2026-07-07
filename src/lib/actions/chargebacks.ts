@@ -210,12 +210,12 @@ export async function getChargebacks(filters?: {
     searchContext,
   );
 
+  // Minimal columns — only what stats computation needs. Avoids pulling
+  // company_name / customer fields which are only needed for display rows.
   const statsQuery = applyChargebackFilters(
     supabase
-    .from("chargebacks")
-    .select(
-      "status, assigned_to, reason, created_at, updated_at, sale:sales(charged_amount, company_name, customer_name, customer_email, sale_type, subtype), assignee:users!chargebacks_assigned_to_fkey(full_name)",
-    ),
+      .from("chargebacks")
+      .select("status, assigned_to, reason, created_at, updated_at, sale:sales(charged_amount)"),
     filters,
     searchContext,
   );

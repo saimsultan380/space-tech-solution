@@ -51,6 +51,7 @@ export async function getCustomers(filters?: {
   search?: string;
   createdFromDate?: string;
   createdToDate?: string;
+  agentName?: string;
 }): Promise<{
   data: CustomerListItem[];
   count: number;
@@ -63,11 +64,27 @@ export async function getCustomers(filters?: {
   const pageSize = filters?.pageSize || 10;
   const offset = (page - 1) * pageSize;
 
+  // Resolve agent name to user IDs for server-side filtering
+  let agentUserIds: string[] | null = null;
+  if (filters?.agentName?.trim()) {
+    const { data: agentUsers } = await supabase
+      .from("users")
+      .select("id")
+      .eq("full_name", filters.agentName.trim());
+    agentUserIds = ((agentUsers || []) as Array<{ id: string }>).map((u) => u.id);
+    if (agentUserIds.length === 0) {
+      return { data: [], count: 0, page, pageSize, totalPages: 0 };
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type CustomerFilterBuilder = any;
 
   const applySharedFilters = (query: CustomerFilterBuilder): CustomerFilterBuilder => {
     let next = query;
+    if (agentUserIds && agentUserIds.length > 0) {
+      next = next.in("created_by", agentUserIds);
+    }
     if (filters?.search) {
       const safe = sanitizeFilterValue(filters.search);
       next = next.or(`name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%,account_no.ilike.%${safe}%`);
@@ -90,10 +107,17 @@ export async function getCustomers(filters?: {
     return next;
   };
 
+  // Embed the most recent note inline via a nested join so we avoid a serial
+  // second round-trip to fetch notes after the customer list resolves.
+  const CUSTOMER_SELECT =
+    "id, name, email, phone, address, account_no, dob, created_at, " +
+    "created_by_user:users!customers_created_by_fkey(full_name), " +
+    "notes(content, created_at)";
+
   const query = applySharedFilters(
     supabase
       .from("customers")
-      .select("id, name, email, phone, address, account_no, dob, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+      .select(CUSTOMER_SELECT, { count: "exact" })
       .eq("source", "call_log")
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
@@ -107,20 +131,31 @@ export async function getCustomers(filters?: {
       .select("customer_id")
       .not("customer_id", "is", null);
     const salesCustomerIds = Array.from(
-      new Set((salesCustomerRows || []).map((row: { customer_id: string | null }) => row.customer_id).filter(Boolean)),
+      new Set(
+        (salesCustomerRows || [])
+          .map((row: { customer_id: string | null }) => row.customer_id)
+          .filter(Boolean),
+      ),
     ) as string[];
 
     let fallbackQuery = applySharedFilters(
       supabase
         .from("customers")
-        .select("id, name, email, phone, address, account_no, dob, created_at, created_by_user:users!customers_created_by_fkey(full_name)", { count: "exact" })
+        .select(CUSTOMER_SELECT, { count: "exact" })
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
     );
     if (salesCustomerIds.length > 0) {
-      fallbackQuery = fallbackQuery.not("id", "in", `(${salesCustomerIds.join(",")})`);
+      fallbackQuery = fallbackQuery.not(
+        "id",
+        "in",
+        `(${salesCustomerIds.join(",")})`,
+      );
     }
-    const fallbackResult = await fallbackQuery.range(offset, offset + pageSize - 1);
+    const fallbackResult = await fallbackQuery.range(
+      offset,
+      offset + pageSize - 1,
+    );
     data = fallbackResult.data;
     error = fallbackResult.error;
     count = fallbackResult.count;
@@ -128,35 +163,27 @@ export async function getCustomers(filters?: {
 
   if (error) throw new Error(error.message);
 
-  const customers = (data || []) as Array<{ id: string } & Record<string, unknown>>;
-  const ids = customers.map((c) => c.id).filter(Boolean);
-
-  const recentNoteByCustomerId = new Map<string, { content: string; created_at: string }>();
-  if (ids.length > 0) {
-    const { data: notesData, error: notesError } = await supabase
-      .from("notes")
-      .select("customer_id, content, created_at")
-      .in("customer_id", ids)
-      .order("created_at", { ascending: false })
-      .limit(100);
-
-    if (notesError) throw new Error(notesError.message);
-
-    (notesData || []).forEach((n: { customer_id: string | null; content: string; created_at: string }) => {
-      if (!n.customer_id) return;
-      if (!recentNoteByCustomerId.has(n.customer_id)) {
-        recentNoteByCustomerId.set(n.customer_id, { content: n.content, created_at: n.created_at });
-      }
-    });
-  }
+  const customers = (data || []) as Array<
+    { id: string; notes?: Array<{ content: string; created_at: string }> } & Record<string, unknown>
+  >;
 
   const enriched: CustomerListItem[] = customers.map((c) => {
-    const recent = recentNoteByCustomerId.get(c.id) || null;
+    // Notes arrive newest-first from the nested select; pick the first one.
+    const notesArr = (c.notes || []) as Array<{
+      content: string;
+      created_at: string;
+    }>;
+    notesArr.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    const recent = notesArr[0] || null;
     return {
       ...c,
+      notes: undefined,
       recent_note: recent?.content || null,
       recent_note_created_at: recent?.created_at || null,
-    } as CustomerListItem;
+    } as unknown as CustomerListItem;
   });
 
   return {
