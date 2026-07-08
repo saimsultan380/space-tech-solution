@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
+import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -72,6 +74,8 @@ import {
   BarChart3,
   Award,
   MessageSquare,
+  Search,
+  Building2,
 } from "@/components/ui/icons";
 import { useCurrency } from "@/components/providers/currency-provider";
 
@@ -90,6 +94,21 @@ interface EmployeeStat {
   chargebackRatio: number;
 }
 
+function StatCardSkeleton() {
+  return (
+    <div className="relative overflow-hidden rounded-md border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-3 w-28 rounded" />
+          <Skeleton className="mt-1 h-7 w-20 rounded" />
+          <Skeleton className="h-3 w-24 rounded" />
+        </div>
+        <Skeleton className="h-11 w-11 shrink-0 rounded-md" />
+      </div>
+    </div>
+  );
+}
+
 interface ReportsClientProps {
   month: string;
 }
@@ -105,6 +124,13 @@ export function ReportsClient({ month }: ReportsClientProps) {
   const [isPending, startTransition] = useTransition();
 
   const [selectedMonth, setSelectedMonth] = useState(month);
+  const [empSearch, setEmpSearch] = useState("");
+  const [empRoleFilter, setEmpRoleFilter] = useState("all");
+
+  // Sync when the parent page changes the month prop (e.g. browser back/forward)
+  useEffect(() => {
+    setSelectedMonth(month);
+  }, [month]);
 
   // React Query hooks for fetching data
   const {
@@ -195,15 +221,28 @@ export function ReportsClient({ month }: ReportsClientProps) {
     monthly: revenueMonthly,
   };
 
+  // Apply employee search + role filter client-side (data is already aggregated server-side)
+  const filteredEmployees = useMemo(() => {
+    let list = employeeMonthlyStats;
+    if (empRoleFilter !== "all") {
+      list = list.filter((e) => e.role === empRoleFilter);
+    }
+    if (empSearch.trim()) {
+      const q = empSearch.toLowerCase();
+      list = list.filter((e) => e.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [employeeMonthlyStats, empRoleFilter, empSearch]);
+
   const empPage = Math.max(1, Number(searchParams.get("emp_page") || "1") || 1);
   const empPageSize = 10;
   const empTotalPages = Math.max(
     1,
-    Math.ceil(employeeMonthlyStats.length / empPageSize),
+    Math.ceil(filteredEmployees.length / empPageSize),
   );
   const empCurrentPage = Math.min(empPage, empTotalPages);
   const empStartIndex = (empCurrentPage - 1) * empPageSize;
-  const paginatedEmployees = employeeMonthlyStats.slice(
+  const paginatedEmployees = filteredEmployees.slice(
     empStartIndex,
     empStartIndex + empPageSize,
   );
@@ -247,13 +286,13 @@ export function ReportsClient({ month }: ReportsClientProps) {
     updateFilters({ month: value, emp_page: 1 });
   };
 
-  const topPerformer = [...employeeMonthlyStats]
+  const topPerformer = [...filteredEmployees]
     .filter((e) => e.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)[0];
 
   const employeePerformanceExportRows = useMemo(
     () =>
-      employeeMonthlyStats.map((emp) => [
+      filteredEmployees.map((emp) => [
         emp.name,
         ROLE_LABELS[emp.role] || emp.role,
         emp.totalSales,
@@ -269,93 +308,91 @@ export function ReportsClient({ month }: ReportsClientProps) {
     [employeeMonthlyStats, currency],
   );
 
+  const selectedMonthLabel =
+    monthOptions.find((m) => m.value === selectedMonth)?.label ?? selectedMonth;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold">
-            Reports & Analytics
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Comprehensive performance insights
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="month-filter"
-            className="text-sm font-medium text-muted-foreground"
-          >
-            Month:
-          </label>
-          <select
-            id="month-filter"
-            value={selectedMonth}
-            onChange={(e) => handleMonthChange(e.target.value)}
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-          >
-            {monthOptions.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Page header */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold">Reports & Analytics</h1>
+        <p className="text-sm text-muted-foreground">Comprehensive performance insights</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
+      {/* ── Global filter bar ───────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+        <Select
+          options={monthOptions}
+          value={selectedMonth}
+          onChange={(e) => handleMonthChange(e.target.value)}
+          className="h-9 w-auto min-w-[9rem] sm:h-10"
+          containerClassName="space-y-0"
+          aria-label="Select month"
+        />
+        <span className="hidden text-xs text-muted-foreground sm:block">
+          Showing data for <strong>{selectedMonthLabel}</strong>
+        </span>
+      </div>
+
+      {/* ── Stats cards ─────────────────────────────────────────────────────── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statsLoading ? (
-          <>
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </>
+          Array.from({ length: 8 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <StatCard
               title="Total Revenue"
               value={formatCurrency(stats.totalRevenue, currency)}
+              description={`Approved sales · ${selectedMonthLabel}`}
               icon={<DollarSign className="h-4 w-4" />}
               colorClass="bg-blue-500"
             />
             <StatCard
               title="Total Sales"
               value={stats.totalSales}
+              description={`All statuses · ${selectedMonthLabel}`}
               icon={<ShoppingCart className="h-4 w-4" />}
               colorClass="bg-emerald-500"
             />
             <StatCard
-              title="Recorded share"
+              title="Recorded Share"
               value={`${stats.conversionRate}%`}
+              description="Approved ÷ total sales"
               icon={<TrendingUp className="h-4 w-4" />}
               colorClass="bg-violet-500"
             />
             <StatCard
               title="Open Chargebacks"
               value={stats.openChargebacks}
+              description="Pending resolution"
               icon={<AlertTriangle className="h-4 w-4" />}
               colorClass="bg-rose-500"
             />
             <StatCard
               title="Total Chargebacks"
               value={stats.totalChargebacks}
+              description="All time"
               icon={<AlertTriangle className="h-4 w-4" />}
               colorClass="bg-red-600"
             />
             <StatCard
               title="Call Log Responses"
               value={stats.totalCallLogs}
+              description={`Customer leads · ${selectedMonthLabel}`}
               icon={<MessageSquare className="h-4 w-4" />}
               colorClass="bg-sky-500"
             />
             <StatCard
               title="Processing Accounts"
               value={stats.totalProcessingAccounts}
-              icon={<Users className="h-4 w-4" />}
+              description="Active in system"
+              icon={<Building2 className="h-4 w-4" />}
               colorClass="bg-amber-500"
             />
             <StatCard
               title="Total Customers"
               value={stats.totalCustomers}
+              description="All registered"
               icon={<Users className="h-4 w-4" />}
               colorClass="bg-indigo-500"
             />
@@ -363,48 +400,77 @@ export function ReportsClient({ month }: ReportsClientProps) {
         )}
       </div>
 
-      {/* Employee Performance Table */}
+      {/* ── Employee Performance Table ──────────────────────────────────────── */}
       <Card className="bg-gradient-to-br from-violet-500/[0.06] via-card to-card">
         <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Employee Monthly Performance
-            </CardTitle>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Employee Monthly Performance
+                <span className="text-sm font-normal text-muted-foreground">— {selectedMonthLabel}</span>
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                {topPerformer && (
+                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    <Award className="mr-1 h-3 w-3" /> Top: {topPerformer.name} ({formatCurrency(topPerformer.revenue, currency)})
+                  </Badge>
+                )}
+                <TableDataExport
+                  filenameBase={`employee-performance-${selectedMonth}`}
+                  headers={["Employee", "Role", "Total Sales", "Recorded", "Rejected", "Revenue", "Days Present", "Hours Worked", "Call Log Responses", "Chargebacks", "CB Ratio"]}
+                  rows={employeePerformanceExportRows}
+                  disabled={filteredEmployees.length === 0}
+                  className="shrink-0"
+                />
+              </div>
+            </div>
+
+            {/* Employee-level filters */}
             <div className="flex flex-wrap items-center gap-2">
-              {topPerformer && (
-                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  <Award className="mr-1 h-3 w-3" /> Top: {topPerformer.name} (
-                  {formatCurrency(topPerformer.revenue, currency)})
-                </Badge>
-              )}
-              <TableDataExport
-                filenameBase={`employee-performance-${selectedMonth}`}
-                headers={[
-                  "Employee",
-                  "Role",
-                  "Total Sales",
-                  "Recorded",
-                  "Rejected",
-                  "Revenue",
-                  "Days Present",
-                  "Hours Worked",
-                  "Call Log Responses",
-                  "Chargebacks",
-                  "CB Ratio",
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search employee…"
+                  value={empSearch}
+                  onChange={(e) => { setEmpSearch(e.target.value); updateFilters({ emp_page: 1 }); }}
+                  className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <Select
+                options={[
+                  { value: "all", label: "All Roles" },
+                  { value: "sales_agent", label: "Sales Agents" },
+                  { value: "processor", label: "Processors" },
+                  { value: "super_admin", label: "Admins" },
                 ]}
-                rows={employeePerformanceExportRows}
-                disabled={employeeMonthlyStats.length === 0}
-                className="shrink-0"
+                value={empRoleFilter}
+                onChange={(e) => { setEmpRoleFilter(e.target.value); updateFilters({ emp_page: 1 }); }}
+                className="h-9 w-auto min-w-[9rem]"
+                containerClassName="space-y-0"
               />
+              {(empSearch || empRoleFilter !== "all") && (
+                <span className="text-xs text-muted-foreground">
+                  {filteredEmployees.length} of {employeeMonthlyStats.length} employee{employeeMonthlyStats.length !== 1 ? "s" : ""}
+                </span>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent className="relative">
-          <TableLoadingOverlay isLoading={isPending} />
-          {employeeMonthlyStats.length === 0 ? (
+          <TableLoadingOverlay isLoading={isPending || employeeStatsLoading} />
+          {employeeStatsLoading ? (
+            <div className="space-y-2 py-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded" />
+              ))}
+            </div>
+          ) : filteredEmployees.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No employee data for this period.
+              {employeeMonthlyStats.length === 0
+                ? "No employee data for this period."
+                : "No employees match the current filters."}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -413,15 +479,15 @@ export function ReportsClient({ month }: ReportsClientProps) {
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead>Total Sales</TableHead>
-                    <TableHead>Recorded</TableHead>
-                    <TableHead>Rejected</TableHead>
-                    <TableHead>Revenue</TableHead>
-                    <TableHead>Days Present</TableHead>
-                    <TableHead>Hours Worked</TableHead>
-                    <TableHead>Call Log Responses</TableHead>
-                    <TableHead>Chargebacks</TableHead>
-                    <TableHead>CB Ratio</TableHead>
+                    <TableHead className="text-right">Total Sales</TableHead>
+                    <TableHead className="text-right">Recorded</TableHead>
+                    <TableHead className="text-right">Rejected</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Days Present</TableHead>
+                    <TableHead className="text-right">Hours Worked</TableHead>
+                    <TableHead className="text-right">Call Logs</TableHead>
+                    <TableHead className="text-right">Chargebacks</TableHead>
+                    <TableHead className="text-right">CB Ratio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -429,52 +495,34 @@ export function ReportsClient({ month }: ReportsClientProps) {
                     <TableRow key={emp.id}>
                       <TableCell className="font-medium">{emp.name}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">
-                          {ROLE_LABELS[emp.role] || emp.role}
-                        </Badge>
+                        <Badge variant="secondary">{ROLE_LABELS[emp.role] || emp.role}</Badge>
                       </TableCell>
-                      <TableCell>{emp.totalSales}</TableCell>
-                      <TableCell>
-                        <span className="text-green-600">
-                          {emp.approvedSales}
-                        </span>
+                      <TableCell className="text-right">{emp.totalSales}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{emp.approvedSales}</span>
                       </TableCell>
-                      <TableCell>
-                        <span className="text-red-600">
-                          {emp.rejectedSales}
-                        </span>
+                      <TableCell className="text-right">
+                        <span className="font-medium text-red-600 dark:text-red-400">{emp.rejectedSales}</span>
                       </TableCell>
-                      <TableCell className="font-semibold">
-                        {formatCurrency(emp.revenue, currency)}
+                      <TableCell className="text-right font-semibold">{formatCurrency(emp.revenue, currency)}</TableCell>
+                      <TableCell className="text-right">{emp.daysPresent}</TableCell>
+                      <TableCell className="text-right">{emp.totalHours}h</TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-medium text-sky-600 dark:text-sky-400">{emp.callLogResponses}</span>
                       </TableCell>
-                      <TableCell>{emp.daysPresent}</TableCell>
-                      <TableCell>{emp.totalHours}h</TableCell>
-                      <TableCell>
-                        <span className="text-sky-600 font-medium">
-                          {emp.callLogResponses}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            emp.chargebacks > 0
-                              ? "text-red-600 font-semibold"
-                              : "text-muted-foreground"
-                          }
-                        >
+                      <TableCell className="text-right">
+                        <span className={emp.chargebacks > 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
                           {emp.chargebacks}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            emp.chargebackRatio > 10
-                              ? "text-red-600 font-semibold"
-                              : emp.chargebackRatio > 0
-                                ? "text-amber-600 font-medium"
-                                : "text-muted-foreground"
-                          }
-                        >
+                      <TableCell className="text-right">
+                        <span className={
+                          emp.chargebackRatio > 10
+                            ? "font-semibold text-red-600 dark:text-red-400"
+                            : emp.chargebackRatio > 0
+                              ? "font-medium text-amber-600 dark:text-amber-400"
+                              : "text-muted-foreground"
+                        }>
                           {emp.chargebackRatio}%
                         </span>
                       </TableCell>
@@ -488,97 +536,110 @@ export function ReportsClient({ month }: ReportsClientProps) {
             currentPage={empCurrentPage}
             totalPages={empTotalPages}
             onPageChange={(p) => updateFilters({ emp_page: p })}
-            totalItems={employeeMonthlyStats.length}
+            totalItems={filteredEmployees.length}
             pageSize={empPageSize}
           />
         </CardContent>
       </Card>
 
-      {/* Charts */}
+      {/* ── Visual Analytics ────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
         <BarChart3 className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-bold">Visual Analytics</h2>
+        <span className="text-sm text-muted-foreground">— {selectedMonthLabel}</span>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Revenue Over Time */}
         <Card className="bg-gradient-to-br from-blue-500/[0.08] via-card to-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Revenue Over Time</CardTitle>
-              <Tabs defaultValue="daily">
+              <Tabs defaultValue={revenuePeriod}>
                 <TabsList>
-                  <TabsTrigger
-                    value="daily"
-                    onClick={() => setRevenuePeriod("daily")}
-                  >
-                    Daily
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="weekly"
-                    onClick={() => setRevenuePeriod("weekly")}
-                  >
-                    Weekly
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="monthly"
-                    onClick={() => setRevenuePeriod("monthly")}
-                  >
-                    Monthly
-                  </TabsTrigger>
+                  <TabsTrigger value="daily" onClick={() => setRevenuePeriod("daily")}>Daily</TabsTrigger>
+                  <TabsTrigger value="weekly" onClick={() => setRevenuePeriod("weekly")}>Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly" onClick={() => setRevenuePeriod("monthly")}>Monthly</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
           </CardHeader>
-          <CardContent>
-            <RevenueChart data={revenueData[revenuePeriod]} />
+          <CardContent className="relative min-h-[220px]">
+            {(revenueLoadingDaily || revenueLoadingWeekly || revenueLoadingMonthly) ? (
+              <Skeleton className="h-[200px] w-full rounded-md" />
+            ) : (
+              <RevenueChart data={revenueData[revenuePeriod]} />
+            )}
           </CardContent>
         </Card>
 
+        {/* Sales Outcomes */}
         <Card className="bg-gradient-to-br from-emerald-500/[0.08] via-card to-card">
           <CardHeader>
-            <CardTitle>Sales outcomes</CardTitle>
+            <CardTitle>Sales Outcomes</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ConversionChart
-              recorded={stats.approvedSales}
-              rejected={stats.rejectedSales}
-            />
+          <CardContent className="relative min-h-[220px]">
+            {statsLoading ? (
+              <Skeleton className="h-[200px] w-full rounded-md" />
+            ) : (
+              <ConversionChart recorded={stats.approvedSales} rejected={stats.rejectedSales} />
+            )}
           </CardContent>
         </Card>
 
+        {/* Sales per Agent */}
         <Card className="bg-gradient-to-br from-violet-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Sales per Agent</CardTitle>
           </CardHeader>
-          <CardContent>
-            <SalesPerAgentChart data={salesPerAgent} />
+          <CardContent className="relative min-h-[220px]">
+            {salesPerAgentLoading ? (
+              <Skeleton className="h-[200px] w-full rounded-md" />
+            ) : (
+              <SalesPerAgentChart data={salesPerAgent} />
+            )}
           </CardContent>
         </Card>
 
+        {/* Sales per Processor */}
         <Card className="bg-gradient-to-br from-sky-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Sales per Processor</CardTitle>
           </CardHeader>
-          <CardContent>
-            <SalesPerProcessorChart data={salesPerProcessor} />
+          <CardContent className="relative min-h-[220px]">
+            {salesPerProcessorLoading ? (
+              <Skeleton className="h-[200px] w-full rounded-md" />
+            ) : (
+              <SalesPerProcessorChart data={salesPerProcessor} />
+            )}
           </CardContent>
         </Card>
 
+        {/* Chargebacks per Employee */}
         <Card className="bg-gradient-to-br from-rose-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Chargebacks per Employee</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ChargebacksChart data={chargebacksPerEmployee} />
+          <CardContent className="relative min-h-[220px]">
+            {chargebacksLoading ? (
+              <Skeleton className="h-[200px] w-full rounded-md" />
+            ) : (
+              <ChargebacksChart data={chargebacksPerEmployee} />
+            )}
           </CardContent>
         </Card>
 
+        {/* Attendance vs Performance */}
         <Card className="bg-gradient-to-br from-amber-500/[0.08] via-card to-card">
           <CardHeader>
             <CardTitle>Attendance vs Performance</CardTitle>
           </CardHeader>
-          <CardContent>
-            <AttendancePerformanceChart data={attendanceVsPerformance} />
+          <CardContent className="relative min-h-[220px]">
+            {attendanceLoading ? (
+              <Skeleton className="h-[200px] w-full rounded-md" />
+            ) : (
+              <AttendancePerformanceChart data={attendanceVsPerformance} />
+            )}
           </CardContent>
         </Card>
       </div>

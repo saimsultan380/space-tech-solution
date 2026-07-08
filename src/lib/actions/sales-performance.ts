@@ -104,160 +104,99 @@ const DEAL_COLORS: Record<string, string> = {
 };
 
 /**
+ * Derive month boundaries from a YYYY-MM string (or today if omitted).
+ */
+function getMonthBounds(month?: string): { monthStart: string; monthEnd: string; quarterStart: string; refDate: Date } {
+  const refDate = month ? new Date(`${month}-15`) : new Date();
+  const year = refDate.getFullYear();
+  const mo = refDate.getMonth(); // 0-indexed
+  const monthStart = `${year}-${String(mo + 1).padStart(2, "0")}-01`;
+  const nextMo = new Date(year, mo + 1, 1);
+  const monthEnd = nextMo.toISOString().split("T")[0];
+  const quarterMo = Math.floor(mo / 3) * 3;
+  const quarterStart = `${year}-${String(quarterMo + 1).padStart(2, "0")}-01`;
+  return { monthStart, monthEnd, quarterStart, refDate };
+}
+
+/**
  * Internal DB function for agent performance stats. Requires userId only.
  * Creates its own uncached client to avoid cookies() inside cache.
  */
-async function _getAgentPerformanceStatsDB(userId: string) {
+async function _getAgentPerformanceStatsDB(userId: string, month: string) {
   try {
     const supabase = createClientUncached();
-    const targetAgentId = userId;
+    const { monthStart, monthEnd, quarterStart } = getMonthBounds(month);
 
-    const today = new Date();
-    const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-    const quarterMonth = Math.floor(today.getMonth() / 3) * 3;
-    const quarterStart = `${today.getFullYear()}-${String(quarterMonth + 1).padStart(2, "0")}-01`;
+    const [monthSalesRes, quarterSalesRes, chargebackRes] = await Promise.all([
+      supabase
+        .from("sales")
+        .select("id, status, charged_amount")
+        .eq("agent_id", userId)
+        .gte("created_at", `${monthStart}T00:00:00`)
+        .lt("created_at", `${monthEnd}T00:00:00`)
+        .limit(500),
+      supabase
+        .from("sales")
+        .select("id, status, charged_amount")
+        .eq("agent_id", userId)
+        .gte("created_at", `${quarterStart}T00:00:00`)
+        .limit(500),
+      supabase
+        .from("chargebacks")
+        .select("id, sale:sales!inner(agent_id)")
+        .eq("sale.agent_id", userId),
+    ]);
 
-    const [allSalesRes, monthSalesRes, quarterSalesRes, chargebackRes] =
-      await Promise.all([
-        supabase
-          .from("sales")
-          .select("id, status, charged_amount, sale_type, subtype, created_at")
-          .eq("agent_id", targetAgentId)
-          .limit(1000),
-        supabase
-          .from("sales")
-          .select("id, status, charged_amount")
-          .eq("agent_id", targetAgentId)
-          .gte("created_at", `${monthStart}T00:00:00`)
-          .limit(500),
-        supabase
-          .from("sales")
-          .select("id, status, charged_amount")
-          .eq("agent_id", targetAgentId)
-          .gte("created_at", `${quarterStart}T00:00:00`)
-          .limit(500),
-        supabase
-          .from("chargebacks")
-          .select("id, sale:sales!inner(agent_id)")
-          .eq("sale.agent_id", targetAgentId),
-      ]);
-
-    // Check for errors
-    if (allSalesRes.error)
-      throw new Error(`Failed to fetch sales: ${allSalesRes.error.message}`);
     if (monthSalesRes.error)
-      throw new Error(
-        `Failed to fetch monthly sales: ${monthSalesRes.error.message}`,
-      );
+      throw new Error(`Failed to fetch monthly sales: ${monthSalesRes.error.message}`);
     if (quarterSalesRes.error)
-      throw new Error(
-        `Failed to fetch quarterly sales: ${quarterSalesRes.error.message}`,
-      );
+      throw new Error(`Failed to fetch quarterly sales: ${quarterSalesRes.error.message}`);
     if (chargebackRes.error)
-      throw new Error(
-        `Failed to fetch chargebacks: ${chargebackRes.error.message}`,
-      );
+      throw new Error(`Failed to fetch chargebacks: ${chargebackRes.error.message}`);
 
-    const allSales = allSalesRes.data || [];
     const monthSales = monthSalesRes.data || [];
     const quarterSales = quarterSalesRes.data || [];
 
-    const approved = (allSales as any[]).filter((s) => s.status !== "rejected");
-    const monthApproved = (monthSales as any[]).filter(
-      (s) => s.status !== "rejected",
-    );
-    const quarterApproved = (quarterSales as any[]).filter(
-      (s) => s.status !== "rejected",
-    );
+    const monthApproved = (monthSales as any[]).filter((s) => s.status !== "rejected");
+    const quarterApproved = (quarterSales as any[]).filter((s) => s.status !== "rejected");
 
-    const totalRevenue = approved.reduce(
-      (sum: number, s: any) => sum + Number(s.charged_amount),
-      0,
-    );
-    const monthRevenue = monthApproved.reduce(
-      (sum: number, s: any) => sum + Number(s.charged_amount),
-      0,
-    );
-    const quarterRevenue = quarterApproved.reduce(
-      (sum: number, s: any) => sum + Number(s.charged_amount),
-      0,
-    );
+    const monthRevenue = monthApproved.reduce((sum: number, s: any) => sum + Number(s.charged_amount), 0);
+    const quarterRevenue = quarterApproved.reduce((sum: number, s: any) => sum + Number(s.charged_amount), 0);
 
     const monthTarget = 30;
     const monthRevenueTarget = 50000;
     const quarterTarget = 90;
     const quarterRevenueTarget = 150000;
 
-    const monthPct = Math.min(
-      100,
-      Math.round((monthSales.length / monthTarget) * 100),
-    );
-    const monthRevPct = Math.min(
-      100,
-      Math.round((monthRevenue / monthRevenueTarget) * 100),
-    );
-    const quarterPct = Math.min(
-      100,
-      Math.round((quarterSales.length / quarterTarget) * 100),
-    );
-    const quarterRevPct = Math.min(
-      100,
-      Math.round((quarterRevenue / quarterRevenueTarget) * 100),
-    );
+    const monthPct = Math.min(100, Math.round((monthSales.length / monthTarget) * 100));
+    const monthRevPct = Math.min(100, Math.round((monthRevenue / monthRevenueTarget) * 100));
+    const quarterPct = Math.min(100, Math.round((quarterSales.length / quarterTarget) * 100));
+    const quarterRevPct = Math.min(100, Math.round((quarterRevenue / quarterRevenueTarget) * 100));
 
-    const getStatus = (
-      pct: number,
-    ): "on_target" | "at_risk" | "below_target" => {
+    const getStatus = (pct: number): "on_target" | "at_risk" | "below_target" => {
       if (pct >= 70) return "on_target";
       if (pct >= 40) return "at_risk";
       return "below_target";
     };
 
     const targets: PerformanceTarget[] = [
-      {
-        label: "Monthly Sales",
-        current: monthSales.length,
-        target: monthTarget,
-        percentage: monthPct,
-        status: getStatus(monthPct),
-      },
-      {
-        label: "Monthly Revenue",
-        current: monthRevenue,
-        target: monthRevenueTarget,
-        percentage: monthRevPct,
-        status: getStatus(monthRevPct),
-      },
-      {
-        label: "Quarterly Sales",
-        current: quarterSales.length,
-        target: quarterTarget,
-        percentage: quarterPct,
-        status: getStatus(quarterPct),
-      },
-      {
-        label: "Quarterly Revenue",
-        current: quarterRevenue,
-        target: quarterRevenueTarget,
-        percentage: quarterRevPct,
-        status: getStatus(quarterRevPct),
-      },
+      { label: "Monthly Sales", current: monthSales.length, target: monthTarget, percentage: monthPct, status: getStatus(monthPct) },
+      { label: "Monthly Revenue", current: monthRevenue, target: monthRevenueTarget, percentage: monthRevPct, status: getStatus(monthRevPct) },
+      { label: "Quarterly Sales", current: quarterSales.length, target: quarterTarget, percentage: quarterPct, status: getStatus(quarterPct) },
+      { label: "Quarterly Revenue", current: quarterRevenue, target: quarterRevenueTarget, percentage: quarterRevPct, status: getStatus(quarterRevPct) },
     ];
 
     return {
-      totalSales: allSales.length,
-      approvedSales: approved.length,
-      rejectedSales: allSales.length - approved.length,
-      totalRevenue,
+      totalSales: monthSales.length,
+      approvedSales: monthApproved.length,
+      rejectedSales: monthSales.length - monthApproved.length,
+      totalRevenue: monthRevenue,
       monthSales: monthSales.length,
       monthRevenue,
       quarterSales: quarterSales.length,
       quarterRevenue,
       chargebacks: chargebackRes.data?.length || 0,
-      conversionRate:
-        allSales.length > 0
-          ? Math.round((approved.length / allSales.length) * 100)
-          : 0,
+      conversionRate: monthSales.length > 0 ? Math.round((monthApproved.length / monthSales.length) * 100) : 0,
       targets,
     };
   } catch (error) {
@@ -349,16 +288,19 @@ async function _getAgentMonthlySalesTrendsDB(
  */
 async function _getAgentDealCategoriesDB(
   userId: string,
+  month: string,
 ): Promise<DealCategoryBreakdown[]> {
   try {
     const supabase = createClientUncached();
-    const targetAgentId = userId;
+    const { monthStart, monthEnd } = getMonthBounds(month);
 
     const { data, error } = await supabase
       .from("sales")
       .select("sale_type, subtype")
-      .eq("agent_id", targetAgentId)
-      .neq("status", "rejected");
+      .eq("agent_id", userId)
+      .neq("status", "rejected")
+      .gte("created_at", `${monthStart}T00:00:00`)
+      .lt("created_at", `${monthEnd}T00:00:00`);
 
     if (error) {
       throw new Error(`Failed to fetch deal categories: ${error.message}`);
@@ -600,7 +542,7 @@ async function _getRecentSalesNotificationsDB(): Promise<SalesNotification[]> {
 //
 
 const _cachedGetAgentPerformanceStats = unstable_cache(
-  (userId: string) => _getAgentPerformanceStatsDB(userId),
+  (userId: string, month: string) => _getAgentPerformanceStatsDB(userId, month),
   ["agent-perf-stats"],
   { revalidate: 120, tags: ["agent-stats", "sales"] },
 );
@@ -612,7 +554,7 @@ const _cachedGetAgentMonthlySalesTrends = unstable_cache(
 );
 
 const _cachedGetAgentDealCategories = unstable_cache(
-  (userId: string) => _getAgentDealCategoriesDB(userId),
+  (userId: string, month: string) => _getAgentDealCategoriesDB(userId, month),
   ["agent-deal-categories"],
   { revalidate: 300, tags: ["agent-stats", "sales"] },
 );
@@ -643,10 +585,12 @@ const _cachedGetRecentSalesNotifications = unstable_cache(
 //
 
 /** Get agent performance stats — handles auth outside cache */
-export async function getAgentPerformanceStats(agentId?: string) {
+export async function getAgentPerformanceStats(agentId?: string, month?: string) {
   const user = await requireAuth();
   const targetAgentId = agentId || user.id;
-  return _cachedGetAgentPerformanceStats(targetAgentId);
+  const today = new Date();
+  const resolvedMonth = month || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  return _cachedGetAgentPerformanceStats(targetAgentId, resolvedMonth);
 }
 
 /** Get monthly sales trends — handles auth outside cache */
@@ -657,10 +601,12 @@ export async function getAgentMonthlySalesTrends(agentId?: string) {
 }
 
 /** Get deal categories — handles auth outside cache */
-export async function getAgentDealCategories(agentId?: string) {
+export async function getAgentDealCategories(agentId?: string, month?: string) {
   const user = await requireAuth();
   const targetAgentId = agentId || user.id;
-  return _cachedGetAgentDealCategories(targetAgentId);
+  const today = new Date();
+  const resolvedMonth = month || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  return _cachedGetAgentDealCategories(targetAgentId, resolvedMonth);
 }
 
 /** Get revenue over time — handles auth outside cache */

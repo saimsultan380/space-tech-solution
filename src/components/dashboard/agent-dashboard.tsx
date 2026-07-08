@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceWidget } from "./attendance-widget";
@@ -52,9 +53,10 @@ interface AgentDashboardProps {
     checkout_grace_minutes: number;
     allow_early_checkout: boolean;
     early_checkout_minutes: number;
-  };
-  companySettings: CompanySettings;
+  } | undefined;
+  companySettings: CompanySettings | undefined;
   month: string;
+  secondaryLoading?: boolean;
 }
 
 export function AgentDashboard({
@@ -66,12 +68,14 @@ export function AgentDashboard({
   attendanceSettings,
   companySettings,
   month,
+  secondaryLoading,
 }: AgentDashboardProps) {
   const { currency } = useCurrency();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const queryClient = useQueryClient();
 
   const [selectedMonth, setSelectedMonth] = useState(month);
 
@@ -83,18 +87,21 @@ export function AgentDashboard({
     const supabase = createClient();
     const channel = supabase
       .channel("agent-dashboard-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
-        router.refresh();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, () => {
-        router.refresh();
-      })
+      // Only listen to this agent's own sales — avoids triggering on unrelated changes
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales", filter: `agent_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["agent-dashboard-stats"] });
+          queryClient.invalidateQueries({ queryKey: ["agent-recent-sales"] });
+        },
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [user.id, queryClient]);
 
   const monthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
@@ -264,7 +271,9 @@ export function AgentDashboard({
         </CardContent>
       </Card>
 
-      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
+      {companySettings && (
+        <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="text-center">

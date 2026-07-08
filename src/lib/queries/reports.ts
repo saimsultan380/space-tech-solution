@@ -257,60 +257,24 @@ export async function getChargebacksPerEmployee(month?: string) {
 export async function getAttendanceVsPerformance(month?: string) {
   try {
     const supabase = createClient();
-
     const targetMonth = month || new Date().toISOString().substring(0, 7);
-    const monthStart = `${targetMonth}-01`;
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
 
-    const [attendanceRes, salesRes] = await Promise.all([
-      supabase
-        .from("attendance")
-        .select("user_id, date")
-        .gte("date", monthStart)
-        .lt("date", monthEnd),
-      supabase
-        .from("sales")
-        .select(
-          "agent_id, status, created_at, agent:users!sales_agent_id_fkey(full_name)",
-        )
-        .gte("created_at", `${monthStart}T00:00:00.000Z`)
-        .lt("created_at", `${monthEnd}T00:00:00.000Z`)
-        .neq("status", "rejected"),
-    ]);
+    // Single DB-level aggregation via RPC — replaces 2 wide browser queries
+    const { data, error } = await (supabase as any).rpc(
+      "get_attendance_vs_performance",
+      { p_month: targetMonth },
+    );
 
-    const attendanceMap = new Map<string, number>();
-    (attendanceRes.data || []).forEach((a: AttendanceRow) => {
-      attendanceMap.set(a.user_id, (attendanceMap.get(a.user_id) || 0) + 1);
-    });
+    if (error) {
+      console.error("get_attendance_vs_performance RPC error:", error);
+      return [];
+    }
 
-    const salesMap = new Map<string, { name: string; sales: number }>();
-    (salesRes.data || []).forEach((s: any) => {
-      const agent = s.agent as { full_name: string } | null;
-      const name = agent?.full_name || "Unknown";
-      const existing = salesMap.get(s.agent_id) || { name, sales: 0 };
-      existing.sales += 1;
-      salesMap.set(s.agent_id, existing);
-    });
-
-    const result: {
-      name: string;
-      attendance_days: number;
-      approved_sales: number;
-    }[] = [];
-    const allUsers = new Set([...attendanceMap.keys(), ...salesMap.keys()]);
-
-    allUsers.forEach((userId) => {
-      const salesData = salesMap.get(userId);
-      result.push({
-        name: salesData?.name || "Unknown",
-        attendance_days: attendanceMap.get(userId) || 0,
-        approved_sales: salesData?.sales || 0,
-      });
-    });
-
-    return result;
+    return ((data as any[]) || []).map((row: any) => ({
+      name: String(row.name || "Unknown"),
+      attendance_days: Number(row.attendance_days ?? 0),
+      approved_sales: Number(row.approved_sales ?? 0),
+    }));
   } catch (error) {
     console.error("Failed to fetch attendance vs performance:", error);
     return [];
@@ -320,100 +284,34 @@ export async function getAttendanceVsPerformance(month?: string) {
 export async function getEmployeeMonthlyStats(month?: string) {
   try {
     const supabase = createClient();
-
     const targetMonth = month || new Date().toISOString().substring(0, 7);
-    const monthStart = `${targetMonth}-01`;
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const monthEnd = nextMonth.toISOString().split("T")[0];
 
-    const [salesRes, attendanceRes, usersRes, callLogsRes, chargebacksRes] =
-      await Promise.all([
-        supabase
-          .from("sales")
-          .select("agent_id, status, charged_amount, sale_date, created_at")
-          .gte("created_at", `${monthStart}T00:00:00.000Z`)
-          .lt("created_at", `${monthEnd}T00:00:00.000Z`),
-        supabase
-          .from("attendance")
-          .select("user_id, date, check_in, check_out")
-          .gte("date", monthStart)
-          .lt("date", monthEnd),
-        supabase
-          .from("users")
-          .select("id, full_name, role")
-          .eq("is_active", true),
-        supabase
-          .from("customers")
-          .select("created_by")
-          .eq("source", "call_log")
-          .is("deleted_at", null)
-          .gte("created_at", `${monthStart}T00:00:00.000Z`)
-          .lt("created_at", `${monthEnd}T00:00:00.000Z`),
-        supabase.rpc("get_chargebacks_per_employee_stats", {
-          target_month: targetMonth as any,
-        }),
-      ]);
+    // Single DB-level aggregation via RPC — replaces 5 separate browser queries
+    // and eliminates O(users × rows) in-memory JS aggregation
+    const { data, error } = await (supabase as any).rpc(
+      "get_employee_monthly_stats",
+      { p_month: targetMonth },
+    );
 
-    const users = (usersRes.data || []) as EmployeeUserRow[];
-    const sales = (salesRes.data || []) as EmployeeSaleRow[];
-    const attendance = (attendanceRes.data || []) as EmployeeAttendanceRow[];
+    if (error) {
+      console.error("get_employee_monthly_stats RPC error:", error);
+      return [];
+    }
 
-    const callLogsMap = new Map<string, number>();
-    ((callLogsRes.data || []) as CallLogRow[]).forEach((cl) => {
-      if (cl.created_by) {
-        callLogsMap.set(cl.created_by, (callLogsMap.get(cl.created_by) || 0) + 1);
-      }
-    });
-
-    const chargebacksMap = new Map<string, number>();
-    ((chargebacksRes.data || []) as ChargebackRpcRow[]).forEach((row) => {
-      if (row.agent_id) {
-        chargebacksMap.set(row.agent_id, Number(row.count));
-      }
-    });
-
-    return users.map((u: EmployeeUserRow) => {
-      const userSales = sales.filter((s) => s.agent_id === u.id);
-      const userAttendance = attendance.filter((a) => a.user_id === u.id);
-      const totalHours = userAttendance.reduce(
-        (sum: number, a: EmployeeAttendanceRow) => {
-          if (!a.check_out) return sum;
-          return (
-            sum +
-            (new Date(a.check_out).getTime() - new Date(a.check_in).getTime()) /
-              3600000
-          );
-        },
-        0,
-      );
-
-      const cbCount = chargebacksMap.get(u.id) || 0;
-      const chargebackRatio =
-        userSales.length > 0
-          ? Math.round((cbCount / userSales.length) * 1000) / 10
-          : 0;
-
-      return {
-        id: u.id,
-        name: u.full_name,
-        role: u.role,
-        totalSales: userSales.length,
-        approvedSales: userSales.filter((s) => s.status !== "rejected").length,
-        rejectedSales: userSales.filter((s) => s.status === "rejected").length,
-        revenue: userSales
-          .filter((s) => s.status !== "rejected")
-          .reduce(
-            (sum: number, s: EmployeeSaleRow) => sum + Number(s.charged_amount),
-            0,
-          ),
-        daysPresent: userAttendance.length,
-        totalHours: Math.round(totalHours * 10) / 10,
-        callLogResponses: callLogsMap.get(u.id) || 0,
-        chargebacks: cbCount,
-        chargebackRatio,
-      };
-    });
+    return ((data as any[]) || []).map((row: any) => ({
+      id: String(row.id),
+      name: String(row.full_name || ""),
+      role: String(row.role || ""),
+      totalSales: Number(row.total_sales ?? 0),
+      approvedSales: Number(row.approved_sales ?? 0),
+      rejectedSales: Number(row.rejected_sales ?? 0),
+      revenue: Number(row.revenue ?? 0),
+      daysPresent: Number(row.days_present ?? 0),
+      totalHours: Number(row.total_hours ?? 0),
+      callLogResponses: Number(row.call_log_responses ?? 0),
+      chargebacks: Number(row.chargebacks ?? 0),
+      chargebackRatio: Number(row.chargeback_ratio ?? 0),
+    }));
   } catch (error) {
     console.error("Failed to fetch employee monthly stats:", error);
     return [];

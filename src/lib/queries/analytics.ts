@@ -181,6 +181,22 @@ export async function getAgentDashboardStats(
     }
 
     const row = (data as any[])[0];
+
+    // Fetch call-log count for this agent in parallel (lightweight count query)
+    const monthStart = `${month}-01`;
+    const nextMonthDate = new Date(monthStart);
+    nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+    const monthEnd = nextMonthDate.toISOString().split("T")[0];
+
+    const { count: callLogCount } = await supabase
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", userId)
+      .eq("source", "call_log")
+      .is("deleted_at", null)
+      .gte("created_at", `${monthStart}T00:00:00.000Z`)
+      .lt("created_at", `${monthEnd}T00:00:00.000Z`);
+
     return {
       totalSales: Number(row.total_sales ?? 0),
       pendingSales: Number(row.pending_sales ?? 0),
@@ -191,7 +207,7 @@ export async function getAgentDashboardStats(
       monthRevenue: Number(row.month_revenue ?? 0),
       todaySales: Number(row.today_sales ?? 0),
       todayRevenue: Number(row.today_revenue ?? 0),
-      totalCustomers: 0,
+      totalCustomers: callLogCount ?? 0,
     };
   } catch (error) {
     console.error("Failed to fetch agent dashboard stats:", error);
@@ -236,6 +252,11 @@ export async function getAgentRecentSales(
       userId = userData.user.id;
     }
 
+    const monthStart = `${month}-01`;
+    const nextMonthDate = new Date(monthStart);
+    nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+    const monthEnd = nextMonthDate.toISOString().split("T")[0];
+
     const { data } = await supabase
       .from("sales")
       .select(
@@ -246,6 +267,8 @@ export async function getAgentRecentSales(
       )
       .eq("agent_id", userId)
       .is("deleted_at", null)
+      .gte("created_at", `${monthStart}T00:00:00.000Z`)
+      .lt("created_at", `${monthEnd}T00:00:00.000Z`)
       .order("created_at", { ascending: false })
       .limit(10);
 

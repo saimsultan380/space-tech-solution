@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,8 +37,9 @@ interface ProcessorDashboardProps {
     checkout_grace_minutes: number;
     allow_early_checkout: boolean;
     early_checkout_minutes: number;
-  };
-  companySettings: CompanySettings;
+  } | undefined;
+  companySettings: CompanySettings | undefined;
+  secondaryLoading?: boolean;
 }
 
 export function ProcessorDashboard({
@@ -48,9 +49,10 @@ export function ProcessorDashboard({
   recentPayslips,
   attendanceSettings,
   companySettings,
+  secondaryLoading,
 }: ProcessorDashboardProps) {
   const { currency } = useCurrency();
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [showCallLogsCta, setShowCallLogsCta] = useState(false);
 
   const hasCallLogsAccess = canAccessCallLogsResponses(user.role, user.allowed_modules);
@@ -59,18 +61,16 @@ export function ProcessorDashboard({
     const supabase = createClient();
     const channel = supabase
       .channel("processor-dashboard-changes")
+      // Only sales changes matter for processor stats — chargebacks don't affect any metric shown
       .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
-        router.refresh();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, () => {
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ["processor-dashboard-stats"] });
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [queryClient]);
 
   useEffect(() => {
     if (!hasCallLogsAccess) {
@@ -162,7 +162,9 @@ export function ProcessorDashboard({
         </CardContent>
       </Card>
 
-      <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
+      {companySettings && (
+        <PayslipDashboardCard payslips={recentPayslips} title="My Recent Payslips" companySettings={companySettings} />
+      )}
     </div>
   );
 }

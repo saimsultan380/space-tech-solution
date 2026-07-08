@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -17,6 +18,7 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
@@ -40,6 +42,8 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
   Activity,
+  Search,
+  Calendar,
 } from "@/components/ui/icons";
 import type {
   LeaderboardEntry,
@@ -52,6 +56,7 @@ import type { RealtimePayload } from "@/lib/types";
 
 interface SalesPerformanceDashboardProps {
   currentUserId: string;
+  selectedMonth: string;
   stats: {
     totalSales: number;
     approvedSales: number;
@@ -81,8 +86,22 @@ const STATUS_COLORS = {
 const RANK_ICONS = [Crown, Medal, Award];
 const RANK_COLORS = ["text-amber-400", "text-slate-400", "text-amber-600"];
 
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function buildMonthOptions(count = 12) {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    options.push({ value, label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` });
+  }
+  return options;
+}
+
 export function SalesPerformanceDashboard({
   currentUserId,
+  selectedMonth,
   stats,
   monthlyTrends,
   dealCategories,
@@ -90,6 +109,7 @@ export function SalesPerformanceDashboard({
   leaderboard: initialLeaderboard,
   notifications: initialNotifications,
 }: SalesPerformanceDashboardProps) {
+  const router = useRouter();
   const { currency } = useCurrency();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -97,7 +117,27 @@ export function SalesPerformanceDashboard({
   const [toasts, setToasts] = useState<SalesNotification[]>([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [allNotifications, setAllNotifications] = useState(initialNotifications);
+  const [lbSearch, setLbSearch] = useState("");
   const lastProcessedRef = useRef<string | null>(null);
+
+  const monthOptions = useMemo(() => buildMonthOptions(12), []);
+
+  const selectedMonthLabel = useMemo(() => {
+    const found = monthOptions.find((o) => o.value === selectedMonth);
+    return found?.label ?? selectedMonth;
+  }, [selectedMonth, monthOptions]);
+
+  function handleMonthChange(month: string) {
+    const params = new URLSearchParams(window.location.search);
+    params.set("month", month);
+    router.push(`?${params.toString()}`);
+  }
+
+  const filteredLeaderboard = useMemo(() => {
+    if (!lbSearch.trim()) return leaderboard;
+    const q = lbSearch.toLowerCase();
+    return leaderboard.filter((e) => e.agent_name.toLowerCase().includes(q));
+  }, [leaderboard, lbSearch]);
 
   // PERFORMANCE FIX: Cache agent names from the already-loaded leaderboard.
   // This prevents N×users DB queries when realtime sale events fire.
@@ -236,32 +276,70 @@ export function SalesPerformanceDashboard({
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-            <p className="text-sm text-muted-foreground">Track your progress and compare with your team</p>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+          <p className="text-sm text-muted-foreground">Track your progress and compare with your team</p>
         </div>
-        <button
-          onClick={() => setShowNotifPanel(!showNotifPanel)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-all self-end sm:self-auto"
-        >
-          <Bell className="h-5 w-5" />
-          {allNotifications.length > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
-              {allNotifications.length > 99 ? "99+" : allNotifications.length}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* Month picker */}
+          <div className="relative flex items-center">
+            <Calendar className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => handleMonthChange(e.target.value)}
+              className="h-10 appearance-none rounded-xl border border-border bg-card pl-9 pr-8 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40 hover:bg-muted transition-colors cursor-pointer"
+            >
+              {monthOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          {/* Notifications */}
+          <button
+            onClick={() => setShowNotifPanel(!showNotifPanel)}
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+          >
+            <Bell className="h-5 w-5" />
+            {allNotifications.length > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
+                {allNotifications.length > 99 ? "99+" : allNotifications.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── KPI Cards ── */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={<ShoppingCart className="h-5 w-5" />} label="Total Sales" value={String(stats.totalSales)} accent="from-blue-500 to-blue-600" />
-        <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Revenue" value={formatCurrency(stats.totalRevenue, currency)} accent="from-emerald-500 to-emerald-600" />
-        <KpiCard icon={<Target className="h-5 w-5" />} label="Conversion" value={`${stats.conversionRate}%`} accent="from-violet-500 to-violet-600" />
-        <KpiCard icon={<Trophy className="h-5 w-5" />} label="Rank" value={currentUser ? `#${currentUser.rank}` : "—"} accent="from-amber-500 to-amber-600" />
+        <StatCard
+          title="Total Sales"
+          value={stats.totalSales}
+          description={selectedMonthLabel}
+          icon={<ShoppingCart className="h-4 w-4" />}
+          colorClass="bg-blue-500"
+        />
+        <StatCard
+          title="Revenue"
+          value={formatCurrency(stats.totalRevenue, currency)}
+          description={`${selectedMonthLabel} · approved only`}
+          icon={<DollarSign className="h-4 w-4" />}
+          colorClass="bg-emerald-500"
+        />
+        <StatCard
+          title="Conversion"
+          value={`${stats.conversionRate}%`}
+          description="Approved ÷ total"
+          icon={<Target className="h-4 w-4" />}
+          colorClass="bg-violet-500"
+        />
+        <StatCard
+          title="Rank"
+          value={currentUser ? `#${currentUser.rank}` : "—"}
+          description="All-time leaderboard"
+          icon={<Trophy className="h-4 w-4" />}
+          colorClass="bg-amber-500"
+        />
       </div>
 
       {/* ── Progress Targets ── */}
@@ -449,21 +527,34 @@ export function SalesPerformanceDashboard({
       {/* ── Leaderboard ── */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="h-4 w-4 text-amber-500" /> Sales Leaderboard
             </CardTitle>
-            {nextRank && currentUser && salesGapToNext > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-                <Zap className="h-3.5 w-3.5" />
-                <span>{salesGapToNext} more sale{salesGapToNext !== 1 ? "s" : ""} to beat {nextRank.agent_name}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {nextRank && currentUser && salesGapToNext > 0 && (
+                <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span>{salesGapToNext} more sale{salesGapToNext !== 1 ? "s" : ""} to beat {nextRank.agent_name}</span>
+                </div>
+              )}
+              {/* Leaderboard search */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search agent…"
+                  value={lbSearch}
+                  onChange={(e) => setLbSearch(e.target.value)}
+                  className="h-8 w-44 rounded-lg border border-border bg-muted/40 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
               </div>
-            )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {leaderboard.map((entry) => {
+            {filteredLeaderboard.map((entry) => {
               const isCurrentUser = entry.agent_id === currentUserId;
               const RankIcon = entry.rank <= 3 ? RANK_ICONS[entry.rank - 1] : null;
               const rankColor = entry.rank <= 3 ? RANK_COLORS[entry.rank - 1] : "";
@@ -516,8 +607,10 @@ export function SalesPerformanceDashboard({
                 </div>
               );
             })}
-            {leaderboard.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">No agents found</p>
+            {filteredLeaderboard.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {lbSearch ? `No agents matching "${lbSearch}"` : "No agents found"}
+              </p>
             )}
           </div>
         </CardContent>
@@ -605,19 +698,3 @@ export function SalesPerformanceDashboard({
   );
 }
 
-function KpiCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) {
-  return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
-      <div className="flex items-center gap-3">
-        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg transition-transform duration-300 group-hover:scale-110", accent)}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold tracking-tight">{value}</p>
-        </div>
-      </div>
-      <div className={cn("absolute -right-4 -top-4 h-20 w-20 rounded-full bg-gradient-to-br opacity-[0.06] transition-transform duration-500 group-hover:scale-150", accent)} />
-    </div>
-  );
-}

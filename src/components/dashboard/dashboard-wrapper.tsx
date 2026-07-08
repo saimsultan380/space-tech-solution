@@ -208,15 +208,9 @@ function AgentDashboardWrapper({
     staleTime: SETTINGS_STALE_MS,
   });
 
-  const isLoading =
-    statsLoading ||
-    salesLoading ||
-    attendanceLoading ||
-    payslipsLoading ||
-    settingsLoading ||
-    companyLoading;
-
-  if (isLoading) {
+  // Show skeleton only until the primary stats are ready — secondary data
+  // (payslips, settings) renders progressively once the above resolves.
+  if (statsLoading || salesLoading) {
     return <DashboardSkeleton />;
   }
 
@@ -227,9 +221,10 @@ function AgentDashboardWrapper({
       recentSales={recentSales}
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
-      attendanceSettings={attendanceSettings!}
-      companySettings={companySettings!}
+      attendanceSettings={attendanceSettings ?? undefined}
+      companySettings={companySettings ?? undefined}
       month={month}
+      secondaryLoading={attendanceLoading || payslipsLoading || settingsLoading || companyLoading}
     />
   );
 }
@@ -266,14 +261,7 @@ function ProcessorDashboardWrapper({ user }: { user: AppUser }) {
     staleTime: SETTINGS_STALE_MS,
   });
 
-  const isLoading =
-    statsLoading ||
-    attendanceLoading ||
-    payslipsLoading ||
-    settingsLoading ||
-    companyLoading;
-
-  if (isLoading) {
+  if (statsLoading) {
     return <DashboardSkeleton />;
   }
 
@@ -283,8 +271,9 @@ function ProcessorDashboardWrapper({ user }: { user: AppUser }) {
       stats={stats}
       todayAttendance={todayAttendance}
       recentPayslips={recentPayslips}
-      attendanceSettings={attendanceSettings!}
-      companySettings={companySettings!}
+      attendanceSettings={attendanceSettings ?? undefined}
+      companySettings={companySettings ?? undefined}
+      secondaryLoading={attendanceLoading || payslipsLoading || settingsLoading || companyLoading}
     />
   );
 }
