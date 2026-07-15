@@ -23,15 +23,44 @@ import {
   mapRecordsToImportRows,
   parseProcessingAccountsCsv,
   parseProcessingAccountsXlsx,
+  PROCESSING_ACCOUNTS_CARD_CSV_TEMPLATE,
+  PROCESSING_ACCOUNTS_CHECKIN_CSV_TEMPLATE,
   PROCESSING_ACCOUNTS_CSV_TEMPLATE,
+  type ProcessingAccountsImportMode,
 } from "@/lib/processing-accounts-import";
 import type { ProcessingAccountImportPayload } from "@/lib/types";
-import { Download, FileSpreadsheet, Upload } from "@/components/ui/icons";
+import { Building2, CreditCard, Download, FileSpreadsheet, Upload } from "@/components/ui/icons";
 
 interface ProcessingAccountsImportDialogProps {
   open: boolean;
   onClose: () => void;
 }
+
+const MODE_OPTIONS: {
+  value: ProcessingAccountsImportMode;
+  label: string;
+  description: string;
+  icon: typeof Building2;
+}[] = [
+  {
+    value: "auto",
+    label: "Auto-detect",
+    description: "Use Account Type column, or detect from card vs routing fields",
+    icon: FileSpreadsheet,
+  },
+  {
+    value: "checkin",
+    label: "CheckIn accounts",
+    description: "Import every row as a CheckIn (routing / account number) record",
+    icon: Building2,
+  },
+  {
+    value: "card",
+    label: "Credit / Debit cards",
+    description: "Import every row as a card record (card number, expiry, CVV)",
+    icon: CreditCard,
+  },
+];
 
 export function ProcessingAccountsImportDialog({
   open,
@@ -40,12 +69,14 @@ export function ProcessingAccountsImportDialog({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
+  const [importMode, setImportMode] = useState<ProcessingAccountsImportMode>("auto");
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [rows, setRows] = useState<ProcessingAccountImportPayload[]>([]);
   const [skipped, setSkipped] = useState<{ line: number; reason: string }[]>([]);
   const [successCount, setSuccessCount] = useState<number | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const reset = () => {
     setFileName(null);
@@ -54,6 +85,7 @@ export function ProcessingAccountsImportDialog({
     setRows([]);
     setSkipped([]);
     setSuccessCount(null);
+    setPendingFile(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -62,23 +94,41 @@ export function ProcessingAccountsImportDialog({
     onClose();
   };
 
-  const downloadTemplate = () => {
-    const blob = new Blob([PROCESSING_ACCOUNTS_CSV_TEMPLATE], {
-      type: "text/csv;charset=utf-8",
-    });
+  const downloadTemplate = (kind: ProcessingAccountsImportMode | "mixed" = "mixed") => {
+    const templates = {
+      mixed: {
+        body: PROCESSING_ACCOUNTS_CSV_TEMPLATE,
+        name: "processing-accounts-template.csv",
+      },
+      checkin: {
+        body: PROCESSING_ACCOUNTS_CHECKIN_CSV_TEMPLATE,
+        name: "processing-accounts-checkin-template.csv",
+      },
+      card: {
+        body: PROCESSING_ACCOUNTS_CARD_CSV_TEMPLATE,
+        name: "processing-accounts-card-template.csv",
+      },
+      auto: {
+        body: PROCESSING_ACCOUNTS_CSV_TEMPLATE,
+        name: "processing-accounts-template.csv",
+      },
+    } as const;
+    const { body, name } = templates[kind];
+    const blob = new Blob([body], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "processing-accounts-template.csv";
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const processFile = async (file: File) => {
+  const processFile = async (file: File, mode: ProcessingAccountsImportMode) => {
     setParseError(null);
     setImportError(null);
     setSuccessCount(null);
     setFileName(file.name);
+    setPendingFile(file);
     const lower = file.name.toLowerCase();
 
     try {
@@ -93,7 +143,7 @@ export function ProcessingAccountsImportDialog({
         throw new Error("Use a .csv, .xlsx, or .xls file.");
       }
 
-      const { rows: mapped, skipped: sk } = mapRecordsToImportRows(records);
+      const { rows: mapped, skipped: sk } = mapRecordsToImportRows(records, mode);
       setRows(mapped);
       setSkipped(sk);
       if (mapped.length === 0 && sk.length === 0) {
@@ -108,7 +158,12 @@ export function ProcessingAccountsImportDialog({
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) void processFile(file);
+    if (file) void processFile(file, importMode);
+  };
+
+  const onModeChange = (mode: ProcessingAccountsImportMode) => {
+    setImportMode(mode);
+    if (pendingFile) void processFile(pendingFile, mode);
   };
 
   const runImport = () => {
@@ -132,6 +187,8 @@ export function ProcessingAccountsImportDialog({
   };
 
   const previewRows = rows.slice(0, 8);
+  const cardCount = rows.filter((r) => r.account_type === "card").length;
+  const checkinCount = rows.length - cardCount;
 
   return (
     <Dialog
@@ -142,13 +199,43 @@ export function ProcessingAccountsImportDialog({
       <DialogHeader>
         <DialogTitle>Upload processing accounts</DialogTitle>
         <DialogDescription>
-          Upload a CSV (e.g. Save As CSV from Excel) or Excel workbook (.xlsx). The
-          first sheet is used. Columns are matched by header name — use the template
-          for the exact labels. Missing fields are allowed and can be updated later.
+          Choose whether this file is CheckIn accounts or credit/debit cards, then
+          upload a CSV or Excel workbook (.xlsx). The first sheet is used. Column
+          headers are matched by name — download a template for the exact labels.
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4 pt-2">
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">What are you uploading?</p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {MODE_OPTIONS.map(({ value, label, description, icon: Icon }) => {
+              const selected = importMode === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onModeChange(value)}
+                  disabled={isPending}
+                  className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                    selected
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-background hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {label}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <input
           ref={fileRef}
           type="file"
@@ -170,11 +257,25 @@ export function ProcessingAccountsImportDialog({
           <Button
             type="button"
             variant="ghost"
-            onClick={downloadTemplate}
+            onClick={() =>
+              downloadTemplate(
+                importMode === "card"
+                  ? "card"
+                  : importMode === "checkin"
+                    ? "checkin"
+                    : "mixed"
+              )
+            }
             disabled={isPending}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download CSV template
+            Download{" "}
+            {importMode === "card"
+              ? "card"
+              : importMode === "checkin"
+                ? "CheckIn"
+                : "CSV"}{" "}
+            template
           </Button>
         </div>
 
@@ -202,7 +303,30 @@ export function ProcessingAccountsImportDialog({
           <>
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{rows.length}</span>{" "}
-              account{rows.length === 1 ? "" : "s"} ready to upload.
+              account{rows.length === 1 ? "" : "s"} ready to upload
+              {cardCount > 0 && checkinCount > 0 && (
+                <>
+                  {" "}
+                  (
+                  <span className="font-medium text-foreground">{cardCount}</span> card
+                  {cardCount === 1 ? "" : "s"},{" "}
+                  <span className="font-medium text-foreground">{checkinCount}</span>{" "}
+                  CheckIn)
+                </>
+              )}
+              {cardCount > 0 && checkinCount === 0 && (
+                <>
+                  {" "}
+                  (<span className="font-medium text-foreground">all cards</span>)
+                </>
+              )}
+              {checkinCount > 0 && cardCount === 0 && (
+                <>
+                  {" "}
+                  (<span className="font-medium text-foreground">all CheckIn</span>)
+                </>
+              )}
+              .
               {skipped.length > 0 && (
                 <>
                   {" "}
@@ -212,6 +336,14 @@ export function ProcessingAccountsImportDialog({
                 </>
               )}
             </p>
+
+            {importMode === "card" && cardCount === 0 && (
+              <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                No card numbers were detected in this file. Make sure the column is
+                named Card Numbers / Card Number (or Card / CC / PAN). You can still
+                upload, but card fields may be empty.
+              </p>
+            )}
 
             {skipped.length > 0 && (
               <div className="max-h-28 overflow-y-auto rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">

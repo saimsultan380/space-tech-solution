@@ -1829,6 +1829,29 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
+      get_filtered_chargeback_stats: {
+        Args: {
+          p_amount_sale_ids?: string[] | null
+          p_assigned_to?: string | null
+          p_assignee_ids?: string[] | null
+          p_from_date?: string | null
+          p_sale_ids?: string[] | null
+          p_search?: string | null
+          p_status?: string | null
+          p_to_date?: string | null
+        }
+        Returns: Json
+      }
+      get_filtered_sales_stats: {
+        Args: {
+          p_agent_id?: string | null
+          p_from_date?: string | null
+          p_sale_type?: string | null
+          p_search?: string | null
+          p_to_date?: string | null
+        }
+        Returns: Json
+      }
       get_my_chat_channels: {
         Args: never
         Returns: {

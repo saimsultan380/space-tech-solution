@@ -153,66 +153,82 @@ export function ReportsClient({ month }: ReportsClientProps) {
   } = useQuery({
     queryKey: ["reports-stats", selectedMonth],
     queryFn: () => getDashboardStats(selectedMonth),
-    staleTime: 30000,
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
+
+  const chartsEnabled = !statsLoading;
 
   const { data: salesPerAgent = [], isLoading: salesPerAgentLoading } =
     useQuery({
       queryKey: ["reports-sales-per-agent", selectedMonth],
       queryFn: () => getSalesPerAgent(selectedMonth),
-      staleTime: 30000,
+      staleTime: 60_000,
+      enabled: chartsEnabled,
+      placeholderData: (prev) => prev,
     });
 
   const { data: salesPerProcessor = [], isLoading: salesPerProcessorLoading } =
     useQuery({
       queryKey: ["reports-sales-per-processor", selectedMonth],
       queryFn: () => getSalesPerProcessor(selectedMonth),
-      staleTime: 30000,
+      staleTime: 60_000,
+      enabled: chartsEnabled,
+      placeholderData: (prev) => prev,
     });
 
   // Only fetch the active revenue period — the other two load lazily when selected.
   const { data: revenueDaily = [], isLoading: revenueLoadingDaily } = useQuery({
     queryKey: ["reports-revenue", "daily"],
     queryFn: () => getRevenueOverTime("day"),
-    staleTime: 30000,
-    enabled: revenuePeriod === "daily",
+    staleTime: 60_000,
+    enabled: chartsEnabled && revenuePeriod === "daily",
+    placeholderData: (prev) => prev,
   });
 
   const { data: revenueWeekly = [], isLoading: revenueLoadingWeekly } =
     useQuery({
       queryKey: ["reports-revenue", "weekly"],
       queryFn: () => getRevenueOverTime("week"),
-      staleTime: 30000,
-      enabled: revenuePeriod === "weekly",
+      staleTime: 60_000,
+      enabled: chartsEnabled && revenuePeriod === "weekly",
+      placeholderData: (prev) => prev,
     });
 
   const { data: revenueMonthly = [], isLoading: revenueLoadingMonthly } =
     useQuery({
       queryKey: ["reports-revenue", "monthly"],
       queryFn: () => getRevenueOverTime("month"),
-      staleTime: 30000,
-      enabled: revenuePeriod === "monthly",
+      staleTime: 60_000,
+      enabled: chartsEnabled && revenuePeriod === "monthly",
+      placeholderData: (prev) => prev,
     });
 
   const { data: chargebacksPerEmployee = [], isLoading: chargebacksLoading } =
     useQuery({
       queryKey: ["reports-chargebacks", selectedMonth],
       queryFn: () => getChargebacksPerEmployee(selectedMonth),
-      staleTime: 30000,
+      staleTime: 60_000,
+      enabled: chartsEnabled,
+      placeholderData: (prev) => prev,
     });
 
   const { data: attendanceVsPerformance = [], isLoading: attendanceLoading } =
     useQuery({
       queryKey: ["reports-attendance", selectedMonth],
       queryFn: () => getAttendanceVsPerformance(selectedMonth),
-      staleTime: 30000,
+      staleTime: 60_000,
+      enabled: chartsEnabled,
+      placeholderData: (prev) => prev,
     });
 
   const { data: employeeMonthlyStats = [], isLoading: employeeStatsLoading } =
     useQuery({
       queryKey: ["reports-employee-stats", selectedMonth],
       queryFn: () => getEmployeeMonthlyStats(selectedMonth),
-      staleTime: 30000,
+      staleTime: 60_000,
+      enabled: chartsEnabled,
+      placeholderData: (prev) => prev,
     });
 
   const revenueData = {

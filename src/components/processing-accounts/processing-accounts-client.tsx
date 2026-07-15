@@ -866,8 +866,7 @@ export function ProcessingAccountsClient({
                     key={rowIndex}
                     className="flex items-center gap-4 border-b border-border/50 py-4"
                   >
-                    <div className="flex w-40 items-center gap-3">
-                      <div className="h-9 w-9 animate-pulse rounded-full bg-muted/70" />
+                    <div className="w-40">
                       <div className="h-5 w-24 animate-pulse rounded bg-muted/70" />
                     </div>
                     <div className="h-6 w-20 animate-pulse rounded-full bg-muted/70" />
@@ -1126,20 +1125,9 @@ export function ProcessingAccountsClient({
                     return (
                       <TableRow key={account.id}>
                         <TableCell className="align-middle">
-                          <div className="flex min-h-9 items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                              {(account.account_holder_name?.trim() || "?")
-                                .split(/\s+/)
-                                .filter(Boolean)
-                                .map((n) => n[0])
-                                .join("")
-                                .slice(0, 2)
-                                .toUpperCase() || "?"}
-                            </div>
-                            <span className="font-medium leading-none">
-                              {account.account_holder_name?.trim() || "—"}
-                            </span>
-                          </div>
+                          <span className="font-medium leading-none">
+                            {account.account_holder_name?.trim() || "—"}
+                          </span>
                         </TableCell>
                         <TableCell className="align-middle">
                           {account.account_type === "card" ? (

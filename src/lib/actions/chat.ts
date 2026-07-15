@@ -185,30 +185,74 @@ export async function getChannelMessages(
 ): Promise<ChatMessage[]> {
   await requireAuth();
   const supabase = await createClient();
+  return loadChannelMessages(supabase, channelId, limit);
+}
 
+async function loadChannelMessages(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  channelId: string,
+  limit = 50,
+): Promise<ChatMessage[]> {
   const { data } = await supabase
     .from("chat_messages")
     .select("id, channel_id, sender_id, content, created_at, is_edited, is_deleted, is_pinned, updated_at, attachment_url, attachment_name, attachment_type, attachment_size, reply_to_id, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)")
     .eq("channel_id", channelId)
-    .order("created_at", { ascending: false }) // Fetch newest first for optimization
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (!data) return [];
 
-  // Reverse back to ascending for UI
-  const sortedData = [...data].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const sortedData = [...data].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
 
-  const replyIds = sortedData.filter((m) => m.reply_to_id).map((m) => m.reply_to_id as string);
-  const replyMap: Record<string, { id: string; content: string; sender_id: string; sender?: { full_name: string } | null }> = {};
+  const byId = new Map(sortedData.map((m) => [m.id, m]));
+  const replyIds = sortedData
+    .map((m) => m.reply_to_id)
+    .filter((id): id is string => !!id);
+  const missingReplyIds = [...new Set(replyIds.filter((id) => !byId.has(id)))].slice(
+    0,
+    50,
+  );
 
-  if (replyIds.length > 0) {
+  const replyMap: Record<
+    string,
+    { id: string; content: string; sender_id: string; sender?: { full_name: string } | null }
+  > = {};
+
+  for (const id of replyIds) {
+    const local = byId.get(id);
+    if (local) {
+      const senderRaw = local.sender as
+        | { full_name?: string }
+        | { full_name?: string }[]
+        | null;
+      const senderObj = Array.isArray(senderRaw) ? senderRaw[0] : senderRaw;
+      const senderName = senderObj?.full_name;
+      replyMap[id] = {
+        id: local.id,
+        content: local.content,
+        sender_id: local.sender_id,
+        sender: senderName ? { full_name: senderName } : null,
+      };
+    }
+  }
+
+  if (missingReplyIds.length > 0) {
     const { data: replies } = await supabase
       .from("chat_messages")
-      .select("id, content, sender_id, sender:users!chat_messages_sender_id_fkey(full_name)")
-      .in("id", replyIds.slice(0, 50));
+      .select(
+        "id, content, sender_id, sender:users!chat_messages_sender_id_fkey(full_name)",
+      )
+      .in("id", missingReplyIds);
     if (replies) {
       for (const r of replies) {
-        replyMap[r.id] = { id: r.id, content: r.content, sender_id: r.sender_id, sender: r.sender as unknown as { full_name: string } | null };
+        replyMap[r.id] = {
+          id: r.id,
+          content: r.content,
+          sender_id: r.sender_id,
+          sender: r.sender as unknown as { full_name: string } | null,
+        };
       }
     }
   }
@@ -222,16 +266,75 @@ export async function getChannelMessages(
 }
 
 export async function getFullChannelData(channelId: string) {
-  // A single server action to fetch all necessary data for a channel,
-  // drastically reducing network latency and redundant auth checks.
+  // One auth check + parallel channel queries (avoids 4× requireAuth waterfalls).
   await requireAuth();
-  
-  const [messages, members, pinnedMessages, events] = await Promise.all([
-    getChannelMessages(channelId),
-    getChannelMembers(channelId),
-    getPinnedMessages(channelId),
-    getChannelEvents(channelId),
+  const supabase = await createClient();
+
+  const [messages, membersResult, pinnedResult, eventsResult] = await Promise.all([
+    loadChannelMessages(supabase, channelId, 50),
+    supabase
+      .from("chat_channel_members")
+      .select("user:users(id, full_name, avatar_url, role, is_active)")
+      .eq("channel_id", channelId),
+    supabase
+      .from("chat_messages")
+      .select(
+        "id, channel_id, sender_id, content, created_at, is_edited, is_deleted, is_pinned, updated_at, attachment_url, attachment_name, attachment_type, attachment_size, reply_to_id, sender:users!chat_messages_sender_id_fkey(id, full_name, avatar_url, role)",
+      )
+      .eq("channel_id", channelId)
+      .eq("is_pinned", true)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("chat_events")
+      .select(
+        "id, channel_id, creator_id, title, description, event_date, is_reminder_sent, created_at, creator:users(full_name, avatar_url)",
+      )
+      .eq("channel_id", channelId)
+      .order("event_date", { ascending: true })
+      .limit(100),
   ]);
+
+  type MemberUserRow = {
+    user: {
+      id: string;
+      full_name: string;
+      avatar_url: string | null;
+      role: string;
+      is_active: boolean;
+    } | null;
+  };
+
+  const members = ((membersResult.data || []) as unknown as MemberUserRow[])
+    .map((row) => row.user)
+    .filter(
+      (
+        u,
+      ): u is {
+        id: string;
+        full_name: string;
+        avatar_url: string | null;
+        role: string;
+        is_active: boolean;
+      } => u !== null,
+    );
+
+  const pinnedMessages = (
+    (pinnedResult.data ?? []) as unknown as RawChatMessageRow[]
+  ).map((m) => ({
+    ...m,
+    sender: normaliseSender(m),
+    is_pinned: true,
+    reply_to: null,
+  })) as ChatMessage[];
+
+  const events = ((eventsResult.data || []) as unknown as RawChatEventRow[]).map(
+    (event) => ({
+      ...event,
+      creator: normaliseCreator(event),
+    }),
+  ) as ChatEvent[];
 
   return {
     messages,

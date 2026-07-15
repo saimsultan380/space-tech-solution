@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { decrypt } from "@/lib/encryption";
+import { sanitizeFilterValue } from "@/lib/utils";
 import type {
   ProcessingAccountStatus,
   ProcessingAccountType,
@@ -94,8 +95,44 @@ export async function getProcessingAccountStats(filters?: {
 
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase().trim();
-    // Encrypted fields can only be searched by decrypting each row in JS.
-    // Cap at 300 so we don't decrypt thousands of rows on every keystroke.
+    const safe = sanitizeFilterValue(searchLower);
+    const looksLikeSecretSearch = /^[\d\s\-*]{4,}$/.test(searchLower);
+
+    // Fast path: plaintext columns searched in Postgres (no decrypt).
+    if (!looksLikeSecretSearch) {
+      const like = `%${safe}%`;
+      const [totalRes, ...statusRes] = await Promise.all([
+        applyStructuralFilters(
+          supabase
+            .from("processing_accounts")
+            .select("id", { count: "exact", head: true })
+            .or(
+              `account_holder_name.ilike.${like},billing_address.ilike.${like},notes.ilike.${like},expiration_date.ilike.${like}`,
+            ),
+        ),
+        ...statuses.map((s) =>
+          applyStructuralFilters(
+            supabase
+              .from("processing_accounts")
+              .select("id", { count: "exact", head: true })
+              .eq("status", s)
+              .or(
+                `account_holder_name.ilike.${like},billing_address.ilike.${like},notes.ilike.${like},expiration_date.ilike.${like}`,
+              ),
+          ),
+        ),
+      ]);
+      return {
+        total: totalRes.count || 0,
+        active: statusRes[0].count || 0,
+        not_working: statusRes[1].count || 0,
+        closed: statusRes[2].count || 0,
+        reversal_issue: statusRes[3].count || 0,
+        under_review: statusRes[4].count || 0,
+      };
+    }
+
+    // Slow path: numeric/card search requires decrypting a capped set.
     let q = supabase
       .from("processing_accounts")
       .select(
@@ -215,8 +252,41 @@ export async function getProcessingAccounts(filters?: {
 
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase().trim();
+    const safe = sanitizeFilterValue(searchLower);
+    const looksLikeSecretSearch = /^[\d\s\-*]{4,}$/.test(searchLower);
 
-    // Cap at 300 rows to avoid decrypting thousands of entries in JS.
+    // Fast path: name/address/notes/expiry via Postgres ILIKE + server pagination.
+    if (!looksLikeSecretSearch) {
+      const like = `%${safe}%`;
+      let query = supabase
+        .from("processing_accounts")
+        .select(FULL_SELECT, { count: "exact" })
+        .or(
+          `account_holder_name.ilike.${like},billing_address.ilike.${like},notes.ilike.${like},expiration_date.ilike.${like}`,
+        )
+        .order("created_at", { ascending: false });
+      query = applyStructural(query);
+
+      const { data, error, count } = await query.range(
+        offset,
+        offset + pageSize - 1,
+      );
+      if (error) throw new Error(error.message);
+
+      const accounts = (
+        (data as unknown as RawProcessingAccountRow[]) || []
+      ).map(normalizeRow);
+
+      return {
+        data: accounts,
+        count: count || 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count || 0) / pageSize),
+      };
+    }
+
+    // Slow path: card/routing/CVV search — decrypt capped set in JS.
     let q = supabase
       .from("processing_accounts")
       .select(FULL_SELECT)

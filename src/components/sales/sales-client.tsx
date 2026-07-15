@@ -59,7 +59,7 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { getSales } from "@/lib/queries/sales";
-import { getUsers } from "@/lib/queries/users";
+import { getSalesAgentOptions } from "@/lib/queries/users";
 
 const KARACHI_TIMEZONE = "Asia/Karachi";
 
@@ -272,13 +272,15 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         search: urlSearch,
       }),
     staleTime: 30000,
+    placeholderData: (prev) => prev,
   });
 
-  // React Query for fetching users (agents) — long staleTime since agent list rarely changes
-  const { data: usersResponse, isLoading: usersLoading } = useQuery({
-    queryKey: ["users-agents"],
-    queryFn: () => getUsers({ pageSize: 100 }),
-    staleTime: 5 * 60 * 1000, // 5 minutes — agent list rarely changes
+  // Lightweight agent picker — id + name only (not full payroll user rows)
+  const { data: agentOptions = [], isLoading: usersLoading } = useQuery({
+    queryKey: ["sales-agent-options"],
+    queryFn: getSalesAgentOptions,
+    staleTime: 5 * 60 * 1000,
+    enabled: userRole === "super_admin" || userRole === "processor",
   });
 
   const {
@@ -298,9 +300,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     },
   } = salesResponse || {};
 
-  const agents = (usersResponse?.data || []).filter(
-    (u) => u.role === "sales_agent",
-  );
+  const agents = agentOptions;
 
   // Delete mutation with optimistic updates
   const deleteMutation = useMutation({

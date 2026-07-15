@@ -135,16 +135,8 @@ function AdminDashboardWrapper({ user }: { user: AppUser }) {
     staleTime: SETTINGS_STALE_MS,
   });
 
-  const isLoading =
-    statsLoading ||
-    attendanceLoading ||
-    salesPerAgentLoading ||
-    revenueLoading ||
-    payslipsLoading ||
-    settingsLoading ||
-    companyLoading;
-
-  if (isLoading) {
+  // Paint as soon as primary stats are ready — charts/payslips/settings fill in after.
+  if (statsLoading) {
     return <DashboardSkeleton />;
   }
 
@@ -156,8 +148,16 @@ function AdminDashboardWrapper({ user }: { user: AppUser }) {
       salesPerAgent={salesPerAgent}
       revenueData={revenueData}
       recentPayslips={recentPayslips}
-      attendanceSettings={attendanceSettings!}
-      companySettings={companySettings!}
+      attendanceSettings={attendanceSettings}
+      companySettings={companySettings}
+      secondaryLoading={
+        attendanceLoading ||
+        salesPerAgentLoading ||
+        revenueLoading ||
+        payslipsLoading ||
+        settingsLoading ||
+        companyLoading
+      }
     />
   );
 }

@@ -4,20 +4,20 @@ import type { CustomerListItem } from "@/lib/types";
 
 export async function getCallLogAgents(): Promise<string[]> {
   const supabase = createClient();
+  // O(active users) instead of scanning every call-log customer row.
   const { data, error } = await supabase
-    .from("customers")
-    .select("created_by_user:users!customers_created_by_fkey(full_name)")
-    .eq("source", "call_log")
-    .is("deleted_at", null);
+    .from("users")
+    .select("full_name")
+    .eq("is_active", true)
+    .in("role", ["sales_agent", "processor", "super_admin"])
+    .order("full_name", { ascending: true })
+    .limit(200);
 
   if (error) return [];
 
-  const unique = new Map<string, string>();
-  (data || []).forEach((row: { created_by_user?: { full_name?: string } | null }) => {
-    const name = String(row.created_by_user?.full_name || "").trim();
-    if (name) unique.set(name.toLowerCase(), name);
-  });
-  return Array.from(unique.values()).sort((a, b) => a.localeCompare(b));
+  return (data || [])
+    .map((row) => String(row.full_name || "").trim())
+    .filter(Boolean);
 }
 
 function createdAtDayBoundsUtc(yyyyMmDd: string): { start: string; end: string } | null {

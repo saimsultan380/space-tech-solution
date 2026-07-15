@@ -107,27 +107,40 @@ function validHex(v: string | null): string | null {
 export async function updateThemeColors(input: ThemeColors) {
   await requireRole(["super_admin"]);
   const supabase = await createClient();
+  const payload = {
+    shell_bg_color: validHex(input.shell_bg_color),
+    shell_text_color: validHex(input.shell_text_color),
+    sidebar_color: validHex(input.sidebar_color),
+    sidebar_text_color: validHex(input.sidebar_text_color),
+    button_color: validHex(input.button_color),
+    button_text_color: validHex(input.button_text_color),
+    active_tab_color: validHex(input.active_tab_color),
+    active_tab_text_color: validHex(input.active_tab_text_color),
+    chat_user_bubble_color: validHex(input.chat_user_bubble_color),
+    chat_user_bubble_text_color: validHex(input.chat_user_bubble_text_color),
+    chat_bot_bubble_color: validHex(input.chat_bot_bubble_color),
+    chat_bot_bubble_text_color: validHex(input.chat_bot_bubble_text_color),
+    updated_at: new Date().toISOString(),
+  };
   const { error } = await supabase
     .from("company_settings")
-    .update({
-      shell_bg_color: validHex(input.shell_bg_color),
-      shell_text_color: validHex(input.shell_text_color),
-      sidebar_color: validHex(input.sidebar_color),
-      sidebar_text_color: validHex(input.sidebar_text_color),
-      button_color: validHex(input.button_color),
-      button_text_color: validHex(input.button_text_color),
-      active_tab_color: validHex(input.active_tab_color),
-      active_tab_text_color: validHex(input.active_tab_text_color),
-      chat_user_bubble_color: validHex(input.chat_user_bubble_color),
-      chat_user_bubble_text_color: validHex(input.chat_user_bubble_text_color),
-      chat_bot_bubble_color: validHex(input.chat_bot_bubble_color),
-      chat_bot_bubble_text_color: validHex(input.chat_bot_bubble_text_color),
-      updated_at: new Date().toISOString(),
-    })
+    .update(payload)
     .eq("id", 1);
 
   if (error) throw new Error(error.message);
+
+  const { cookies } = await import("next/headers");
+  const { serializeThemeColors, THEME_COOKIE_NAME, pickThemeColors } =
+    await import("@/lib/theme-cookie");
+  const jar = await cookies();
+  jar.set(THEME_COOKIE_NAME, serializeThemeColors(pickThemeColors(payload)), {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+
   (revalidateTag as any)("company-settings");
   revalidatePath("/dashboard", "layout");
+  revalidatePath("/chat", "layout");
 }
 

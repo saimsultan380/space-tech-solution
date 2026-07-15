@@ -346,13 +346,20 @@ export async function bulkImportProcessingAccounts(
       r.status && IMPORT_STATUS_SET.has(r.status as ProcessingAccountStatus)
         ? r.status
         : null;
-    const isCard = r.account_type === "card";
+    const cardNumber = (r.card_number || "").trim();
+    const routingNumber = (r.routing_number || "").trim();
+    const accountNumber = (r.account_number || "").trim();
+    // Prefer card when a PAN is present so CheckIn defaults never discard card data
+    const isCard =
+      r.account_type === "card" ||
+      (!!cardNumber && r.account_type !== "checkin") ||
+      (!!cardNumber && !routingNumber);
     return {
-      account_type: r.account_type || "checkin",
+      account_type: isCard ? "card" : r.account_type || "checkin",
       account_holder_name: (r.account_holder_name || "").trim(),
-      routing_number_encrypted: isCard ? encrypt("") : encrypt((r.routing_number || "").trim()),
-      account_number_encrypted: isCard ? encrypt("") : encrypt((r.account_number || "").trim()),
-      card_number_encrypted: isCard ? encrypt((r.card_number || "").trim()) : null,
+      routing_number_encrypted: isCard ? encrypt("") : encrypt(routingNumber),
+      account_number_encrypted: isCard ? encrypt("") : encrypt(accountNumber),
+      card_number_encrypted: isCard ? encrypt(cardNumber) : null,
       expiration_date: isCard ? (r.expiration_date || null) : null,
       cvv_encrypted: isCard ? encrypt((r.cvv || "").trim()) : null,
       billing_address: (r.billing_address || "").trim(),

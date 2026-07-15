@@ -40,3 +40,20 @@ export async function getUsers(filters?: {
     totalPages: Math.ceil((count || 0) / pageSize),
   };
 }
+
+/** Lightweight agent picker list for New/Edit Sale (super_admin). */
+export async function getSalesAgentOptions(): Promise<
+  Array<{ id: string; full_name: string }>
+> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, full_name")
+    .eq("role", "sales_agent")
+    .eq("is_active", true)
+    .order("full_name", { ascending: true })
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Array<{ id: string; full_name: string }>;
+}

@@ -6,6 +6,9 @@ export type { ProcessingAccountImportPayload };
 
 export type ImportSkippedRow = { line: number; reason: string };
 
+/** How to assign account_type for an uploaded file. */
+export type ProcessingAccountsImportMode = "auto" | "checkin" | "card";
+
 function slugifyHeader(key: string): string {
   return key
     .trim()
@@ -27,7 +30,8 @@ function buildNormalizedRecord(row: Record<string, unknown>): Record<string, str
       continue;
     }
     if (typeof v === "number" && Number.isFinite(v)) {
-      out[key] = String(v);
+      // Preserve full digit strings for long card numbers Excel may store as numbers
+      out[key] = Number.isInteger(v) ? String(Math.trunc(v)) : String(v);
       continue;
     }
     out[key] = String(v).trim();
@@ -41,6 +45,16 @@ function pickField(norm: Record<string, string>, slugs: string[]): string {
     if (v !== undefined && v !== "") return v;
   }
   return "";
+}
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+/** Typical PAN length after stripping spaces/dashes. */
+function looksLikeCardNumber(value: string): boolean {
+  const d = digitsOnly(value);
+  return d.length >= 13 && d.length <= 19;
 }
 
 function parseStatus(raw: string): ProcessingAccountStatus | "" {
@@ -69,8 +83,81 @@ function rowIsEmpty(norm: Record<string, string>): boolean {
   return Object.values(norm).every((v) => !v || !String(v).trim());
 }
 
+function parseAccountTypeLabel(rawType: string): ProcessingAccountType | "" {
+  if (!rawType) return "";
+  const t = rawType.toLowerCase().replace(/[^a-z]/g, "");
+  if (
+    t === "card" ||
+    t === "creditdebitcard" ||
+    t === "creditcard" ||
+    t === "debitcard" ||
+    t === "credit" ||
+    t === "debit" ||
+    t === "cc" ||
+    t === "visa" ||
+    t === "mastercard" ||
+    t === "amex"
+  ) {
+    return "card";
+  }
+  if (
+    t === "checkin" ||
+    t === "checking" ||
+    t === "bank" ||
+    t === "ach" ||
+    t === "check" ||
+    t === "cheque"
+  ) {
+    return "checkin";
+  }
+  return "";
+}
+
+/**
+ * Resolve type from explicit column, card-like fields, or import mode.
+ * Prefer card when card data is present so CheckIn defaults never wipe PANs.
+ */
+function resolveAccountType(opts: {
+  rawType: string;
+  card_number: string;
+  expiration_date: string;
+  cvv: string;
+  routing_number: string;
+  account_number: string;
+  mode: ProcessingAccountsImportMode;
+}): ProcessingAccountType {
+  const { mode, rawType, card_number, expiration_date, cvv, routing_number, account_number } =
+    opts;
+
+  if (mode === "card") return "card";
+  if (mode === "checkin") return "checkin";
+
+  const fromLabel = parseAccountTypeLabel(rawType);
+  const hasCardSignal =
+    !!card_number.trim() ||
+    looksLikeCardNumber(card_number) ||
+    (!!expiration_date.trim() && !!cvv.trim()) ||
+    (!!expiration_date.trim() && !routing_number.trim() && looksLikeCardNumber(account_number));
+
+  // Explicit card label, or card fields with no banking fields → card
+  if (fromLabel === "card" || (hasCardSignal && fromLabel !== "checkin")) {
+    return "card";
+  }
+
+  // Labeled checkin but file clearly has a card number and no routing → treat as card
+  if (fromLabel === "checkin" && looksLikeCardNumber(card_number) && !routing_number.trim()) {
+    return "card";
+  }
+
+  if (fromLabel === "checkin") return "checkin";
+
+  if (hasCardSignal) return "card";
+  return "checkin";
+}
+
 export function recordToImportPayload(
-  record: Record<string, unknown>
+  record: Record<string, unknown>,
+  mode: ProcessingAccountsImportMode = "auto"
 ): ProcessingAccountImportPayload | null {
   const norm = buildNormalizedRecord(record);
   if (rowIsEmpty(norm)) return null;
@@ -79,6 +166,9 @@ export function recordToImportPayload(
     "account_holder_name",
     "account_holder",
     "holder_name",
+    "cardholder_name",
+    "card_holder_name",
+    "cardholder",
     "full_name",
     "name",
   ]);
@@ -91,18 +181,32 @@ export function recordToImportPayload(
     "bank_routing",
   ]);
 
-  const account_number = pickField(norm, [
+  let account_number = pickField(norm, [
     "account_number",
     "acct_number",
     "checking_account",
     "account_no",
+    "bank_account",
+    "bank_account_number",
   ]);
 
-  const card_number = pickField(norm, [
+  let card_number = pickField(norm, [
     "card_number",
+    "card_numbers", // client Excel: "Card Numbers"
     "credit_card_number",
     "debit_card_number",
     "card_no",
+    "card_nos",
+    "card",
+    "cc",
+    "cc_number",
+    "cc_numbers",
+    "cc_no",
+    "credit_card",
+    "debit_card",
+    "pan",
+    "cardnum",
+    "card_num",
   ]);
 
   const expiration_date = pickField(norm, [
@@ -110,10 +214,22 @@ export function recordToImportPayload(
     "expiry",
     "expiry_date",
     "exp_date",
+    "exp",
     "card_expiry",
+    "card_expiration",
+    "valid_thru",
+    "valid_through",
   ]);
 
-  const cvv = pickField(norm, ["cvv", "cvc", "security_code", "card_cvv"]);
+  const cvv = pickField(norm, [
+    "cvv",
+    "cvc",
+    "cid",
+    "security_code",
+    "card_cvv",
+    "cvv2",
+    "cvc2",
+  ]);
 
   const billing_address = pickField(norm, [
     "billing_address",
@@ -123,26 +239,61 @@ export function recordToImportPayload(
   ]);
 
   const statusRaw = pickField(norm, ["status", "account_status", "state"]);
-  const notes = pickField(norm, ["notes", "comments", "remarks", "description"]);
+  const phone = pickField(norm, [
+    "phone",
+    "phone_number",
+    "mobile",
+    "cell",
+    "telephone",
+    "contact_number",
+  ]);
+  let notes = pickField(norm, ["notes", "comments", "remarks", "description"]);
+  // Client card files include Phone with no dedicated DB field — keep it in notes
+  if (phone.trim()) {
+    const phoneNote = `Phone: ${phone.trim()}`;
+    notes = notes.trim() ? `${notes.trim()} | ${phoneNote}` : phoneNote;
+  }
 
-  // Determine account type
-  const rawType = pickField(norm, ["account_type", "type", "payment_type"]);
-  let account_type: ProcessingAccountType | "" = "";
-  if (rawType) {
-    const t = rawType.toLowerCase().replace(/[^a-z]/g, "");
-    if (t === "card" || t === "creditdebitcard" || t === "credit" || t === "debit") {
-      account_type = "card";
-    } else if (t === "checkin" || t === "checking" || t === "bank") {
-      account_type = "checkin";
+  const rawType = pickField(norm, [
+    "account_type",
+    "type",
+    "payment_type",
+    "payment_method",
+    "account_kind",
+  ]);
+
+  // Card-only files often put the PAN under "Account Number"
+  if (
+    !card_number.trim() &&
+    looksLikeCardNumber(account_number) &&
+    !routing_number.trim() &&
+    (mode === "card" || mode === "auto")
+  ) {
+    card_number = account_number;
+    if (mode === "card" || !routing_number.trim()) {
+      account_number = "";
     }
   }
-  // Auto-detect: if card fields are present, default to card
-  if (!account_type) {
-    if (card_number.trim()) {
-      account_type = "card";
-    } else {
-      account_type = "checkin";
-    }
+
+  // Forced card mode: keep PAN even if it only appeared under account_number
+  if (mode === "card" && !card_number.trim() && account_number.trim()) {
+    card_number = account_number;
+    account_number = "";
+  }
+
+  const account_type = resolveAccountType({
+    rawType,
+    card_number,
+    expiration_date,
+    cvv,
+    routing_number,
+    account_number,
+    mode,
+  });
+
+  if (account_type === "card" && !card_number.trim() && looksLikeCardNumber(account_number)) {
+    card_number = account_number;
+    account_number = "";
   }
 
   const hasRecognizedData =
@@ -152,17 +303,19 @@ export function recordToImportPayload(
     !!card_number.trim() ||
     !!billing_address.trim() ||
     !!notes.trim() ||
-    !!statusRaw.trim();
+    !!statusRaw.trim() ||
+    !!expiration_date.trim() ||
+    !!cvv.trim();
   if (!hasRecognizedData) return null;
 
   return {
     account_type,
     account_holder_name: account_holder_name.trim(),
-    routing_number: routing_number.trim(),
-    account_number: account_number.trim(),
-    card_number: card_number.trim(),
-    expiration_date: expiration_date.trim(),
-    cvv: cvv.trim(),
+    routing_number: account_type === "card" ? "" : routing_number.trim(),
+    account_number: account_type === "card" ? "" : account_number.trim(),
+    card_number: account_type === "card" ? card_number.trim() : "",
+    expiration_date: account_type === "card" ? expiration_date.trim() : "",
+    cvv: account_type === "card" ? cvv.trim() : "",
     billing_address: billing_address.trim(),
     status: parseStatus(statusRaw),
     notes: notes.trim(),
@@ -170,7 +323,8 @@ export function recordToImportPayload(
 }
 
 export function mapRecordsToImportRows(
-  records: Record<string, unknown>[]
+  records: Record<string, unknown>[],
+  mode: ProcessingAccountsImportMode = "auto"
 ): { rows: ProcessingAccountImportPayload[]; skipped: ImportSkippedRow[] } {
   const rows: ProcessingAccountImportPayload[] = [];
   const skipped: ImportSkippedRow[] = [];
@@ -180,7 +334,7 @@ export function mapRecordsToImportRows(
     const norm = buildNormalizedRecord(record);
     if (rowIsEmpty(norm)) return;
 
-    const payload = recordToImportPayload(record);
+    const payload = recordToImportPayload(record, mode);
     if (!payload) {
       skipped.push({
         line,
@@ -235,6 +389,14 @@ export async function parseProcessingAccountsXlsx(
 }
 
 export const PROCESSING_ACCOUNTS_CSV_TEMPLATE = `Account Type,Account Holder Name,Routing Number,Account Number,Card Number,Expiration Date,CVV,Billing Address,Status,Notes
-checkin,John Doe,021000021,1234567890,,,, "123 Main St, City ST 12345",active,
+checkin,John Doe,021000021,1234567890,,,,"123 Main St, City ST 12345",active,
 card,Jane Smith,,,4111111111111111,2027-09,123,"456 Oak Ave, City ST 67890",active,
+`;
+
+export const PROCESSING_ACCOUNTS_CARD_CSV_TEMPLATE = `Phone,Card Numbers,Exp,CVV,Card Holder Name,Billing address
+555-0100,4111111111111111,2027-09,123,Jane Smith,"456 Oak Ave, City ST 67890"
+`;
+
+export const PROCESSING_ACCOUNTS_CHECKIN_CSV_TEMPLATE = `Account Type,Account Holder Name,Routing Number,Account Number,Billing Address,Status,Notes
+checkin,John Doe,021000021,1234567890,"123 Main St, City ST 12345",active,
 `;

@@ -47,10 +47,6 @@ interface ChargebackFilters {
   max_amount?: number;
 }
 
-function roundTwo(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 async function recordChargebackActivity(params: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   chargebackId: string;
@@ -198,24 +194,14 @@ export async function getChargebacks(filters?: {
     };
   }
 
+  const CHARGEBACK_LIST_SELECT =
+    "id, sale_id, date, reason, status, priority, assigned_to, created_at, updated_at, sale:sales(id, company_name, customer_name, customer_email, sale_type, subtype, charged_amount, created_at, agent_id, agent:users!sales_agent_id_fkey(full_name)), assignee:users!chargebacks_assigned_to_fkey(id, full_name)";
+
   const baseQuery = applyChargebackFilters(
     supabase
-    .from("chargebacks")
-    .select(
-      "*, sale:sales(id, company_name, customer_name, customer_email, sale_type, subtype, charged_amount, created_at, agent_id, agent:users!sales_agent_id_fkey(full_name)), assignee:users!chargebacks_assigned_to_fkey(id, full_name)",
-      { count: "exact" },
-    )
-    .order("created_at", { ascending: false }),
-    filters,
-    searchContext,
-  );
-
-  // Minimal columns — only what stats computation needs. Avoids pulling
-  // company_name / customer fields which are only needed for display rows.
-  const statsQuery = applyChargebackFilters(
-    supabase
       .from("chargebacks")
-      .select("status, assigned_to, reason, created_at, updated_at, sale:sales(charged_amount)"),
+      .select(CHARGEBACK_LIST_SELECT, { count: "exact" })
+      .order("created_at", { ascending: false }),
     filters,
     searchContext,
   );
@@ -232,17 +218,142 @@ export async function getChargebacks(filters?: {
       };
     }
     baseQuery.in("sale_id", amountFilteredSaleIds);
-    statsQuery.in("sale_id", amountFilteredSaleIds);
   }
 
-  const [{ data, error, count }, { data: statsRows, error: statsError }] = await Promise.all([
+  const statsArgs = {
+    p_status:
+      filters?.status && filters.status !== "all" ? filters.status : null,
+    p_assigned_to:
+      filters?.assigned_to && filters.assigned_to !== "all"
+        ? filters.assigned_to
+        : null,
+    p_from_date: filters?.from_date || null,
+    p_to_date: filters?.to_date || null,
+    p_search: search || null,
+    p_sale_ids: searchContext?.saleIds?.length
+      ? searchContext.saleIds
+      : null,
+    p_assignee_ids: searchContext?.assigneeIds?.length
+      ? searchContext.assigneeIds
+      : null,
+    p_amount_sale_ids: amountFilteredSaleIds,
+  };
+
+  const [{ data, error, count }, stats] = await Promise.all([
     baseQuery.range(offset, offset + pageSize - 1),
-    statsQuery,
+    fetchChargebackStatsRpc(supabase, statsArgs),
   ]);
 
   if (error) throw new Error(error.message);
-  if (statsError) throw new Error(statsError.message);
 
+  return {
+    data: data || [],
+    count: count || 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count || 0) / pageSize),
+    stats: stats ?? EMPTY_CHARGEBACK_STATS,
+  };
+}
+
+async function fetchChargebackStatsRpc(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: {
+    p_status: string | null;
+    p_assigned_to: string | null;
+    p_from_date: string | null;
+    p_to_date: string | null;
+    p_search: string | null;
+    p_sale_ids: string[] | null;
+    p_assignee_ids: string[] | null;
+    p_amount_sale_ids: string[] | null;
+  },
+): Promise<ChargebackStats | null> {
+  const { data, error } = await (
+    supabase as unknown as {
+      rpc: (
+        fn: string,
+        params: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+    }
+  ).rpc("get_filtered_chargeback_stats", args);
+
+  if (error || !data) {
+    // RPC missing (migration not applied) — capped fallback so the page still works.
+    return fetchChargebackStatsFallback(supabase, args);
+  }
+
+  const row = data as {
+    total?: number;
+    open?: number;
+    resolved?: number;
+    disputed?: number;
+    assigned?: number;
+    impacted_amount?: number;
+    avg_resolution_days?: number;
+    resolution_rate?: number;
+    dispute_success_rate?: number;
+    by_month?: Array<{ month: string; count: number }>;
+    top_reasons?: Array<{ reason: string; count: number }>;
+  };
+
+  return {
+    total: Number(row.total || 0),
+    open: Number(row.open || 0),
+    resolved: Number(row.resolved || 0),
+    disputed: Number(row.disputed || 0),
+    assigned: Number(row.assigned || 0),
+    impactedAmount: Number(row.impacted_amount || 0),
+    avgResolutionDays: Number(row.avg_resolution_days || 0),
+    resolutionRate: Number(row.resolution_rate || 0),
+    disputeSuccessRate: Number(row.dispute_success_rate || 0),
+    byMonth: Array.isArray(row.by_month) ? row.by_month : [],
+    topReasons: Array.isArray(row.top_reasons) ? row.top_reasons : [],
+  };
+}
+
+async function fetchChargebackStatsFallback(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: {
+    p_status: string | null;
+    p_assigned_to: string | null;
+    p_from_date: string | null;
+    p_to_date: string | null;
+    p_search: string | null;
+    p_sale_ids: string[] | null;
+    p_assignee_ids: string[] | null;
+    p_amount_sale_ids: string[] | null;
+  },
+): Promise<ChargebackStats> {
+  let query = supabase
+    .from("chargebacks")
+    .select(
+      "status, assigned_to, reason, created_at, updated_at, sale:sales(charged_amount)",
+    )
+    .limit(2000);
+
+  query = applyChargebackFilters(
+    query,
+    {
+      status: args.p_status || undefined,
+      assigned_to: args.p_assigned_to || undefined,
+      from_date: args.p_from_date || undefined,
+      to_date: args.p_to_date || undefined,
+    },
+    args.p_search
+      ? {
+          search: args.p_search,
+          saleIds: args.p_sale_ids || [],
+          assigneeIds: args.p_assignee_ids || [],
+        }
+      : undefined,
+  );
+
+  if (args.p_amount_sale_ids?.length) {
+    query = query.in("sale_id", args.p_amount_sale_ids);
+  }
+
+  const { data: statsRows } = await query;
   const rows = (statsRows || []) as Array<{
     status: ChargebackStatus | null;
     assigned_to: string | null;
@@ -251,6 +362,7 @@ export async function getChargebacks(filters?: {
     updated_at: string | null;
     sale: { charged_amount?: number | null } | null;
   }>;
+
   const now = new Date();
   const monthBuckets = Array.from({ length: 6 }).map((_, index) => {
     const dt = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
@@ -262,7 +374,6 @@ export async function getChargebacks(filters?: {
   });
   const monthMap = new Map(monthBuckets.map((bucket) => [bucket.key, bucket]));
   const reasonCounts = new Map<string, number>();
-
   let resolvedDurationTotalDays = 0;
   let resolvedDurationCount = 0;
 
@@ -271,21 +382,25 @@ export async function getChargebacks(filters?: {
       const created = new Date(row.created_at);
       const monthKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}`;
       const monthBucket = monthMap.get(monthKey);
-      if (monthBucket) {
-        monthBucket.count += 1;
-      }
+      if (monthBucket) monthBucket.count += 1;
     }
-
     const normalizedReason = (row.reason || "").trim();
     if (normalizedReason) {
-      reasonCounts.set(normalizedReason, (reasonCounts.get(normalizedReason) || 0) + 1);
+      reasonCounts.set(
+        normalizedReason,
+        (reasonCounts.get(normalizedReason) || 0) + 1,
+      );
     }
-
     if (row.status === "resolved" && row.created_at && row.updated_at) {
       const createdTs = new Date(row.created_at).getTime();
       const updatedTs = new Date(row.updated_at).getTime();
-      if (Number.isFinite(createdTs) && Number.isFinite(updatedTs) && updatedTs >= createdTs) {
-        resolvedDurationTotalDays += (updatedTs - createdTs) / (1000 * 60 * 60 * 24);
+      if (
+        Number.isFinite(createdTs) &&
+        Number.isFinite(updatedTs) &&
+        updatedTs >= createdTs
+      ) {
+        resolvedDurationTotalDays +=
+          (updatedTs - createdTs) / (1000 * 60 * 60 * 24);
         resolvedDurationCount += 1;
       }
     }
@@ -295,31 +410,36 @@ export async function getChargebacks(filters?: {
   const disputedCount = rows.filter((r) => r.status === "disputed").length;
   const totalRows = rows.length;
   const resolvedOrDisputed = resolvedCount + disputedCount;
+  const roundTwo = (value: number) => Math.round(value * 100) / 100;
 
-  const stats: ChargebackStats = {
+  return {
     total: totalRows,
     open: rows.filter((r) => r.status === "open").length,
     resolved: resolvedCount,
     disputed: disputedCount,
     assigned: rows.filter((r) => !!r.assigned_to).length,
-    impactedAmount: rows.reduce((sum, r) => sum + Number(r.sale?.charged_amount || 0), 0),
-    avgResolutionDays: resolvedDurationCount > 0 ? roundTwo(resolvedDurationTotalDays / resolvedDurationCount) : 0,
-    resolutionRate: totalRows > 0 ? roundTwo((resolvedCount / totalRows) * 100) : 0,
-    disputeSuccessRate: resolvedOrDisputed > 0 ? roundTwo((resolvedCount / resolvedOrDisputed) * 100) : 0,
-    byMonth: monthBuckets.map((bucket) => ({ month: bucket.month, count: bucket.count })),
+    impactedAmount: rows.reduce(
+      (sum, r) => sum + Number(r.sale?.charged_amount || 0),
+      0,
+    ),
+    avgResolutionDays:
+      resolvedDurationCount > 0
+        ? roundTwo(resolvedDurationTotalDays / resolvedDurationCount)
+        : 0,
+    resolutionRate:
+      totalRows > 0 ? roundTwo((resolvedCount / totalRows) * 100) : 0,
+    disputeSuccessRate:
+      resolvedOrDisputed > 0
+        ? roundTwo((resolvedCount / resolvedOrDisputed) * 100)
+        : 0,
+    byMonth: monthBuckets.map((bucket) => ({
+      month: bucket.month,
+      count: bucket.count,
+    })),
     topReasons: Array.from(reasonCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([reason, count]) => ({ reason, count })),
-  };
-
-  return {
-    data: data || [],
-    count: count || 0,
-    page,
-    pageSize,
-    totalPages: Math.ceil((count || 0) / pageSize),
-    stats,
   };
 }
 

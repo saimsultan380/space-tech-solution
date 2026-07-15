@@ -156,13 +156,15 @@ export function Header({
   useEffect(() => {
     if (!userId) return;
     const supabase = createClient();
+    const NOTIF_COLUMNS =
+      "id, user_id, title, body, type, is_read, created_at";
 
     const loadNotifications = async () => {
       setLoadingNotifications(true);
       try {
         const { data, error } = await supabase
           .from("notifications")
-          .select("*")
+          .select(NOTIF_COLUMNS)
           .eq("user_id", userId)
           .neq("type", "chat")
           .order("created_at", { ascending: false })
@@ -178,7 +180,7 @@ export function Header({
       try {
         const { data, error } = await supabase
           .from("notifications")
-          .select("*")
+          .select(NOTIF_COLUMNS)
           .eq("user_id", userId)
           .eq("type", "chat")
           .order("created_at", { ascending: false })
@@ -192,19 +194,25 @@ export function Header({
     loadNotifications();
     loadChatNotifications();
 
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        void loadNotifications();
+        void loadChatNotifications();
+      }, 600);
+    };
+
     const channel = supabase
       .channel(`notifications-${userId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
-          void loadNotifications();
-          void loadChatNotifications();
-
-          // Show toast + browser notification + sound for new chat messages
           if (payload.eventType === "INSERT") {
             const notif = payload.new as unknown as Notification;
             if (notif.type === "chat") {
+              setChatNotifications((prev) => [notif, ...prev].slice(0, 10));
               triggerNotification({
                 senderName: notif.title.replace("New message from ", "").replace("New message in #", ""),
                 channelName: notif.title.replace("New message in #", ""),
@@ -212,16 +220,45 @@ export function Header({
                 isDm: notif.title.startsWith("New message from "),
                 onClick: () => { startLoading(); router.push("/chat"); },
               });
+            } else {
+              setNotifications((prev) => [notif, ...prev].slice(0, 20));
             }
+            return;
           }
+
+          if (payload.eventType === "UPDATE") {
+            const notif = payload.new as unknown as Notification;
+            if (notif.type === "chat") {
+              setChatNotifications((prev) =>
+                prev.map((n) => (n.id === notif.id ? { ...n, ...notif } : n)),
+              );
+            } else {
+              setNotifications((prev) =>
+                prev.map((n) => (n.id === notif.id ? { ...n, ...notif } : n)),
+              );
+            }
+            return;
+          }
+
+          if (payload.eventType === "DELETE") {
+            const old = payload.old as { id?: string };
+            if (old?.id) {
+              setNotifications((prev) => prev.filter((n) => n.id !== old.id));
+              setChatNotifications((prev) => prev.filter((n) => n.id !== old.id));
+            }
+            return;
+          }
+
+          scheduleReload();
         }
       )
       .subscribe();
 
     return () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
       void supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, triggerNotification, startLoading, router]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

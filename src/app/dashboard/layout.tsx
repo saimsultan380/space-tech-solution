@@ -1,16 +1,19 @@
 import { requireAuth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { getCompanySettings } from "@/lib/actions/company-settings";
+import { parseThemeColors } from "@/lib/theme-cookie";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [user, companySettings] = await Promise.all([
-    requireAuth(),
-    getCompanySettings(),
-  ]);
+  // Theme comes from cookie (instant) — no DB wait on every navigation.
+  // DashboardShell refreshes theme in the background and updates the cookie.
+  const [user, cookieStore] = await Promise.all([requireAuth(), cookies()]);
+  const themeColors = parseThemeColors(
+    cookieStore.get("crm-theme-colors")?.value,
+  );
 
   return (
     <DashboardShell
@@ -20,20 +23,7 @@ export default async function DashboardLayout({
       currency={user.preferred_currency ?? "USD"}
       userId={user.id}
       allowedModules={user.allowed_modules ?? null}
-      themeColors={{
-        shell_bg_color: companySettings.shell_bg_color,
-        shell_text_color: companySettings.shell_text_color,
-        sidebar_color: companySettings.sidebar_color,
-        sidebar_text_color: companySettings.sidebar_text_color,
-        button_color: companySettings.button_color,
-        button_text_color: companySettings.button_text_color,
-        active_tab_color: companySettings.active_tab_color,
-        active_tab_text_color: companySettings.active_tab_text_color,
-        chat_user_bubble_color: companySettings.chat_user_bubble_color,
-        chat_user_bubble_text_color: companySettings.chat_user_bubble_text_color,
-        chat_bot_bubble_color: companySettings.chat_bot_bubble_color,
-        chat_bot_bubble_text_color: companySettings.chat_bot_bubble_text_color,
-      }}
+      themeColors={themeColors ?? undefined}
     >
       {children}
     </DashboardShell>

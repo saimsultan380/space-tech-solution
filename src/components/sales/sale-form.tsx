@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { createSale, updateSaleDetails, type CreateSaleInput, type UpdateSaleInp
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { createClient } from "@/lib/supabase/client";
 import { createSaleAttachment } from "@/lib/actions/sale-attachments";
+import { getSalesAgentOptions } from "@/lib/queries/users";
 import {
   SALE_TYPES,
   UTILITY_SUBTYPES,
@@ -34,7 +36,7 @@ import {
 import type { UserRole } from "@/lib/types";
 
 interface SaleFormProps {
-  /** Required for super_admin when creating or reassigning the owning sales agent. */
+  /** Optional preloaded list; otherwise fetched client-side for super_admin. */
   salesAgentUsers?: Array<{ id: string; full_name: string }>;
   userRole: UserRole;
   mode?: "create" | "edit";
@@ -87,7 +89,7 @@ const emptyForm = {
 };
 
 export function SaleForm({
-  salesAgentUsers = [],
+  salesAgentUsers: salesAgentUsersProp = [],
   userRole,
   mode = "create",
   saleId,
@@ -99,6 +101,16 @@ export function SaleForm({
   const [error, setError] = useState("");
   const [form, setForm] = useState({ ...emptyForm, ...initialValues });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  const needsAgentPicker = userRole === "super_admin";
+  const { data: fetchedAgents = [] } = useQuery({
+    queryKey: ["sales-agent-options"],
+    queryFn: getSalesAgentOptions,
+    enabled: needsAgentPicker && salesAgentUsersProp.length === 0,
+    staleTime: 60_000,
+  });
+  const salesAgentUsers =
+    salesAgentUsersProp.length > 0 ? salesAgentUsersProp : fetchedAgents;
 
   const isUtility = form.sale_type === "utility";
   const isInsurance = form.sale_type === "insurance";

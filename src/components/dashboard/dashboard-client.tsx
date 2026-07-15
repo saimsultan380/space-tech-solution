@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { AttendanceWidget } from "./attendance-widget";
 import { RevenueChart } from "@/components/reports/charts/revenue-chart";
@@ -48,7 +48,7 @@ interface DashboardClientProps {
   salesPerAgent: Array<{ name: string; total: number; approved: number; revenue: number }>;
   revenueData: Array<{ date: string; revenue: number }>;
   recentPayslips: Payslip[];
-  attendanceSettings: {
+  attendanceSettings?: {
     shift_start_12h: string;
     shift_end_12h: string;
     checkout_latest_12h: string;
@@ -58,7 +58,8 @@ interface DashboardClientProps {
     allow_early_checkout: boolean;
     early_checkout_minutes: number;
   };
-  companySettings: CompanySettings;
+  companySettings?: CompanySettings;
+  secondaryLoading?: boolean;
 }
 
 export function DashboardClient({
@@ -70,29 +71,37 @@ export function DashboardClient({
   recentPayslips,
   attendanceSettings,
   companySettings,
+  secondaryLoading = false,
 }: DashboardClientProps) {
   const [showCharts, setShowCharts] = useState(true);
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const { currency } = useCurrency();
   const revenueTrend = getRevenueTrend(revenueData);
   const conversionValue = Number(stats.conversionRate || 0);
 
   useEffect(() => {
     const supabase = createClient();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const invalidate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        void queryClient.invalidateQueries({ queryKey: ["sales-per-agent"] });
+        void queryClient.invalidateQueries({ queryKey: ["revenue-over-time"] });
+      }, 800);
+    };
+
     const channel = supabase
       .channel("admin-dashboard-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
-        router.refresh();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, () => {
-        router.refresh();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, invalidate)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chargebacks" }, invalidate)
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [queryClient]);
 
   return (
     <div className="space-y-5">
@@ -192,7 +201,13 @@ export function DashboardClient({
         </div>
       </div>
 
-      <PayslipDashboardCard payslips={recentPayslips} title="Latest Payslips" companySettings={companySettings} />
+      {companySettings && (
+        <PayslipDashboardCard
+          payslips={recentPayslips}
+          title="Latest Payslips"
+          companySettings={companySettings}
+        />
+      )}
 
       {showCharts && (
         <div className="animate-[slide-up_0.3s_ease-out] space-y-5">
@@ -201,6 +216,9 @@ export function DashboardClient({
               <BarChart3 className="h-4 w-4 text-primary" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">Analytics Overview</h2>
+            {secondaryLoading && (
+              <span className="text-xs text-muted-foreground">Updating…</span>
+            )}
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">

@@ -15,8 +15,9 @@ const getCachedChatUsers = unstable_cache(
     const { data, error } = await admin
       .from("users")
       .select("id, full_name, avatar_url, role, is_active")
+      .eq("is_active", true)
       .order("full_name", { ascending: true })
-      .limit(500);
+      .limit(200);
 
     if (error) throw new Error(error.message);
     return (data || []) as Array<{
@@ -27,7 +28,7 @@ const getCachedChatUsers = unstable_cache(
       is_active: boolean;
     }>;
   },
-  ["chat-users-list"],
+  ["chat-users-list-active-v2"],
   { revalidate: 300, tags: ["users"] }
 );
 
