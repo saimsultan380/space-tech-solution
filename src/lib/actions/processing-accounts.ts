@@ -24,6 +24,7 @@ interface RawProcessingAccountRow {
   account_number_encrypted: string | null;
   card_number_encrypted: string | null;
   cvv_encrypted: string | null;
+  created_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -39,6 +40,7 @@ interface NormalisedProcessingAccountRow {
   account_number: string;
   card_number: string;
   cvv: string;
+  created_at: string;
   [key: string]: unknown;
 }
 
@@ -175,6 +177,7 @@ export async function getProcessingAccounts(filters?: {
     cvv:             safeDecrypt(account.cvv_encrypted),
     expiration_date: account.expiration_date || "",
     account_type:    (account.account_type as ProcessingAccountType) || "checkin",
+    created_at:      String(account.created_at || ""),
   });
 
   // Helper: apply structural (non-text) filters in SQL

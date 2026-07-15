@@ -30,12 +30,10 @@ import type { UserRole, ProcessingAccountStatus } from "@/lib/types";
 import {
   updateProcessingAccountNotes,
   updateProcessingAccountStatus,
-} from "@/lib/actions/processing-accounts";
-import {
   getProcessingAccounts,
   getProcessingAccountStats,
-} from "@/lib/queries/processing-accounts";
-import type { ProcessingAccountStats } from "@/lib/queries/processing-accounts";
+} from "@/lib/actions/processing-accounts";
+import type { ProcessingAccountStats } from "@/lib/actions/processing-accounts";
 import {
   Plus,
   FileUp,
