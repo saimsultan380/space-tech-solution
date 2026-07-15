@@ -81,6 +81,30 @@ interface ProcessingAccountsClientProps {
   userRole: UserRole;
 }
 
+/** Full card/CVV in Processing Database for super_admin + processor only (not sales). */
+function canViewProcessingCardSecrets(role: UserRole): boolean {
+  return role === "super_admin" || role === "processor";
+}
+
+function formatProcessingCardNumber(
+  cardNumber: string | null | undefined,
+  role: UserRole
+): string {
+  const value = cardNumber?.trim() || "";
+  if (!value) return "—";
+  if (canViewProcessingCardSecrets(role)) return value;
+  return `****${value.slice(-4)}`;
+}
+
+function formatProcessingCvv(
+  cvv: string | null | undefined,
+  role: UserRole
+): string {
+  const value = cvv?.trim() || "";
+  if (!canViewProcessingCardSecrets(role)) return "—";
+  return value || "—";
+}
+
 const statusConfig: Record<
   ProcessingAccountStatus,
   {
@@ -347,13 +371,7 @@ function ViewAccountDialog({
           <>
             <DetailRow
               label="Card Number"
-              value={
-                userRole === "super_admin"
-                  ? account.card_number
-                  : account.card_number
-                    ? `****${account.card_number.trim().slice(-4)}`
-                    : "—"
-              }
+              value={formatProcessingCardNumber(account.card_number, userRole)}
               mono
             />
             <DetailRow
@@ -363,7 +381,7 @@ function ViewAccountDialog({
             />
             <DetailRow
               label="CVV"
-              value={userRole === "super_admin" ? account.cvv : "—"}
+              value={formatProcessingCvv(account.cvv, userRole)}
               mono
             />
           </>
@@ -1058,9 +1076,16 @@ export function ProcessingAccountsClient({
                 a.account_holder_name || "",
                 a.routing_number,
                 a.account_number,
-                a.card_number,
+                a.account_type === "card"
+                  ? formatProcessingCardNumber(a.card_number, userRole).replace(
+                      "—",
+                      ""
+                    )
+                  : "",
                 a.expiration_date,
-                a.cvv,
+                a.account_type === "card"
+                  ? formatProcessingCvv(a.cvv, userRole).replace("—", "")
+                  : "",
                 a.billing_address || "",
                 a.status ? statusConfig[a.status].label : "",
                 a.notes || "",
@@ -1144,11 +1169,10 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
                           {account.account_type === "card"
-                            ? userRole === "super_admin"
-                              ? account.card_number?.trim() || "—"
-                              : account.card_number?.trim()
-                                ? `****${account.card_number.trim().slice(-4)}`
-                                : "—"
+                            ? formatProcessingCardNumber(
+                                account.card_number,
+                                userRole
+                              )
                             : account.routing_number?.trim() || "—"}
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap min-w-[160px]">
@@ -1158,9 +1182,7 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle font-mono text-sm whitespace-nowrap">
                           {account.account_type === "card"
-                            ? userRole === "super_admin"
-                              ? account.cvv?.trim() || "—"
-                              : "—"
+                            ? formatProcessingCvv(account.cvv, userRole)
                             : "—"}
                         </TableCell>
                         <TableCell className="align-middle">

@@ -75,19 +75,24 @@ export function ProcessingAccountFormDialog({
         .then((full) => {
           const accountType =
             (full.account_type as ProcessingAccountType) || "checkin";
-          const isAdmin = userRole === "super_admin";
+          const canViewSecrets =
+            userRole === "super_admin" || userRole === "processor";
           setForm({
             account_type: accountType,
             account_holder_name: full.account_holder_name || "",
             routing_number: full.routing_number || "",
             account_number: full.account_number || "",
-            card_number: isAdmin
+            card_number: canViewSecrets
               ? full.card_number || ""
               : full.card_number
                 ? `****${full.card_number.slice(-4)}`
                 : "",
             expiration_date: full.expiration_date || "",
-            cvv: isAdmin ? full.cvv || "" : full.cvv ? "***" : "",
+            cvv: canViewSecrets
+              ? full.cvv || ""
+              : full.cvv
+                ? "***"
+                : "",
             billing_address: full.billing_address || "",
             status: (full.status || "") as ProcessingAccountStatus | "",
             notes: full.notes || "",
@@ -115,6 +120,7 @@ export function ProcessingAccountFormDialog({
     account?.billing_address,
     account?.notes,
     account?.status,
+    userRole,
   ]);
 
   const handleClose = () => {

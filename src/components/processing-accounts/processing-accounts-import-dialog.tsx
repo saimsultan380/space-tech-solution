@@ -45,7 +45,7 @@ const MODE_OPTIONS: {
   {
     value: "auto",
     label: "Auto-detect",
-    description: "Use Account Type column, or detect from card vs routing fields",
+    description: "Detect from headers (Card Numbers vs Routing) and row values",
     icon: FileSpreadsheet,
   },
   {

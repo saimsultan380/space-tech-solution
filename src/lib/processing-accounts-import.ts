@@ -57,6 +57,102 @@ function looksLikeCardNumber(value: string): boolean {
   return d.length >= 13 && d.length <= 19;
 }
 
+const CARD_NUMBER_HEADER_SLUGS = [
+  "card_number",
+  "card_numbers",
+  "credit_card_number",
+  "debit_card_number",
+  "card_no",
+  "card_nos",
+  "card",
+  "cc",
+  "cc_number",
+  "cc_numbers",
+  "cc_no",
+  "credit_card",
+  "debit_card",
+  "pan",
+  "cardnum",
+  "card_num",
+];
+
+const ROUTING_HEADER_SLUGS = [
+  "routing_number",
+  "routing",
+  "aba",
+  "routing_no",
+  "bank_routing",
+];
+
+const EXP_HEADER_SLUGS = [
+  "expiration_date",
+  "expiry",
+  "expiry_date",
+  "exp_date",
+  "exp",
+  "card_expiry",
+  "card_expiration",
+  "valid_thru",
+  "valid_through",
+];
+
+const CVV_HEADER_SLUGS = [
+  "cvv",
+  "cvc",
+  "cid",
+  "security_code",
+  "card_cvv",
+  "cvv2",
+  "cvc2",
+];
+
+/**
+ * Infer file type from column headers so Auto-detect works even when Excel
+ * mangles card number values (scientific notation / precision loss).
+ * Returns null when mixed/unclear — fall back to per-row value detection.
+ */
+export function inferImportModeFromHeaders(
+  records: Record<string, unknown>[]
+): "card" | "checkin" | null {
+  if (!records.length) return null;
+
+  const headerKeys = new Set<string>();
+  for (const r of records.slice(0, 10)) {
+    for (const k of Object.keys(r)) {
+      const slug = slugifyHeader(k);
+      if (slug) headerKeys.add(slug);
+    }
+  }
+  if (headerKeys.size === 0) return null;
+
+  const hasCardNumberCol = CARD_NUMBER_HEADER_SLUGS.some((s) => headerKeys.has(s));
+  const hasRoutingCol = ROUTING_HEADER_SLUGS.some((s) => headerKeys.has(s));
+  const hasExpCol = EXP_HEADER_SLUGS.some((s) => headerKeys.has(s));
+  const hasCvvCol = CVV_HEADER_SLUGS.some((s) => headerKeys.has(s));
+
+  // Client card file: Phone | Card Numbers | Exp | CVV | Card Holder Name | Billing address
+  if (hasCardNumberCol && !hasRoutingCol) return "card";
+  if (hasExpCol && hasCvvCol && !hasRoutingCol) return "card";
+
+  // CheckIn file: Routing Number present, no card columns
+  if (hasRoutingCol && !hasCardNumberCol && !(hasExpCol && hasCvvCol)) {
+    return "checkin";
+  }
+
+  return null;
+}
+
+/** Normalize Excel/CSV cell text that may use spaces, dashes, or sci notation noise. */
+function normalizeCardNumberValue(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  // Already a normal PAN (possibly spaced/dashed)
+  if (looksLikeCardNumber(trimmed)) return digitsOnly(trimmed);
+  // Reject scientific notation — precision is already lost; keep raw for preview warning
+  if (/e[+-]?\d+/i.test(trimmed)) return trimmed;
+  return trimmed;
+}
+
 function parseStatus(raw: string): ProcessingAccountStatus | "" {
   const t = raw.trim();
   if (!t) return "";
@@ -173,13 +269,7 @@ export function recordToImportPayload(
     "name",
   ]);
 
-  const routing_number = pickField(norm, [
-    "routing_number",
-    "routing",
-    "aba",
-    "routing_no",
-    "bank_routing",
-  ]);
+  const routing_number = pickField(norm, ROUTING_HEADER_SLUGS);
 
   let account_number = pickField(norm, [
     "account_number",
@@ -190,46 +280,14 @@ export function recordToImportPayload(
     "bank_account_number",
   ]);
 
-  let card_number = pickField(norm, [
-    "card_number",
-    "card_numbers", // client Excel: "Card Numbers"
-    "credit_card_number",
-    "debit_card_number",
-    "card_no",
-    "card_nos",
-    "card",
-    "cc",
-    "cc_number",
-    "cc_numbers",
-    "cc_no",
-    "credit_card",
-    "debit_card",
-    "pan",
-    "cardnum",
-    "card_num",
-  ]);
+  let card_number = pickField(norm, CARD_NUMBER_HEADER_SLUGS);
+  if (card_number) {
+    card_number = normalizeCardNumberValue(card_number);
+  }
 
-  const expiration_date = pickField(norm, [
-    "expiration_date",
-    "expiry",
-    "expiry_date",
-    "exp_date",
-    "exp",
-    "card_expiry",
-    "card_expiration",
-    "valid_thru",
-    "valid_through",
-  ]);
+  const expiration_date = pickField(norm, EXP_HEADER_SLUGS);
 
-  const cvv = pickField(norm, [
-    "cvv",
-    "cvc",
-    "cid",
-    "security_code",
-    "card_cvv",
-    "cvv2",
-    "cvc2",
-  ]);
+  const cvv = pickField(norm, CVV_HEADER_SLUGS);
 
   const billing_address = pickField(norm, [
     "billing_address",
@@ -329,12 +387,20 @@ export function mapRecordsToImportRows(
   const rows: ProcessingAccountImportPayload[] = [];
   const skipped: ImportSkippedRow[] = [];
 
+  // Auto-detect from headers first (Card Numbers / Exp / CVV vs Routing Number).
+  // This keeps CheckIn files as CheckIn and card Excel files as card.
+  let effectiveMode = mode;
+  if (mode === "auto") {
+    const inferred = inferImportModeFromHeaders(records);
+    if (inferred) effectiveMode = inferred;
+  }
+
   records.forEach((record, index) => {
     const line = index + 2;
     const norm = buildNormalizedRecord(record);
     if (rowIsEmpty(norm)) return;
 
-    const payload = recordToImportPayload(record, mode);
+    const payload = recordToImportPayload(record, effectiveMode);
     if (!payload) {
       skipped.push({
         line,
@@ -377,15 +443,38 @@ export async function parseProcessingAccountsXlsx(
   buffer: ArrayBuffer
 ): Promise<Record<string, unknown>[]> {
   const XLSX = await import("xlsx");
-  const wb = XLSX.read(buffer, { type: "array" });
+  // cellText: prefer displayed text so Text-formatted card numbers stay intact
+  const wb = XLSX.read(buffer, { type: "array", cellText: true, cellDates: false });
   const sheetName = wb.SheetNames[0];
   if (!sheetName) throw new Error("Workbook has no sheets.");
   const sheet = wb.Sheets[sheetName];
   const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: "",
     raw: false,
+    blankrows: false,
   });
-  return json;
+  return json.map((row) => {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (v == null) {
+        out[k] = "";
+        continue;
+      }
+      // Keep long numeric PANs as full digit strings when Excel stored them as numbers
+      if (typeof v === "number" && Number.isFinite(v)) {
+        const asInt = Math.trunc(v);
+        const digits = String(asInt);
+        // Only trust integer conversion when within JS safe range; otherwise keep formatted string path
+        out[k] =
+          Number.isSafeInteger(asInt) && digits.length >= 13
+            ? digits
+            : String(v);
+        continue;
+      }
+      out[k] = typeof v === "string" ? v.trim() : v;
+    }
+    return out;
+  });
 }
 
 export const PROCESSING_ACCOUNTS_CSV_TEMPLATE = `Account Type,Account Holder Name,Routing Number,Account Number,Card Number,Expiration Date,CVV,Billing Address,Status,Notes
