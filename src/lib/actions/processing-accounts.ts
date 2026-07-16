@@ -1,14 +1,15 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth";
+import { canAccessProcessingAccounts } from "@/lib/nav-access";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import type { ProcessingAccountImportPayload, ProcessingAccountStatus, ProcessingAccountType } from "@/lib/types";
 
 // ─── Internal row shapes ───────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseFilterBuilder = any;
 
 
@@ -58,6 +59,23 @@ function safeDecrypt(ciphertext: string | null | undefined): string {
 
 function revalidateProcessingAccountsPaths() {
   revalidatePath("/dashboard/processing-accounts");
+}
+
+function assertValidProcessingAccountStatus(status: ProcessingAccountStatus | "") {
+  if (
+    status &&
+    !["active", "not_working", "closed", "reversal_issue", "under_review"].includes(status)
+  ) {
+    throw new Error("Invalid processing account status");
+  }
+}
+
+async function requireProcessingAccountsAccess() {
+  const user = await requireAuth();
+  if (!canAccessProcessingAccounts(user.role, user.allowed_modules)) {
+    throw new Error("You do not have permission to manage processing accounts");
+  }
+  return user;
 }
 
 export interface ProcessingAccountStats {
@@ -408,8 +426,9 @@ export async function updateProcessingAccount(
     notes?: string;
   }
 ) {
-  await requireAuth();
-  const supabase = await createClient();
+  await requireProcessingAccountsAccess();
+  assertValidProcessingAccountStatus(formData.status);
+  const supabase = createAdminClient();
 
   const isCard = formData.account_type === "card";
 
@@ -440,21 +459,30 @@ export async function updateProcessingAccount(
     updateData.cvv_encrypted = null;
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("processing_accounts")
     .update(updateData)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("Processing account not found");
   revalidateProcessingAccountsPaths();
 }
 
 export async function deleteProcessingAccount(id: string) {
-  await requireAuth();
-  const supabase = await createClient();
+  await requireProcessingAccountsAccess();
+  const supabase = createAdminClient();
 
-  const { error } = await supabase.from("processing_accounts").delete().eq("id", id);
+  const { data, error } = await supabase
+    .from("processing_accounts")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("Processing account not found");
   revalidateProcessingAccountsPaths();
 }
 
@@ -505,13 +533,16 @@ export async function updateProcessingAccountNotes(
   id: string,
   notes: string
 ): Promise<{ success: boolean }> {
-  await requireAuth();
-  const supabase = await createClient();
-  const { error } = await supabase
+  await requireProcessingAccountsAccess();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
     .from("processing_accounts")
     .update({ notes: notes.trim() || null, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("Processing account not found");
   revalidateProcessingAccountsPaths();
   return { success: true };
 }
@@ -520,13 +551,18 @@ export async function updateProcessingAccountStatus(
   id: string,
   status: ProcessingAccountStatus | ""
 ): Promise<{ success: boolean }> {
-  await requireAuth();
-  const supabase = await createClient();
-  const { error } = await supabase
+  await requireProcessingAccountsAccess();
+  assertValidProcessingAccountStatus(status);
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
     .from("processing_accounts")
     .update({ status: status || null, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("Processing account not found");
   revalidateProcessingAccountsPaths();
   return { success: true };
 }

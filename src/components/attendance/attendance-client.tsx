@@ -93,8 +93,10 @@ export function AttendanceClient({
         params.set(key, String(value));
       }
     });
-    if (!Object.prototype.hasOwnProperty.call(updates, "page")) {
-      params.delete("page");
+    // Reset table pages unless this update explicitly sets them.
+    if (!Object.prototype.hasOwnProperty.call(updates, "daily_page")) {
+      params.delete("daily_page");
+      params.delete("page"); // legacy param from older pagination
     }
     if (!Object.prototype.hasOwnProperty.call(updates, "monthly_page")) {
       params.delete("monthly_page");
@@ -111,7 +113,7 @@ export function AttendanceClient({
 
   const handleMonthChange = (value: string) => {
     if (!value) return;
-    updateFilters({ month: value, page: 1, monthly_page: 1 });
+    updateFilters({ month: value, daily_page: 1, monthly_page: 1 });
   };
 
   const monthStart = `${monthParam}-01`;
@@ -163,7 +165,10 @@ export function AttendanceClient({
       (a.user?.role as UserRole | undefined) === roleFilter;
     return matchesUser && matchesRole;
   });
-  const dailyPage = Math.max(1, Number(searchParams.get("page") || "1") || 1);
+  const dailyPage = Math.max(
+    1,
+    Number(searchParams.get("daily_page") || searchParams.get("page") || "1") || 1,
+  );
   const dailyPageSize = 10;
   const dailyTotalPages = Math.max(1, Math.ceil(filtered.length / dailyPageSize));
   const dailyCurrentPage = Math.min(dailyPage, dailyTotalPages);
@@ -512,7 +517,7 @@ export function AttendanceClient({
                 ]}
                 value={roleFilter}
                 onChange={(e) =>
-                  updateFilters({ role: e.target.value, page: 1, monthly_page: 1 })
+                  updateFilters({ role: e.target.value, daily_page: 1, monthly_page: 1 })
                 }
               />
               <Select
@@ -524,7 +529,7 @@ export function AttendanceClient({
                 ]}
                 value={selectedEmployeeId}
                 onChange={(e) => {
-                  updateFilters({ user_id: e.target.value, page: 1, monthly_page: 1 });
+                  updateFilters({ user_id: e.target.value, daily_page: 1, monthly_page: 1 });
                 }}
               />
               {(roleFilter !== "all" || selectedEmployeeId !== "all") && (
@@ -533,7 +538,7 @@ export function AttendanceClient({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    updateFilters({ role: "all", user_id: "all", page: 1, monthly_page: 1 });
+                    updateFilters({ role: "all", user_id: "all", daily_page: 1, monthly_page: 1 });
                   }}
                   className="shrink-0"
                 >
@@ -677,7 +682,7 @@ export function AttendanceClient({
               <Pagination
                 currentPage={dailyCurrentPage}
                 totalPages={dailyTotalPages}
-                onPageChange={(p) => updateFilters({ tab: "daily", page: p })}
+                onPageChange={(p) => updateFilters({ tab: "daily", daily_page: p })}
                 totalItems={filtered.length}
                 pageSize={dailyPageSize}
               />

@@ -7,7 +7,7 @@ import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import type { Leave, LeaveStatus, UserRole } from "@/lib/types";
 
 export default async function AttendancePage(props: {
-  searchParams: Promise<{ month?: string; page?: string; user_id?: string }>;
+  searchParams: Promise<{ month?: string; user_id?: string }>;
 }) {
   const user = await requireAuth();
   const searchParams = await props.searchParams;
@@ -17,13 +17,13 @@ export default async function AttendancePage(props: {
 
   const isSuperAdmin = user.role === "super_admin";
 
-  const page = Number(searchParams.page) || 1;
-
+  // Daily table paginates client-side (and merges leave-only rows), so fetch the
+  // full month here. Do not use the table `page` / `daily_page` URL for this query.
   const attendanceFilters = {
     month,
     user_id,
-    page,
-    pageSize: 50,
+    page: 1,
+    pageSize: 2000,
   };
 
   const [attendanceResponse, usersResponse, monthlySummary, leaves, attendanceSettings] = await Promise.all([

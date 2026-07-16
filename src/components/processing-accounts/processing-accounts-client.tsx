@@ -165,13 +165,11 @@ const statusColors: Record<
 
 // ─── Inline Status Dropdown ───────────────────────────────────────────────────
 function StatusDropdown({
-  accountId,
   currentStatus,
   onStatusChange,
 }: {
-  accountId: string;
   currentStatus: ProcessingAccountStatus | null;
-  onStatusChange: (status: ProcessingAccountStatus | null) => void;
+  onStatusChange: (status: ProcessingAccountStatus | null) => Promise<void> | void;
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -189,12 +187,11 @@ function StatusDropdown({
   const handleSelect = async (value: ProcessingAccountStatus | "") => {
     setOpen(false);
     const newStatus = value || null;
-    onStatusChange(newStatus as ProcessingAccountStatus | null);
     setSaving(true);
     try {
-      await updateProcessingAccountStatus(accountId, value);
-    } catch {
-      onStatusChange(currentStatus);
+      await onStatusChange(newStatus as ProcessingAccountStatus | null);
+    } catch (error) {
+      console.error("Failed to update processing account status", error);
     } finally {
       setSaving(false);
     }
@@ -202,7 +199,6 @@ function StatusDropdown({
 
   const current = currentStatus ? statusConfig[currentStatus] : null;
   const colors = currentStatus ? statusColors[currentStatus] : null;
-  const CurrentIcon = current?.icon;
 
   return (
     <div ref={ref} className="relative inline-block">
@@ -285,30 +281,16 @@ function StatusDropdown({
   );
 }
 
-// ─── View Account Dialog ──────────────────────────────────────────────────────
-function ViewAccountDialog({
-  account,
-  userRole,
-  onClose,
+function AccountDetailRow({
+  label,
+  value,
+  mono = false,
 }: {
-  account: ProcessingAccountRow | null;
-  userRole: UserRole;
-  onClose: () => void;
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
 }) {
-  if (!account) return null;
-  const isCard = account.account_type === "card";
-  const status = account.status ? statusConfig[account.status] : null;
-  const StatusIcon = status?.icon;
-
-  const DetailRow = ({
-    label,
-    value,
-    mono = false,
-  }: {
-    label: string;
-    value: React.ReactNode;
-    mono?: boolean;
-  }) => (
+  return (
     <div className="flex flex-col gap-0.5 rounded-md border border-border bg-muted/30 px-3 py-2.5">
       <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
@@ -323,6 +305,22 @@ function ViewAccountDialog({
       </span>
     </div>
   );
+}
+
+// ─── View Account Dialog ──────────────────────────────────────────────────────
+function ViewAccountDialog({
+  account,
+  userRole,
+  onClose,
+}: {
+  account: ProcessingAccountRow | null;
+  userRole: UserRole;
+  onClose: () => void;
+}) {
+  if (!account) return null;
+  const isCard = account.account_type === "card";
+  const status = account.status ? statusConfig[account.status] : null;
+  const StatusIcon = status?.icon;
 
   return (
     <Dialog open onClose={onClose} className="max-w-xl">
@@ -350,11 +348,11 @@ function ViewAccountDialog({
       </DialogHeader>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <DetailRow
+        <AccountDetailRow
           label="Account Type"
           value={isCard ? "Credit / Debit Card" : "CheckIn Account"}
         />
-        <DetailRow
+        <AccountDetailRow
           label="Status"
           value={
             status && StatusIcon ? (
@@ -367,17 +365,17 @@ function ViewAccountDialog({
         />
         {isCard ? (
           <>
-            <DetailRow
+            <AccountDetailRow
               label="Card Number"
               value={formatProcessingCardNumber(account.card_number, userRole)}
               mono
             />
-            <DetailRow
+            <AccountDetailRow
               label="Expiry Date"
               value={account.expiration_date}
               mono
             />
-            <DetailRow
+            <AccountDetailRow
               label="CVV"
               value={formatProcessingCvv(account.cvv, userRole)}
               mono
@@ -385,12 +383,12 @@ function ViewAccountDialog({
           </>
         ) : (
           <>
-            <DetailRow
+            <AccountDetailRow
               label="Routing Number"
               value={account.routing_number}
               mono
             />
-            <DetailRow
+            <AccountDetailRow
               label="Account Number"
               value={account.account_number}
               mono
@@ -398,10 +396,10 @@ function ViewAccountDialog({
           </>
         )}
         <div className="sm:col-span-2">
-          <DetailRow label="Billing Address" value={account.billing_address} />
+          <AccountDetailRow label="Billing Address" value={account.billing_address} />
         </div>
         <div className="sm:col-span-2">
-          <DetailRow
+          <AccountDetailRow
             label="Notes"
             value={
               account.notes || (
@@ -412,7 +410,7 @@ function ViewAccountDialog({
             }
           />
         </div>
-        <DetailRow
+        <AccountDetailRow
           label="Created On"
           value={formatDate(String(account.created_at || ""))}
         />
@@ -583,21 +581,31 @@ export function ProcessingAccountsClient({
     urlValue: urlSearch,
   } = useDebouncedUrlSearchInput(searchParams, updateFilters);
 
+  const accountsQueryKey = [
+    "processing-accounts",
+    page,
+    urlSearch,
+    statusFilter,
+    accountTypeFilter,
+    fromDateFilter,
+    toDateFilter,
+  ] as const;
+
+  const statsQueryKey = [
+    "processing-accounts-stats",
+    urlSearch,
+    fromDateFilter,
+    toDateFilter,
+    accountTypeFilter,
+  ] as const;
+
   // React Query for fetching accounts
   const {
     data: accountsResponse,
     isLoading: accountsLoading,
     error: accountsError,
   } = useQuery({
-    queryKey: [
-      "processing-accounts",
-      page,
-      urlSearch,
-      statusFilter,
-      accountTypeFilter,
-      fromDateFilter,
-      toDateFilter,
-    ],
+    queryKey: accountsQueryKey,
     queryFn: () =>
       getProcessingAccounts({
         page,
@@ -613,13 +621,7 @@ export function ProcessingAccountsClient({
 
   // React Query for fetching stats
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: [
-      "processing-accounts-stats",
-      urlSearch,
-      fromDateFilter,
-      toDateFilter,
-      accountTypeFilter,
-    ],
+    queryKey: statsQueryKey,
     queryFn: () =>
       getProcessingAccountStats({
         search: urlSearch,
@@ -637,6 +639,92 @@ export function ProcessingAccountsClient({
     pageSize = 10,
   } = accountsResponse || {};
 
+  const statusMutation = useMutation({
+    mutationFn: ({
+      accountId,
+      status,
+    }: {
+      accountId: string;
+      status: ProcessingAccountStatus | null;
+    }) => updateProcessingAccountStatus(accountId, status || ""),
+    onMutate: async ({ accountId, status }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ["processing-accounts"] }),
+        queryClient.cancelQueries({ queryKey: ["processing-accounts-stats"] }),
+      ]);
+
+      const previousAccountsResponse =
+        queryClient.getQueryData<typeof accountsResponse>(accountsQueryKey);
+      const previousStats =
+        queryClient.getQueryData<ProcessingAccountStats>(statsQueryKey);
+      const previousAccount = previousAccountsResponse?.data.find(
+        (account) => account.id === accountId,
+      );
+
+      queryClient.setQueryData<typeof accountsResponse>(
+        accountsQueryKey,
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map((account) =>
+              account.id === accountId ? { ...account, status } : account,
+            ),
+          };
+        },
+      );
+
+      if (previousStats && previousAccount?.status !== status) {
+        queryClient.setQueryData<ProcessingAccountStats>(statsQueryKey, {
+          ...previousStats,
+          ...(previousAccount?.status
+            ? {
+                [previousAccount.status]: Math.max(
+                  0,
+                  previousStats[previousAccount.status] - 1,
+                ),
+              }
+            : {}),
+          ...(status
+            ? {
+                [status]: previousStats[status] + 1,
+              }
+            : {}),
+        });
+      }
+
+      if (viewingAccount?.id === accountId) {
+        setViewingAccount((account) =>
+          account ? { ...account, status } : account,
+        );
+      }
+      if (editingAccount?.id === accountId) {
+        setEditingAccount((account) =>
+          account ? { ...account, status } : account,
+        );
+      }
+
+      return { previousAccountsResponse, previousStats };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousAccountsResponse) {
+        queryClient.setQueryData(
+          accountsQueryKey,
+          context.previousAccountsResponse,
+        );
+      }
+      if (context?.previousStats) {
+        queryClient.setQueryData(statsQueryKey, context.previousStats);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["processing-accounts"] });
+      queryClient.invalidateQueries({
+        queryKey: ["processing-accounts-stats"],
+      });
+    },
+  });
+
   // Delete processing account mutation with optimistic updates
   const deleteAccountMutation = useMutation({
     mutationFn: async (accountId: string) => {
@@ -651,29 +739,13 @@ export function ProcessingAccountsClient({
       });
 
       // Snapshot previous data
-      const mainQueryKey = [
-        "processing-accounts",
-        page,
-        urlSearch,
-        statusFilter,
-        accountTypeFilter,
-        fromDateFilter,
-        toDateFilter,
-      ];
-      const previousAccountsResponse = queryClient.getQueryData(mainQueryKey);
+      const previousAccountsResponse = queryClient.getQueryData(accountsQueryKey);
 
       // Snapshot stats query
-      const statsQueryKey = [
-        "processing-accounts-stats",
-        urlSearch,
-        fromDateFilter,
-        toDateFilter,
-        accountTypeFilter,
-      ];
       const previousStats = queryClient.getQueryData(statsQueryKey);
 
       // Optimistically update main query cache
-      queryClient.setQueryData(mainQueryKey, (old: typeof accountsResponse) => {
+      queryClient.setQueryData(accountsQueryKey, (old: typeof accountsResponse) => {
         if (!old) return old;
         return {
           ...old,
@@ -688,28 +760,12 @@ export function ProcessingAccountsClient({
     onError: (_err, _accountId, context) => {
       // Rollback on error
       if (context?.previousAccountsResponse) {
-        const mainQueryKey = [
-          "processing-accounts",
-          page,
-          urlSearch,
-          statusFilter,
-          accountTypeFilter,
-          fromDateFilter,
-          toDateFilter,
-        ];
         queryClient.setQueryData(
-          mainQueryKey,
+          accountsQueryKey,
           context.previousAccountsResponse,
         );
       }
       if (context?.previousStats) {
-        const statsQueryKey = [
-          "processing-accounts-stats",
-          urlSearch,
-          fromDateFilter,
-          toDateFilter,
-          accountTypeFilter,
-        ];
         queryClient.setQueryData(statsQueryKey, context.previousStats);
       }
     },
@@ -1141,10 +1197,6 @@ export function ProcessingAccountsClient({
                 </TableHeader>
                 <TableBody>
                   {initialAccounts.map((account) => {
-                    const status = account.status
-                      ? statusConfig[account.status]
-                      : null;
-                    const StatusIcon = status?.icon;
                     return (
                       <TableRow key={account.id}>
                         <TableCell className="align-middle">
@@ -1197,10 +1249,12 @@ export function ProcessingAccountsClient({
                         </TableCell>
                         <TableCell className="align-middle">
                           <StatusDropdown
-                            accountId={account.id}
                             currentStatus={account.status}
-                            onStatusChange={() => {
-                              // Status updated on server, React Query will refetch
+                            onStatusChange={async (status) => {
+                              await statusMutation.mutateAsync({
+                                accountId: account.id,
+                                status,
+                              });
                             }}
                           />
                         </TableCell>

@@ -103,8 +103,25 @@ export async function getAttendance(filters?: {
 
   const { data, error, count } = await query.range(offset, offset + pageSize - 1);
 
-  if (error) throw new Error(error.message);
-  
+  // PostgREST returns 416 / PGRST103 when offset is past the last row
+  // (e.g. stale page URL after filters reduce the result set).
+  if (error) {
+    const isOutOfRange =
+      error.code === "PGRST103" ||
+      /requested range not satisfiable/i.test(error.message);
+
+    if (!isOutOfRange) throw new Error(error.message);
+
+    const total = typeof count === "number" ? count : 0;
+    return {
+      data: [],
+      count: total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
   return {
     data: (data || []).map((item: any) => ({
       ...item,
