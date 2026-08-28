@@ -9,7 +9,7 @@
       "memory": 1024
     }
   },
-  "regions": ["iad1"],
+  "regions": ["sin1"],
   "crons": [
     {
       "path": "/api/cron/attendance",

@@ -35,6 +35,13 @@ const nextConfig: NextConfig = {
   // ✨ Optimize package imports
   experimental: {
     optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion', 'date-fns', '@radix-ui/react-icons'],
+
+    // Reuse the client-side router cache so returning to a recently visited
+    // dashboard page renders from memory instead of refetching its RSC payload.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   
   // ✨ Remove console logs in production
