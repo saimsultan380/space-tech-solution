@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/auth";
+import { getSession, requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 // ─── Internal row shapes for Supabase query results ───────────────────────────
@@ -144,7 +144,9 @@ export interface ChatEvent {
 }
 
 export async function getMyChannels(): Promise<ChatChannel[]> {
-  const user = await requireAuth();
+  // Session only — allows parallel fetch with requireAuth() on the page (RLS enforces access).
+  const user = await getSession();
+  if (!user) return [];
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("get_my_chat_channels");

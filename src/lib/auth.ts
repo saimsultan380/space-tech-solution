@@ -73,9 +73,6 @@ export const getAppUserFull = cache(async (): Promise<AppUser | null> => {
 });
 
 export async function requireAuth(): Promise<AppUser> {
-  const user = await getSession();
-  if (!user) redirect("/login");
-
   const appUser = await getAppUser();
   if (!appUser) redirect("/login");
   if (appUser.is_active === false) {

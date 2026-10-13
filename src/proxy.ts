@@ -10,10 +10,14 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * PERFORMANCE: Only run middleware on pages that need auth.
-     * Skip: static assets, images, fonts, icons, API routes, public folder.
-     * This eliminates ~60% of redundant auth DB round-trips under concurrent load.
+     * Run session refresh + route guards only where needed.
+     * Public marketing/legal pages (/, /privacy, /terms) skip this entirely.
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|apple-icon\\.png|icon\\.png|public|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf|eot)$).*)',
+    "/dashboard/:path*",
+    "/chat/:path*",
+    "/login",
+    "/forgot-password",
+    "/reset-password",
+    "/reset-password/:path*",
   ],
 };

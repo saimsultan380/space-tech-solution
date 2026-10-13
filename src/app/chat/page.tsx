@@ -33,8 +33,8 @@ const getCachedChatUsers = unstable_cache(
 );
 
 export default async function ChatPage() {
-  const user = await requireAuth();
-  const [channels, usersResponse] = await Promise.all([
+  const [user, channels, usersResponse] = await Promise.all([
+    requireAuth(),
     getMyChannels(),
     process.env.SUPABASE_SERVICE_ROLE_KEY
       ? getCachedChatUsers()

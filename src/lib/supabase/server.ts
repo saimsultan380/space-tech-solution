@@ -1,9 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import type { Database } from "@/types/supabase";
 
-export async function createClient(): Promise<SupabaseClient<Database>> {
+/** One Supabase server client per RSC request (shared by auth + data queries). */
+export const createClient = cache(async (): Promise<SupabaseClient<Database>> => {
   const cookieStore = await cookies();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -29,7 +31,7 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
       },
     },
   });
-}
+});
 
 /**
  * Creates a Supabase client without using cookies().

@@ -31,24 +31,28 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     }
   );
 
-  // Use getSession() — reads the JWT from the cookie without a server roundtrip.
-  // getUser() would make a network call to Supabase Auth on every navigation,
-  // adding 200-2700ms of latency. Security verification still happens in each
-  // page's requireAuth() call which uses getUser().
+  // getSession(): reads/refreshes the JWT from cookies. Only hits Auth API if the
+  // access token is expired. getUser() would call Auth on every navigation (~200ms+).
+  // App routes enforce profile + is_active via requireAuth() (session + users row).
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const isAuthPage = request.nextUrl.pathname === "/login";
-  const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard");
+  const pathname = request.nextUrl.pathname;
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/reset-password");
+  const isProtectedAppRoute =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/chat");
 
-  if (!session && isDashboardPage) {
+  if (!session && isProtectedAppRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (session && isAuthPage) {
+  if (session && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

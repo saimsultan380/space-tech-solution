@@ -1,9 +1,23 @@
+import { Suspense } from "react";
 import { requireAuth } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { DashboardLayoutFallback } from "@/components/layout/dashboard-layout-fallback";
 import { parseThemeColors } from "@/lib/theme-cookie";
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={<DashboardLayoutFallback />}>
+      <DashboardAuthenticatedLayout>{children}</DashboardAuthenticatedLayout>
+    </Suspense>
+  );
+}
+
+async function DashboardAuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;

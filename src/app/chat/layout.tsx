@@ -1,12 +1,32 @@
+import { Suspense } from "react";
 import { requireAuth } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { ThemeColorsProvider } from "@/components/providers/theme-colors-provider";
 import { parseThemeColors, emptyThemeColors } from "@/lib/theme-cookie";
 import { ChatThemeHydrator } from "@/components/chat/chat-theme-hydrator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata = { title: "Team Chat — Space Tech Solution" };
 
-export default async function ChatLayout({
+export default function ChatLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center bg-background">
+          <Skeleton className="h-10 w-48" />
+        </div>
+      }
+    >
+      <ChatAuthenticatedLayout>{children}</ChatAuthenticatedLayout>
+    </Suspense>
+  );
+}
+
+async function ChatAuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
