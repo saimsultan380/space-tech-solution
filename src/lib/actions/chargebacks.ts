@@ -137,7 +137,7 @@ export async function getChargebacks(filters?: {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 10;
+  const pageSize = filters?.pageSize || 20;
   const offset = (page - 1) * pageSize;
   const search = filters?.q?.trim() || "";
   const hasMinAmount = typeof filters?.min_amount === "number" && Number.isFinite(filters.min_amount);

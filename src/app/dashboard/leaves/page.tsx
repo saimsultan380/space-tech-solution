@@ -67,10 +67,10 @@ export default async function LeavesPage(props: {
   const status = (searchParams.status as LeaveStatus | "all") || "all";
 
   if (user.role === "super_admin") {
-    const leavesResponse = await getAllLeaves({ page, pageSize: 10, status });
+    const leavesResponse = await getAllLeaves({ page, pageSize: 20, status });
     return <LeavesAdminClient leavesResponse={formatLeavesResponse(leavesResponse)} />;
   }
 
-  const leavesResponse = await getLeavesForCurrentUser({ page, pageSize: 10, status });
+  const leavesResponse = await getLeavesForCurrentUser({ page, pageSize: 20, status });
   return <MyLeavesClient leavesResponse={formatLeavesResponse(leavesResponse)} userRole={user.role} />;
 }

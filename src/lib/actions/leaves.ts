@@ -18,7 +18,7 @@ export async function getLeavesForCurrentUser(filters?: Omit<LeaveFilters, "user
   const user = await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 10;
+  const pageSize = filters?.pageSize || 20;
   const offset = (page - 1) * pageSize;
 
   let query = supabase
@@ -60,7 +60,7 @@ export async function getAllLeaves(filters?: LeaveFilters) {
 
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 10;
+  const pageSize = filters?.pageSize || 20;
   const offset = (page - 1) * pageSize;
 
   let query = supabase

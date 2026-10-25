@@ -6,7 +6,7 @@ import {
 import { MarketingBudgetClient } from "@/components/marketing-budget/marketing-budget-client";
 import type { MarketingEntryCampaign } from "@/lib/types";
 
-const ENTRIES_PAGE_SIZE = 10;
+const ENTRIES_PAGE_SIZE = 20;
 
 interface MarketingBudgetPageProps {
   searchParams?: Promise<{

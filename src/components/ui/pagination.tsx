@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
-/** Match server list page size (10): hide footer until enough rows to paginate. */
-export const PAGINATION_SHOW_MIN_TOTAL_ITEMS = 10;
-
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -24,13 +21,13 @@ export function Pagination({
   className,
   showInfo = true,
   totalItems,
-  pageSize = 10,
+  pageSize = 20,
 }: PaginationProps) {
   const safeTotalPages = Math.max(1, totalPages);
 
   if (totalItems !== undefined) {
     if (totalItems === 0) return null;
-    if (totalItems < PAGINATION_SHOW_MIN_TOTAL_ITEMS) return null;
+    if (totalItems <= pageSize) return null;
   } else if (safeTotalPages <= 1) {
     return null;
   }

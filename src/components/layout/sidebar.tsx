@@ -57,7 +57,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   super_admin: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/reports", "/chat", "/dashboard/personal-notepad"],
+      hrefs: ["/dashboard", "/dashboard/reports", "/dashboard/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -86,7 +86,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   sales_agent: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/sales-performance", "/chat", "/dashboard/personal-notepad"],
+      hrefs: ["/dashboard", "/dashboard/sales-performance", "/dashboard/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -113,7 +113,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   processor: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/chat", "/dashboard/personal-notepad"],
+      hrefs: ["/dashboard", "/dashboard/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -162,6 +162,7 @@ export function Sidebar({
   const fullRoleItems = NAV_ITEMS[role] || [];
   const legacyModuleAliases: Record<string, string[]> = {
     "/dashboard/call-logs-responses": ["/dashboard/customers"],
+    "/dashboard/chat": ["/chat"],
   };
   /** Processors only see Call Logs if an admin adds it to allowed_modules; role default omits it. */
   const defaultNavItems =

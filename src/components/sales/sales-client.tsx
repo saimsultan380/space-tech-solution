@@ -266,7 +266,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         agent_id: agentFilter,
         sale_type: typeFilter,
         page,
-        pageSize: 10,
+        pageSize: 20,
         from_date: fromDateFilter,
         to_date: toDateFilter,
         search: urlSearch,
@@ -287,7 +287,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     data: sales = [],
     count = 0,
     totalPages = 1,
-    pageSize = 10,
+    pageSize = 20,
     stats = {
       totalRecords: 0,
       totalAmount: 0,
@@ -340,7 +340,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
             totalPages: Math.max(
               1,
               Math.ceil(
-                Math.max(0, (old.count || 0) - 1) / (old.pageSize || 10),
+                Math.max(0, (old.count || 0) - 1) / (old.pageSize || 20),
               ),
             ),
           };

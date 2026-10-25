@@ -141,6 +141,6 @@ export async function updateThemeColors(input: ThemeColors) {
 
   (revalidateTag as any)("company-settings");
   revalidatePath("/dashboard", "layout");
-  revalidatePath("/chat", "layout");
+  revalidatePath("/dashboard/chat", "layout");
 }
 

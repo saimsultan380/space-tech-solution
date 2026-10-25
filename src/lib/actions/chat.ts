@@ -414,7 +414,7 @@ export async function sendMessage(
     console.error("Failed to create chat notifications:", err);
   }
 
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null, messageId: data?.id };
 }
 
@@ -487,7 +487,7 @@ export async function createChannel(name: string, description: string, memberIds
   const { error: memberError } = await supabase.from("chat_channel_members").insert(memberships);
   if (memberError) return { error: memberError.message };
 
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null, channelId: channel.id as string };
 }
 
@@ -541,7 +541,7 @@ export async function createDirectMessage(otherUserId: string) {
       { channel_id: channel.id, user_id: user.id },
     ]);
 
-    revalidatePath("/chat");
+    revalidatePath("/dashboard/chat");
     return { error: null, channelId: channel.id as string };
   }
 
@@ -584,7 +584,7 @@ export async function createDirectMessage(otherUserId: string) {
     { channel_id: channel.id, user_id: otherUserId },
   ]);
 
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null, channelId: channel.id as string };
 }
 
@@ -683,7 +683,7 @@ export async function updateChannel(channelId: string, updates: { name?: string;
     .eq("id", channelId);
 
   if (error) return { error: error.message };
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }
 
@@ -712,7 +712,7 @@ export async function clearChannelMessages(channelId: string) {
     .eq("channel_id", channelId);
 
   if (error) return { error: error.message };
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }
 
@@ -749,7 +749,7 @@ export async function deleteChannel(channelId: string) {
     .eq("id", channelId);
 
   if (error) return { error: error.message };
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }
 
@@ -779,7 +779,7 @@ export async function leaveDmChannel(channelId: string) {
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }
 
@@ -817,7 +817,7 @@ export async function setChannelMembers(channelId: string, memberIds: string[]) 
     if (delErr) return { error: delErr.message };
   }
 
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }
 
@@ -935,7 +935,7 @@ export async function createChatEvent(params: {
     console.error("Failed to create event notifications:", err);
   }
 
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { data: data as unknown as ChatEvent };
 }
 
@@ -953,7 +953,7 @@ export async function updateChatEvent(
     .eq("creator_id", user.id); // Only creator can update
 
   if (error) return { error: error.message };
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }
 
@@ -968,6 +968,6 @@ export async function deleteChatEvent(eventId: string) {
     .eq("creator_id", user.id); // Only creator can delete
 
   if (error) return { error: error.message };
-  revalidatePath("/chat");
+  revalidatePath("/dashboard/chat");
   return { error: null };
 }

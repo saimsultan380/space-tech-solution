@@ -226,7 +226,7 @@ export async function getSales(filters?: {
 }> {
   const supabase = createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 10;
+  const pageSize = filters?.pageSize || 20;
   const offset = (page - 1) * pageSize;
 
   let query = supabase

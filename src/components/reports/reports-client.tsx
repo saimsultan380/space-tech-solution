@@ -273,7 +273,7 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
   }, [employeeMonthlyStats, empRoleFilter, empSearch]);
 
   const empPage = Math.max(1, Number(searchParams.get("emp_page") || "1") || 1);
-  const empPageSize = 10;
+  const empPageSize = 20;
   const empTotalPages = Math.max(
     1,
     Math.ceil(filteredEmployees.length / empPageSize),

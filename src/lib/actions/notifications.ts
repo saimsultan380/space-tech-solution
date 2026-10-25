@@ -152,7 +152,7 @@ export async function markNotificationsAsRead(ids: string[]) {
       .eq("user_id", user.id);
 
     if (error) throw new Error(error.message);
-    revalidatePath("/chat");
+    revalidatePath("/dashboard/chat");
     return { success: true };
   } catch (err) {
     console.error("Failed to mark notifications as read:", err);

@@ -82,7 +82,7 @@ export function AttendanceClient({
   const { data: attendance } = attendanceResponse;
   const activeTab = searchParams.get("tab") === "monthly" ? "monthly" : "daily";
   const monthlyPage = Math.max(1, Number(searchParams.get("monthly_page") || "1") || 1);
-  const monthlyPageSize = 10;
+  const monthlyPageSize = 20;
   
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -169,7 +169,7 @@ export function AttendanceClient({
     1,
     Number(searchParams.get("daily_page") || searchParams.get("page") || "1") || 1,
   );
-  const dailyPageSize = 10;
+  const dailyPageSize = 20;
   const dailyTotalPages = Math.max(1, Math.ceil(filtered.length / dailyPageSize));
   const dailyCurrentPage = Math.min(dailyPage, dailyTotalPages);
   const dailyStartIndex = (dailyCurrentPage - 1) * dailyPageSize;

@@ -1,5 +1,8 @@
 import type { UserRole } from "@/lib/types";
 
+/** Default table page size. Every list uses the same page length. */
+export const DEFAULT_PAGE_SIZE = 20;
+
 export const ROLES = {
   SUPER_ADMIN: "super_admin" as const,
   SALES_AGENT: "sales_agent" as const,
@@ -108,7 +111,7 @@ export const CURRENCIES = [
 export const NAV_ITEMS = {
   super_admin: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
-    { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
+    { href: "/dashboard/chat", label: "Team Chat", icon: "MessageCircle" },
     { href: "/dashboard/personal-notepad", label: "Notepad", icon: "StickyNote", newTab: true },
     { href: "/dashboard/users", label: "Users", icon: "Users" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
@@ -126,7 +129,7 @@ export const NAV_ITEMS = {
   sales_agent: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/sales-performance", label: "Reports", icon: "BarChart3" },
-    { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
+    { href: "/dashboard/chat", label: "Team Chat", icon: "MessageCircle" },
     { href: "/dashboard/personal-notepad", label: "Notepad", icon: "StickyNote", newTab: true },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },
@@ -139,7 +142,7 @@ export const NAV_ITEMS = {
   ],
   processor: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
-    { href: "/chat", label: "Team Chat", icon: "MessageCircle", newTab: true },
+    { href: "/dashboard/chat", label: "Team Chat", icon: "MessageCircle" },
     { href: "/dashboard/personal-notepad", label: "Notepad", icon: "StickyNote", newTab: true },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },
     { href: "/dashboard/processing-accounts", label: "Processing Database", icon: "CreditCard" },

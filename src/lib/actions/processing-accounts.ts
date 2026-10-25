@@ -183,7 +183,7 @@ export async function getProcessingAccounts(filters?: {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 10;
+  const pageSize = filters?.pageSize || 20;
   const offset = (page - 1) * pageSize;
 
   // Helper: decrypt & normalize a raw DB row

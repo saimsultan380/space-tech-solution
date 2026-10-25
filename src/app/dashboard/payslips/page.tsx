@@ -17,7 +17,7 @@ export default async function PayslipsPage(props: {
   const to_date = searchParams.to_date || "";
   if (user.role === "super_admin") {
     const [payslipsResponse, usersResponse, companySettings] = await Promise.all([
-      getPayslips({ page, pageSize: 12, search, status, from_date, to_date }),
+      getPayslips({ page, pageSize: 20, search, status, from_date, to_date }),
       getUsers({ pageSize: 500 }),
       getCompanySettings(),
     ]);
@@ -25,7 +25,7 @@ export default async function PayslipsPage(props: {
     return <PayslipsAdminClient payslipsResponse={payslipsResponse} employees={employees} companySettings={companySettings} />;
   }
   const [payslipsResponse, companySettings] = await Promise.all([
-    getMyPayslips({ page, pageSize: 12, status, from_date, to_date }),
+    getMyPayslips({ page, pageSize: 20, status, from_date, to_date }),
     getCompanySettings(),
   ]);
   return <PayslipsMyClient payslipsResponse={payslipsResponse} companySettings={companySettings} />;

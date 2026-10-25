@@ -41,7 +41,7 @@ export function MessageButton({
       
       if (result.channelId) {
         // Redirect to chat with the new channel active
-        router.push(`/chat?channelId=${result.channelId}`);
+        router.push(`/dashboard/chat?channelId=${result.channelId}`);
       }
     } finally {
       setLoading(false);

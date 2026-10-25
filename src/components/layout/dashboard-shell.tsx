@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
@@ -38,6 +39,8 @@ export function DashboardShell({
   allowedModules,
   themeColors,
 }: DashboardShellProps) {
+  const pathname = usePathname();
+  const isChat = pathname === "/dashboard/chat" || pathname.startsWith("/dashboard/chat/");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 1023px)");
@@ -107,8 +110,20 @@ export function DashboardShell({
               onToggleSidebar={handleToggleSidebar}
               isMobile={isMobile}
             />
-            <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-5 xl:p-6">
-              <div className="mx-auto w-full max-w-7xl animate-[fade-in_0.3s_ease-out]">
+            <main
+              className={
+                isChat
+                  ? "flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+                  : "flex-1 overflow-y-auto bg-background p-4 sm:p-5 xl:p-6"
+              }
+            >
+              <div
+                className={
+                  isChat
+                    ? "h-full min-h-0 flex-1"
+                    : "mx-auto w-full max-w-7xl animate-[fade-in_0.3s_ease-out]"
+                }
+              >
                 {children}
               </div>
             </main>

@@ -123,7 +123,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     queryFn: () =>
       getCustomers({
         page,
-        pageSize: 10,
+        pageSize: 20,
         search: urlSearch,
         createdFromDate: fromDateFilter || undefined,
         createdToDate: toDateFilter || undefined,
@@ -136,7 +136,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     data: customers = [],
     count = 0,
     totalPages = 1,
-    pageSize = 10,
+    pageSize = 20,
   } = customersResponse || {};
 
   const { data: allAgents = [] } = useQuery({

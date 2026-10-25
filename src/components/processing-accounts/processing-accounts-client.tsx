@@ -609,7 +609,7 @@ export function ProcessingAccountsClient({
     queryFn: () =>
       getProcessingAccounts({
         page,
-        pageSize: 10,
+        pageSize: 20,
         search: urlSearch,
         status: statusFilter as ProcessingAccountStatus | "all",
         from_date: fromDateFilter,
@@ -636,7 +636,7 @@ export function ProcessingAccountsClient({
     data: initialAccounts = [],
     count = 0,
     totalPages = 1,
-    pageSize = 10,
+    pageSize = 20,
   } = accountsResponse || {};
 
   const statusMutation = useMutation({

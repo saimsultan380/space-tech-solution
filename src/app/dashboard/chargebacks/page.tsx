@@ -31,7 +31,7 @@ export default async function ChargebacksPage(props: {
   const [chargebacksResponse, usersResult] = await Promise.all([
     getChargebacks({
       page,
-      pageSize: 10,
+      pageSize: 20,
       q,
       status,
       assigned_to,

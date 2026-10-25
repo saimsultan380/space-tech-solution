@@ -218,7 +218,7 @@ export function Header({
                 channelName: notif.title.replace("New message in #", ""),
                 content: notif.body,
                 isDm: notif.title.startsWith("New message from "),
-                onClick: () => { startLoading(); router.push("/chat"); },
+                onClick: () => { startLoading(); router.push("/dashboard/chat"); },
               });
             } else {
               setNotifications((prev) => [notif, ...prev].slice(0, 20));
@@ -500,7 +500,7 @@ export function Header({
                         <button
                           onClick={() => {
                             startLoading();
-                            router.push("/chat");
+                            router.push("/dashboard/chat");
                             setChatNotificationsOpen(false);
                           }}
                           className="text-[11px] font-medium text-primary hover:underline"
@@ -531,7 +531,7 @@ export function Header({
                               onClick={() => {
                                 markAsRead(n.id);
                                 startLoading();
-                                router.push("/chat");
+                                router.push("/dashboard/chat");
                                 setChatNotificationsOpen(false);
                               }}
                               className={cn(
@@ -571,7 +571,7 @@ export function Header({
                     <button
                       onClick={() => {
                         startLoading();
-                        router.push("/chat");
+                        router.push("/dashboard/chat");
                         setChatNotificationsOpen(false);
                       }}
                       className="w-full py-3 bg-muted/5 text-center text-[11px] font-bold text-primary hover:bg-muted/10 transition-colors uppercase tracking-widest border-t border-foreground/5"
@@ -593,7 +593,7 @@ export function Header({
                       <button
                         onClick={() => {
                           startLoading();
-                          router.push("/chat");
+                          router.push("/dashboard/chat");
                           setChatNotificationsOpen(false);
                         }}
                         className="text-[11px] font-medium text-primary hover:underline"
@@ -629,7 +629,7 @@ export function Header({
                             onClick={() => {
                               markAsRead(n.id);
                               startLoading();
-                              router.push("/chat");
+                              router.push("/dashboard/chat");
                               setChatNotificationsOpen(false);
                             }}
                             className={cn(
@@ -669,7 +669,7 @@ export function Header({
                   <button
                     onClick={() => {
                       startLoading();
-                      router.push("/chat");
+                      router.push("/dashboard/chat");
                       setChatNotificationsOpen(false);
                     }}
                     className="w-full py-3 bg-muted/5 text-center text-[11px] font-bold text-primary hover:bg-muted/10 transition-colors uppercase tracking-widest border-t border-foreground/5"

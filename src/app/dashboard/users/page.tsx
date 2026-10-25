@@ -10,7 +10,7 @@ export default async function UsersPage(props: {
   const page = Number(searchParams.page) || 1;
   const search = searchParams.q || "";
 
-  const usersResponse = await getUsers({ page, pageSize: 10, search });
+  const usersResponse = await getUsers({ page, pageSize: 20, search });
 
   return <UsersClient usersResponse={usersResponse} />;
 }
