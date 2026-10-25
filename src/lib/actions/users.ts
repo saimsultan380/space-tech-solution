@@ -188,6 +188,7 @@ export async function updateUser(
     bank_account_no?: string | null;
     bank_branch?: string | null;
     bank_name?: string | null;
+    password?: string;
   }
 ) {
   await requireRole(["super_admin"]);
@@ -208,11 +209,20 @@ export async function updateUser(
   const submittedEmpId =
     typeof formData.employee_id === "string" ? formData.employee_id.trim() : "";
 
+  const nextPassword = formData.password?.trim() ?? "";
+  if (nextPassword && nextPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
+  const authPatch: { email?: string; email_confirm?: boolean; password?: string } = {};
   if (targetUser.email !== formData.email) {
-    const { error: authUpdateError } = await admin.auth.admin.updateUserById(userId, {
-      email: formData.email,
-      email_confirm: true,
-    });
+    authPatch.email = formData.email;
+    authPatch.email_confirm = true;
+  }
+  if (nextPassword) authPatch.password = nextPassword;
+
+  if (Object.keys(authPatch).length > 0) {
+    const { error: authUpdateError } = await admin.auth.admin.updateUserById(userId, authPatch);
     if (authUpdateError) throw new Error(authUpdateError.message);
   }
 

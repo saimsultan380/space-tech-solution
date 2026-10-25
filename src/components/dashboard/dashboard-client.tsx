@@ -12,6 +12,8 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import type { AppUser, Payslip } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
+import { StatsPeriodFilter } from "@/components/ui/stats-period-filter";
+import { periodLabel, type StatsPeriod } from "@/lib/stats-period";
 import {
   DollarSign,
   ShoppingCart,
@@ -60,6 +62,9 @@ interface DashboardClientProps {
   };
   companySettings?: CompanySettings;
   secondaryLoading?: boolean;
+  statsPeriod: StatsPeriod;
+  onStatsPeriodChange: (period: StatsPeriod) => void;
+  statsRefreshing?: boolean;
 }
 
 export function DashboardClient({
@@ -72,12 +77,16 @@ export function DashboardClient({
   attendanceSettings,
   companySettings,
   secondaryLoading = false,
+  statsPeriod,
+  onStatsPeriodChange,
+  statsRefreshing = false,
 }: DashboardClientProps) {
   const [showCharts, setShowCharts] = useState(true);
   const queryClient = useQueryClient();
   const { currency } = useCurrency();
   const revenueTrend = getRevenueTrend(revenueData);
   const conversionValue = Number(stats.conversionRate || 0);
+  const rangeLabel = periodLabel(statsPeriod);
 
   useEffect(() => {
     const supabase = createClient();
@@ -127,11 +136,27 @@ export function DashboardClient({
         </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-4">
+      <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Stats period</p>
+            <p className="text-xs text-muted-foreground">
+              Cards below show {rangeLabel}. Attendance today is unchanged.
+            </p>
+          </div>
+          <StatsPeriodFilter
+            allowAllTime
+            value={statsPeriod}
+            onChange={onStatsPeriodChange}
+          />
+        </div>
+      </div>
+
+      <div className={`grid gap-5 lg:grid-cols-4 ${statsRefreshing ? "opacity-60" : ""}`}>
         <MetricCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue, currency)}
-          description="From recorded sales (excl. rejected)"
+          description={`Recorded sales · ${rangeLabel}`}
           trend={revenueTrend}
           Icon={DollarSign}
           iconBgClass="bg-primary/10"
@@ -141,7 +166,7 @@ export function DashboardClient({
         <MetricCard
           title="Total Sales"
           value={stats.totalSales}
-          description={`${stats.rejectedSales} rejected`}
+          description={`${stats.rejectedSales} rejected · ${rangeLabel}`}
           trend={Math.round(((stats.totalSales - stats.rejectedSales) / Math.max(stats.totalSales, 1)) * 100)}
           Icon={ShoppingCart}
           iconBgClass="bg-success/10"
@@ -155,7 +180,7 @@ export function DashboardClient({
           Icon={Users}
           iconBgClass="bg-primary/10"
           iconTextClass="text-primary"
-          description="In your database"
+          description={`Created · ${rangeLabel}`}
           cardTintClass="from-violet-500/[0.12] to-blue-500/[0.06]"
         />
         <MetricCard
@@ -165,12 +190,12 @@ export function DashboardClient({
           Icon={TrendingUp}
           iconBgClass="bg-success/10"
           iconTextClass="text-success"
-          description={`${stats.approvedSales} recorded of ${stats.totalSales}`}
+          description={`${stats.approvedSales} recorded of ${stats.totalSales} · ${rangeLabel}`}
           cardTintClass="from-cyan-500/[0.12] to-sky-500/[0.06]"
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className={`grid gap-5 lg:grid-cols-2 ${statsRefreshing ? "opacity-60" : ""}`}>
         <MetricCard
           title="Open Chargebacks"
           value={stats.openChargebacks}
@@ -179,7 +204,7 @@ export function DashboardClient({
           iconBgClass="bg-destructive/10"
           iconTextClass="text-destructive"
           valueClassName="text-destructive"
-          description={`${stats.totalChargebacks} total chargebacks`}
+          description={`${stats.totalChargebacks} total · ${rangeLabel}`}
           cardTintClass="from-rose-500/[0.1] to-red-500/[0.05]"
         />
         <MetricCard
@@ -190,7 +215,7 @@ export function DashboardClient({
           iconBgClass="bg-warning/10"
           iconTextClass="text-warning"
           valueClassName="text-warning"
-          description={`${stats.todayOnLeave} employees on leave today`}
+          description={`${stats.todayOnLeave} on leave today · requests in ${rangeLabel}`}
           cardTintClass="from-amber-500/[0.12] to-yellow-500/[0.06]"
         />
       </div>

@@ -14,7 +14,7 @@ export interface SalesStats {
 }
 
 const SALE_LIST_SELECT =
-  "id, sale_type, subtype, status, amount, discount, charged_amount, company_name, customer_name, customer_email, customer_phone, created_at, agent_id, processor_id, account_holder_name, card_last_four, utility_company_service_number, policy_holder_name, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)";
+  "id, sale_type, subtype, status, amount, discount, charged_amount, company_name, customer_name, customer_email, customer_phone, sale_date, created_at, agent_id, processor_id, account_holder_name, card_last_four, utility_company_service_number, policy_holder_name, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)";
 
 function applySalesFilters(
   query: any,

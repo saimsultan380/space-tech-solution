@@ -55,6 +55,8 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
   const [loading, setLoading] = useState(false);
   const [assigningId, setAssigningId] = useState(false);
   const [error, setError] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [form, setForm] = useState({
     email: user.email,
     full_name: user.full_name,
@@ -101,7 +103,9 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
       bank_account_no: user.bank_account_no || "",
       bank_branch: user.bank_branch || "",
     });
-  }, [user]);
+    setPassword("");
+    setConfirmPassword("");
+  }, [user, open]);
 
   const roleModules = getSidebarModuleOptionsForRole(form.role);
 
@@ -111,6 +115,16 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
     setError("");
 
     try {
+      const nextPassword = password.trim();
+      if (nextPassword || confirmPassword.trim()) {
+        if (nextPassword.length < 8) {
+          throw new Error("Password must be at least 8 characters.");
+        }
+        if (nextPassword !== confirmPassword) {
+          throw new Error("Passwords do not match.");
+        }
+      }
+
       await updateUser(user.id, {
         email: form.email,
         full_name: form.full_name,
@@ -132,7 +146,10 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
         bank_name: form.paid_through === "Bank" ? form.bank_name || null : null,
         bank_account_no: form.paid_through === "Cash" ? null : form.bank_account_no || null,
         bank_branch: form.paid_through === "Cash" ? null : form.bank_branch || null,
+        password: nextPassword || undefined,
       });
+      setPassword("");
+      setConfirmPassword("");
       setOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update user");
@@ -231,6 +248,29 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
                   onChange={(e) => setForm((f) => ({ ...f, cnic: formatCnic(e.target.value) }))}
                 />
               </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  id="new_password"
+                  label="New password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Leave blank to keep current"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <Input
+                  id="confirm_password"
+                  label="Confirm password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Optional. Set both fields to change this user&apos;s login password. Minimum 8 characters.
+              </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   id="joining_date"

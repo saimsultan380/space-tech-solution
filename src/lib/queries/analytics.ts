@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Payslip, AttendanceSettings } from "@/lib/types";
 import type { CompanySettings } from "@/lib/actions/company-settings";
+import { periodRange, type StatsPeriod } from "@/lib/stats-period";
 
 export interface DashboardStats {
   totalSales: number;
@@ -54,11 +55,19 @@ export interface AttendanceRecord {
 }
 
 // ── Admin dashboard stats via RPC (single server-side aggregation) ──────────
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(
+  period: StatsPeriod = { mode: "all" },
+): Promise<DashboardStats> {
   const supabase = createClient();
+  const range = periodRange(period);
 
   try {
-    const { data, error } = await supabase.rpc("get_dashboard_analytics");
+    const { data, error } = range
+      ? await (supabase as any).rpc("get_dashboard_analytics_range", {
+          p_start: range.from,
+          p_end: range.to,
+        })
+      : await supabase.rpc("get_dashboard_analytics");
 
     if (error || !data || (data as any[]).length === 0) {
       return emptyDashboardStats();

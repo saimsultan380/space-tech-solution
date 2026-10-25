@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   DashboardClient,
@@ -26,6 +27,7 @@ import {
   type AgentDashboardStats,
   type AttendanceRecord,
 } from "@/lib/queries/analytics";
+import { currentMonthValue, type StatsPeriod } from "@/lib/stats-period";
 
 // Settings that rarely change — cache for 5 minutes on the client.
 const SETTINGS_STALE_MS = 5 * 60 * 1000;
@@ -91,10 +93,19 @@ export function DashboardWrapper({
 }
 
 function AdminDashboardWrapper({ user }: { user: AppUser }) {
-  const { data: stats = defaultStats, isLoading: statsLoading } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: getDashboardStats,
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>({
+    mode: "month",
+    month: currentMonthValue(),
+  });
+  const {
+    data: stats = defaultStats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+  } = useQuery({
+    queryKey: ["dashboard-stats", statsPeriod],
+    queryFn: () => getDashboardStats(statsPeriod),
     staleTime: STATS_STALE_MS,
+    placeholderData: (previous) => previous,
   });
 
   const { data: todayAttendance = null, isLoading: attendanceLoading } =
@@ -144,6 +155,9 @@ function AdminDashboardWrapper({ user }: { user: AppUser }) {
     <DashboardClient
       user={user}
       stats={stats}
+      statsPeriod={statsPeriod}
+      onStatsPeriodChange={setStatsPeriod}
+      statsRefreshing={statsFetching && !statsLoading}
       todayAttendance={todayAttendance}
       salesPerAgent={salesPerAgent}
       revenueData={revenueData}

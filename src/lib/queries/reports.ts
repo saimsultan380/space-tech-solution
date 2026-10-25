@@ -1,4 +1,13 @@
 import { createClient } from "@/lib/supabase/client";
+import { monthBounds } from "@/lib/stats-period";
+
+type DateRange = { from: string; to: string };
+
+function rangeFor(month?: string, range?: DateRange | null): DateRange | null {
+  if (range?.from && range?.to) return range;
+  if (month) return monthBounds(month);
+  return null;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -90,13 +99,19 @@ interface WeekSaleRow {
 
 // ─── Query Functions ─────────────────────────────────────────────────────────
 
-export async function getDashboardStats(month?: string) {
+export async function getDashboardStats(month?: string, range?: DateRange | null) {
   try {
     const supabase = createClient();
+    const bounds = rangeFor(month, range);
 
-    const { data, error } = await supabase.rpc("get_dashboard_analytics", {
-      month_filter: month || undefined,
-    });
+    const { data, error } = bounds
+      ? await (supabase as any).rpc("get_dashboard_analytics_range", {
+          p_start: bounds.from,
+          p_end: bounds.to,
+        })
+      : await supabase.rpc("get_dashboard_analytics", {
+          month_filter: month || undefined,
+        });
 
     if (error || !data || data.length === 0) {
       return {
@@ -157,12 +172,18 @@ export async function getDashboardStats(month?: string) {
   }
 }
 
-export async function getSalesPerAgent(month?: string) {
+export async function getSalesPerAgent(month?: string, range?: DateRange | null) {
   try {
     const supabase = createClient();
-    const { data, error } = await supabase.rpc("get_sales_per_agent_stats", {
-      target_month: (month || null) as any,
-    });
+    const bounds = rangeFor(month, range);
+    const { data, error } = bounds
+      ? await (supabase as any).rpc("get_sales_per_agent_stats_range", {
+          p_start: bounds.from,
+          p_end: bounds.to,
+        })
+      : await supabase.rpc("get_sales_per_agent_stats", {
+          target_month: (month || null) as any,
+        });
 
     if (error) {
       console.error("Error fetching sales per agent:", error);
@@ -181,15 +202,18 @@ export async function getSalesPerAgent(month?: string) {
   }
 }
 
-export async function getSalesPerProcessor(month?: string) {
+export async function getSalesPerProcessor(month?: string, range?: DateRange | null) {
   try {
     const supabase = createClient();
-    const { data, error } = await supabase.rpc(
-      "get_sales_per_processor_stats",
-      {
-        target_month: (month || null) as any,
-      },
-    );
+    const bounds = rangeFor(month, range);
+    const { data, error } = bounds
+      ? await (supabase as any).rpc("get_sales_per_processor_stats_range", {
+          p_start: bounds.from,
+          p_end: bounds.to,
+        })
+      : await supabase.rpc("get_sales_per_processor_stats", {
+          target_month: (month || null) as any,
+        });
 
     if (error) {
       console.error("Error fetching sales per processor:", error);
@@ -210,12 +234,19 @@ export async function getSalesPerProcessor(month?: string) {
 
 export async function getRevenueOverTime(
   period: "day" | "week" | "month" = "day",
+  range?: DateRange | null,
 ) {
   try {
     const supabase = createClient();
-    const { data, error } = await supabase.rpc("get_revenue_over_time", {
-      period_type: period,
-    });
+    const { data, error } = range
+      ? await (supabase as any).rpc("get_revenue_over_time", {
+          period_type: period,
+          p_start: range.from,
+          p_end: range.to,
+        })
+      : await supabase.rpc("get_revenue_over_time", {
+          period_type: period,
+        });
 
     if (error || !data) return [];
 
@@ -229,15 +260,18 @@ export async function getRevenueOverTime(
   }
 }
 
-export async function getChargebacksPerEmployee(month?: string) {
+export async function getChargebacksPerEmployee(month?: string, range?: DateRange | null) {
   try {
     const supabase = createClient();
-    const { data, error } = await supabase.rpc(
-      "get_chargebacks_per_employee_stats",
-      {
-        target_month: (month || null) as any,
-      },
-    );
+    const bounds = rangeFor(month, range);
+    const { data, error } = bounds
+      ? await (supabase as any).rpc("get_chargebacks_per_employee_stats_range", {
+          p_start: bounds.from,
+          p_end: bounds.to,
+        })
+      : await supabase.rpc("get_chargebacks_per_employee_stats", {
+          target_month: (month || null) as any,
+        });
 
     if (error) {
       console.error("Error fetching chargebacks per employee:", error);
@@ -254,16 +288,20 @@ export async function getChargebacksPerEmployee(month?: string) {
   }
 }
 
-export async function getAttendanceVsPerformance(month?: string) {
+export async function getAttendanceVsPerformance(month?: string, range?: DateRange | null) {
   try {
     const supabase = createClient();
     const targetMonth = month || new Date().toISOString().substring(0, 7);
+    const bounds = rangeFor(targetMonth, range);
 
-    // Single DB-level aggregation via RPC — replaces 2 wide browser queries
-    const { data, error } = await (supabase as any).rpc(
-      "get_attendance_vs_performance",
-      { p_month: targetMonth },
-    );
+    const { data, error } = bounds
+      ? await (supabase as any).rpc("get_attendance_vs_performance_range", {
+          p_start: bounds.from,
+          p_end: bounds.to,
+        })
+      : await (supabase as any).rpc("get_attendance_vs_performance", {
+          p_month: targetMonth,
+        });
 
     if (error) {
       console.error("get_attendance_vs_performance RPC error:", error);
@@ -281,17 +319,20 @@ export async function getAttendanceVsPerformance(month?: string) {
   }
 }
 
-export async function getEmployeeMonthlyStats(month?: string) {
+export async function getEmployeeMonthlyStats(month?: string, range?: DateRange | null) {
   try {
     const supabase = createClient();
     const targetMonth = month || new Date().toISOString().substring(0, 7);
+    const bounds = rangeFor(targetMonth, range);
 
-    // Single DB-level aggregation via RPC — replaces 5 separate browser queries
-    // and eliminates O(users × rows) in-memory JS aggregation
-    const { data, error } = await (supabase as any).rpc(
-      "get_employee_monthly_stats",
-      { p_month: targetMonth },
-    );
+    const { data, error } = bounds
+      ? await (supabase as any).rpc("get_employee_monthly_stats_range", {
+          p_start: bounds.from,
+          p_end: bounds.to,
+        })
+      : await (supabase as any).rpc("get_employee_monthly_stats", {
+          p_month: targetMonth,
+        });
 
     if (error) {
       console.error("get_employee_monthly_stats RPC error:", error);

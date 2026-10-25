@@ -78,6 +78,13 @@ import {
   Building2,
 } from "@/components/ui/icons";
 import { useCurrency } from "@/components/providers/currency-provider";
+import { StatsPeriodFilter } from "@/components/ui/stats-period-filter";
+import {
+  customRangeError,
+  periodLabel,
+  periodRange,
+  type StatsPeriod,
+} from "@/lib/stats-period";
 
 interface EmployeeStat {
   id: string;
@@ -111,9 +118,18 @@ function StatCardSkeleton() {
 
 interface ReportsClientProps {
   month: string;
+  from?: string;
+  to?: string;
 }
 
-export function ReportsClient({ month }: ReportsClientProps) {
+function periodFromProps(month: string, from?: string, to?: string): StatsPeriod {
+  if (from && to && !customRangeError(from, to)) {
+    return { mode: "custom", from, to };
+  }
+  return { mode: "month", month };
+}
+
+export function ReportsClient({ month, from, to }: ReportsClientProps) {
   const [revenuePeriod, setRevenuePeriod] = useState<
     "daily" | "weekly" | "monthly"
   >("daily");
@@ -123,14 +139,16 @@ export function ReportsClient({ month }: ReportsClientProps) {
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const [selectedMonth, setSelectedMonth] = useState(month);
+  const [period, setPeriod] = useState<StatsPeriod>(() => periodFromProps(month, from, to));
   const [empSearch, setEmpSearch] = useState("");
   const [empRoleFilter, setEmpRoleFilter] = useState("all");
+  const range = periodRange(period);
+  const rangeKey = range ? `${range.from}:${range.to}` : month;
+  const activeLabel = periodLabel(period);
 
-  // Sync when the parent page changes the month prop (e.g. browser back/forward)
   useEffect(() => {
-    setSelectedMonth(month);
-  }, [month]);
+    setPeriod(periodFromProps(month, from, to));
+  }, [month, from, to]);
 
   // React Query hooks for fetching data
   const {
@@ -151,8 +169,8 @@ export function ReportsClient({ month }: ReportsClientProps) {
     },
     isLoading: statsLoading,
   } = useQuery({
-    queryKey: ["reports-stats", selectedMonth],
-    queryFn: () => getDashboardStats(selectedMonth),
+    queryKey: ["reports-stats", rangeKey],
+    queryFn: () => getDashboardStats(period.mode === "month" ? period.month : undefined, range),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
@@ -161,8 +179,8 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: salesPerAgent = [], isLoading: salesPerAgentLoading } =
     useQuery({
-      queryKey: ["reports-sales-per-agent", selectedMonth],
-      queryFn: () => getSalesPerAgent(selectedMonth),
+      queryKey: ["reports-sales-per-agent", rangeKey],
+      queryFn: () => getSalesPerAgent(period.mode === "month" ? period.month : undefined, range),
       staleTime: 60_000,
       enabled: chartsEnabled,
       placeholderData: (prev) => prev,
@@ -170,8 +188,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: salesPerProcessor = [], isLoading: salesPerProcessorLoading } =
     useQuery({
-      queryKey: ["reports-sales-per-processor", selectedMonth],
-      queryFn: () => getSalesPerProcessor(selectedMonth),
+      queryKey: ["reports-sales-per-processor", rangeKey],
+      queryFn: () =>
+        getSalesPerProcessor(period.mode === "month" ? period.month : undefined, range),
       staleTime: 60_000,
       enabled: chartsEnabled,
       placeholderData: (prev) => prev,
@@ -179,8 +198,8 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   // Only fetch the active revenue period — the other two load lazily when selected.
   const { data: revenueDaily = [], isLoading: revenueLoadingDaily } = useQuery({
-    queryKey: ["reports-revenue", "daily"],
-    queryFn: () => getRevenueOverTime("day"),
+    queryKey: ["reports-revenue", "daily", rangeKey],
+    queryFn: () => getRevenueOverTime("day", range),
     staleTime: 60_000,
     enabled: chartsEnabled && revenuePeriod === "daily",
     placeholderData: (prev) => prev,
@@ -188,8 +207,8 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: revenueWeekly = [], isLoading: revenueLoadingWeekly } =
     useQuery({
-      queryKey: ["reports-revenue", "weekly"],
-      queryFn: () => getRevenueOverTime("week"),
+      queryKey: ["reports-revenue", "weekly", rangeKey],
+      queryFn: () => getRevenueOverTime("week", range),
       staleTime: 60_000,
       enabled: chartsEnabled && revenuePeriod === "weekly",
       placeholderData: (prev) => prev,
@@ -197,8 +216,8 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: revenueMonthly = [], isLoading: revenueLoadingMonthly } =
     useQuery({
-      queryKey: ["reports-revenue", "monthly"],
-      queryFn: () => getRevenueOverTime("month"),
+      queryKey: ["reports-revenue", "monthly", rangeKey],
+      queryFn: () => getRevenueOverTime("month", range),
       staleTime: 60_000,
       enabled: chartsEnabled && revenuePeriod === "monthly",
       placeholderData: (prev) => prev,
@@ -206,8 +225,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: chargebacksPerEmployee = [], isLoading: chargebacksLoading } =
     useQuery({
-      queryKey: ["reports-chargebacks", selectedMonth],
-      queryFn: () => getChargebacksPerEmployee(selectedMonth),
+      queryKey: ["reports-chargebacks", rangeKey],
+      queryFn: () =>
+        getChargebacksPerEmployee(period.mode === "month" ? period.month : undefined, range),
       staleTime: 60_000,
       enabled: chartsEnabled,
       placeholderData: (prev) => prev,
@@ -215,8 +235,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: attendanceVsPerformance = [], isLoading: attendanceLoading } =
     useQuery({
-      queryKey: ["reports-attendance", selectedMonth],
-      queryFn: () => getAttendanceVsPerformance(selectedMonth),
+      queryKey: ["reports-attendance", rangeKey],
+      queryFn: () =>
+        getAttendanceVsPerformance(period.mode === "month" ? period.month : undefined, range),
       staleTime: 60_000,
       enabled: chartsEnabled,
       placeholderData: (prev) => prev,
@@ -224,8 +245,9 @@ export function ReportsClient({ month }: ReportsClientProps) {
 
   const { data: employeeMonthlyStats = [], isLoading: employeeStatsLoading } =
     useQuery({
-      queryKey: ["reports-employee-stats", selectedMonth],
-      queryFn: () => getEmployeeMonthlyStats(selectedMonth),
+      queryKey: ["reports-employee-stats", rangeKey],
+      queryFn: () =>
+        getEmployeeMonthlyStats(period.mode === "month" ? period.month : undefined, range),
       staleTime: 60_000,
       enabled: chartsEnabled,
       placeholderData: (prev) => prev,
@@ -279,27 +301,15 @@ export function ReportsClient({ month }: ReportsClientProps) {
     });
   };
 
-  const monthOptions = useMemo(() => {
-    const options: { value: string; label: string }[] = [];
-    const current = new Date();
-
-    for (let i = 0; i < 6; i += 1) {
-      const d = new Date(current);
-      d.setMonth(current.getMonth() - i);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString(undefined, {
-        month: "short",
-        year: "numeric",
-      });
-      options.push({ value, label });
+  const handlePeriodChange = (next: StatsPeriod) => {
+    setPeriod(next);
+    if (next.mode === "month") {
+      updateFilters({ month: next.month, from: "", to: "", emp_page: 1 });
+      return;
     }
-
-    return options;
-  }, []);
-
-  const handleMonthChange = (value: string) => {
-    setSelectedMonth(value);
-    updateFilters({ month: value, emp_page: 1 });
+    if (next.mode === "custom") {
+      updateFilters({ month: "", from: next.from, to: next.to, emp_page: 1 });
+    }
   };
 
   const topPerformer = [...filteredEmployees]
@@ -324,9 +334,6 @@ export function ReportsClient({ month }: ReportsClientProps) {
     [employeeMonthlyStats, currency],
   );
 
-  const selectedMonthLabel =
-    monthOptions.find((m) => m.value === selectedMonth)?.label ?? selectedMonth;
-
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -336,17 +343,11 @@ export function ReportsClient({ month }: ReportsClientProps) {
       </div>
 
       {/* ── Global filter bar ───────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-        <Select
-          options={monthOptions}
-          value={selectedMonth}
-          onChange={(e) => handleMonthChange(e.target.value)}
-          className="h-9 w-auto min-w-[9rem] sm:h-10"
-          containerClassName="space-y-0"
-          aria-label="Select month"
-        />
-        <span className="hidden text-xs text-muted-foreground sm:block">
-          Showing data for <strong>{selectedMonthLabel}</strong>
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <StatsPeriodFilter value={period} onChange={handlePeriodChange} />
+        <span className="text-xs text-muted-foreground">
+          Showing data for <strong>{activeLabel}</strong>
+          {isPending ? " · updating…" : ""}
         </span>
       </div>
 
@@ -359,14 +360,14 @@ export function ReportsClient({ month }: ReportsClientProps) {
             <StatCard
               title="Total Revenue"
               value={formatCurrency(stats.totalRevenue, currency)}
-              description={`Approved sales · ${selectedMonthLabel}`}
+              description={`Approved sales · ${activeLabel}`}
               icon={<DollarSign className="h-4 w-4" />}
               colorClass="bg-blue-500"
             />
             <StatCard
               title="Total Sales"
               value={stats.totalSales}
-              description={`All statuses · ${selectedMonthLabel}`}
+              description={`All statuses · ${activeLabel}`}
               icon={<ShoppingCart className="h-4 w-4" />}
               colorClass="bg-emerald-500"
             />
@@ -394,7 +395,7 @@ export function ReportsClient({ month }: ReportsClientProps) {
             <StatCard
               title="Call Log Responses"
               value={stats.totalCallLogs}
-              description={`Customer leads · ${selectedMonthLabel}`}
+              description={`Customer leads · ${activeLabel}`}
               icon={<MessageSquare className="h-4 w-4" />}
               colorClass="bg-sky-500"
             />
@@ -424,7 +425,7 @@ export function ReportsClient({ month }: ReportsClientProps) {
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Employee Monthly Performance
-                <span className="text-sm font-normal text-muted-foreground">— {selectedMonthLabel}</span>
+                <span className="text-sm font-normal text-muted-foreground">— {activeLabel}</span>
               </CardTitle>
               <div className="flex flex-wrap items-center gap-2">
                 {topPerformer && (
@@ -433,7 +434,7 @@ export function ReportsClient({ month }: ReportsClientProps) {
                   </Badge>
                 )}
                 <TableDataExport
-                  filenameBase={`employee-performance-${selectedMonth}`}
+                  filenameBase={`employee-performance-${rangeKey}`}
                   headers={["Employee", "Role", "Total Sales", "Recorded", "Rejected", "Revenue", "Days Present", "Hours Worked", "Call Log Responses", "Chargebacks", "CB Ratio"]}
                   rows={employeePerformanceExportRows}
                   disabled={filteredEmployees.length === 0}
@@ -562,7 +563,7 @@ export function ReportsClient({ month }: ReportsClientProps) {
       <div className="flex items-center gap-2">
         <BarChart3 className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-bold">Visual Analytics</h2>
-        <span className="text-sm text-muted-foreground">— {selectedMonthLabel}</span>
+        <span className="text-sm text-muted-foreground">— {activeLabel}</span>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
