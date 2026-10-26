@@ -4,6 +4,7 @@ import { getDecryptedBankSecrets, getDecryptedCardSecrets } from "@/lib/payment-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { sanitizeRichText } from "@/lib/rich-text";
 import { NotesSection } from "@/components/shared/notes-section";
 import { decrypt } from "@/lib/encryption";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
@@ -150,15 +151,28 @@ export default async function SaleDetailPage(props: {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-left">
-          <div className="max-w-2xl space-y-3">
-            <SummaryRow label="Customer" value={dash(sale.customer_name || customer?.name)} />
-            <SummaryRow label="Email" value={dash(sale.customer_email || customer?.email)} />
-            <SummaryRow label="Company" value={dash(sale.company_name)} />
-            <SummaryRow label="Type" value={`${sale.sale_type} / ${sale.subtype}`} />
-            <SummaryRow label="Charged amount" value={formatCurrency(sale.charged_amount, currency)} />
-            <SummaryRow label="Agent Name" value={agentName} />
-            <SummaryRow label="Recorded on" value={formatDateKarachi(sale.created_at)} />
-            <SummaryRow label="Sale ID" value={sale.id} />
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
+            <div className="space-y-3">
+              <SummaryRow label="Customer" value={dash(sale.customer_name || customer?.name)} />
+              <SummaryRow label="Email" value={dash(sale.customer_email || customer?.email)} />
+              <SummaryRow label="Company" value={dash(sale.company_name)} />
+              <SummaryRow label="Type" value={`${sale.sale_type} / ${sale.subtype}`} />
+              <SummaryRow label="Charged amount" value={formatCurrency(sale.charged_amount, currency)} />
+              <SummaryRow label="Agent Name" value={agentName} />
+              <SummaryRow label="Recorded on" value={formatDateKarachi(sale.created_at)} />
+              <SummaryRow label="Sale ID" value={sale.id} />
+            </div>
+            <div className="min-h-[220px] rounded-xl border border-border bg-background p-4">
+              <p className="text-sm font-semibold text-foreground">Other Sale Data</p>
+              {sale.other_sale_data?.trim() ? (
+                <div
+                  className="mt-3 space-y-2 text-sm leading-relaxed text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(sale.other_sale_data) }}
+                />
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">No additional sale details yet.</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

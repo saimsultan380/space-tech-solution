@@ -1180,6 +1180,7 @@ export function ProcessingAccountsClient({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Date</TableHead>
                     <TableHead>Account Holder Name</TableHead>
                     <TableHead className="min-w-[90px]">Type</TableHead>
                     <TableHead className="min-w-[160px]">
@@ -1191,7 +1192,6 @@ export function ProcessingAccountsClient({
                     <TableHead className="min-w-[60px]">CVV</TableHead>
                     <TableHead>Billing Address</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1199,6 +1199,9 @@ export function ProcessingAccountsClient({
                   {initialAccounts.map((account) => {
                     return (
                       <TableRow key={account.id}>
+                        <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDate(String(account.created_at || ""))}
+                        </TableCell>
                         <TableCell className="align-middle">
                           <span className="font-medium leading-none">
                             {account.account_holder_name?.trim() || "—"}
@@ -1257,9 +1260,6 @@ export function ProcessingAccountsClient({
                               });
                             }}
                           />
-                        </TableCell>
-                        <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDate(String(account.created_at || ""))}
                         </TableCell>
                         <TableCell className="align-middle text-right">
                           <div className="flex items-center justify-end gap-1.5">

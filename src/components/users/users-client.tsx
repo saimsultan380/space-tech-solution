@@ -141,17 +141,18 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Joined</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Employee ID</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
                     <TableRow key={user.id}>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(user.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground">{user.full_name}</span>
@@ -196,7 +197,6 @@ export function UsersClient({ usersResponse }: UsersClientProps) {
                           </span>
                         </button>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(user.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <EditUserDialog user={user} />

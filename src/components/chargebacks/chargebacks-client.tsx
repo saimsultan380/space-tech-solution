@@ -606,12 +606,12 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
               <Table className="min-w-[1100px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="whitespace-nowrap">Sale Date</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead className="min-w-[180px]">Company</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Agent</TableHead>
-                  <TableHead className="whitespace-nowrap">Sale Date</TableHead>
                   <TableHead>Assigned to</TableHead>
                   <TableHead className="whitespace-nowrap">Chargeback Date</TableHead>
                   <TableHead>Reason</TableHead>
@@ -623,6 +623,9 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
               <TableBody>
                 {chargebacks.map((cb) => (
                   <TableRow key={cb.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {cb.sale?.created_at ? formatDate(cb.sale.created_at) : "N/A"}
+                    </TableCell>
                     <TableCell className="font-medium">
                       {cb.sale?.id ? (
                         <div className="flex flex-col">
@@ -648,9 +651,6 @@ export function ChargebacksClient({ chargebacksResponse, userRole, assignees }: 
                       {cb.sale?.charged_amount != null ? formatCurrency(Number(cb.sale.charged_amount), currency) : "N/A"}
                     </TableCell>
                     <TableCell>{cb.sale?.agent?.full_name || "N/A"}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {cb.sale?.created_at ? formatDate(cb.sale.created_at) : "N/A"}
-                    </TableCell>
                     <TableCell>{cb.assignee?.full_name || "—"}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatDate(cb.date)}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{cb.reason}</TableCell>

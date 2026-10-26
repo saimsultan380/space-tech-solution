@@ -96,17 +96,18 @@ export function PaymentsClient({ payments, userRole, page, totalPages, totalCoun
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Sale</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {payments.map((payment) => (
                   <TableRow key={payment.id}>
+                    <TableCell className="whitespace-nowrap">{formatDate(payment.created_at)}</TableCell>
                     <TableCell className="font-medium">
                       {payment.customer?.name || "N/A"}
                     </TableCell>
@@ -129,7 +130,6 @@ export function PaymentsClient({ payments, userRole, page, totalPages, totalCoun
                     <TableCell className="font-medium">
                       {formatCurrency(payment.amount, currency)}
                     </TableCell>
-                    <TableCell>{formatDate(payment.created_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

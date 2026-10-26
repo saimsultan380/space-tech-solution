@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Spinner } from "@/components/ui/loading";
 import { createSale, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
@@ -660,12 +661,12 @@ export function SaleForm({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
+          <RichTextEditor
             id="other_sale_data"
             label="Other Sale Data"
             placeholder="Any additional information regarding this sale..."
             value={form.other_sale_data}
-            onChange={(e) => set("other_sale_data", e.target.value)}
+            onChange={(value) => set("other_sale_data", value)}
           />
           <Textarea
             id="sales_notes"

@@ -19,7 +19,6 @@ import { Pagination } from "@/components/ui/pagination";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
-import { formatDate } from "@/lib/utils";
 import { dismissProcessorCallLogsDashboardCta } from "@/lib/nav-access";
 import type { UserRole } from "@/lib/types";
 import {
@@ -225,13 +224,8 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   const visibleCustomers = customers;
 
   const exportRows = visibleCustomers.map((c) => [
-    c.name,
-    c.email,
-    c.phone,
-    c.dob ? formatDate(c.dob) : "-",
+    c.phone || "-",
     c.recent_note || "-",
-    c.created_by_user?.full_name || "-",
-    formatDate(c.created_at),
   ]);
 
   const stats = useMemo(() => {
@@ -340,13 +334,8 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
               <div className="min-w-full">
                 <div className="flex items-center gap-4 border-b border-border pb-3 mb-3">
                   {[
-                    "Name",
-                    "Email",
                     "Phone",
-                    "DOB",
-                    "Recent Note",
-                    "Agent",
-                    "Created",
+                    "Response",
                     "Actions",
                   ].map((header, i) => (
                     <div
@@ -364,11 +353,6 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                   >
                     <div className="h-5 w-32 animate-pulse rounded bg-muted/70" />
                     <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
-                    <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
-                    <div className="h-5 w-24 animate-pulse rounded bg-muted/60" />
-                    <div className="h-5 w-40 animate-pulse rounded bg-muted/50" />
-                    <div className="h-5 w-28 animate-pulse rounded bg-muted/60" />
-                    <div className="h-5 w-24 animate-pulse rounded bg-muted/60" />
                     <div className="flex items-center justify-end gap-2">
                       <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
                       <div className="h-8 w-8 animate-pulse rounded-md bg-muted/70" />
@@ -450,15 +434,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
           </Button>
           <TableDataExport
             filenameBase="call-logs-responses"
-            headers={[
-              "Name",
-              "Email",
-              "Phone",
-              "DOB",
-              "Recent Note",
-              "Agent Name",
-              "Created",
-            ]}
+            headers={["Phone", "Response"]}
             rows={exportRows}
             disabled={visibleCustomers.length === 0}
             className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:flex-1 sm:[&_button]:flex-initial sm:[&_button]:min-h-9"
@@ -727,13 +703,8 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>DOB</TableHead>
-                    <TableHead>Recent Note</TableHead>
-                    <TableHead>Agent Name</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>Response</TableHead>
                     {canManageCallLogs && (
                       <TableHead className="text-right">Actions</TableHead>
                     )}
@@ -747,18 +718,13 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                           href={`/dashboard/call-logs-responses/${customer.id}`}
                           className="font-medium hover:underline"
                         >
-                          {customer.name}
+                          {customer.phone || "-"}
                         </Link>
-                      </TableCell>
-                      <TableCell>{customer.email}</TableCell>
-                      <TableCell>{customer.phone}</TableCell>
-                      <TableCell>
-                        {customer.dob ? formatDate(customer.dob) : "-"}
                       </TableCell>
                       <TableCell>
                         {customer.recent_note ? (
                           <span
-                            className="block max-w-[340px] truncate text-sm text-muted-foreground"
+                            className="block max-w-[480px] truncate text-sm text-muted-foreground"
                             title={customer.recent_note}
                           >
                             {customer.recent_note}
@@ -769,10 +735,6 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {customer.created_by_user?.full_name || "-"}
-                      </TableCell>
-                      <TableCell>{formatDate(customer.created_at)}</TableCell>
                       {canManageCallLogs && (
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">

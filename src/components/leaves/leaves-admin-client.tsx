@@ -248,9 +248,9 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Dates</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Dates</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Reason</TableHead>
@@ -262,6 +262,12 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
               <TableBody>
                 {filtered.map((leave) => (
                   <TableRow key={leave.id}>
+                    <TableCell className="whitespace-nowrap">
+                      {formatDate(leave.start_date)}
+                      {leave.end_date && leave.end_date !== leave.start_date
+                        ? ` - ${formatDate(leave.end_date)}`
+                        : ""}
+                    </TableCell>
                     <TableCell className="font-medium">
                       {leave.user?.full_name || "Unknown"}
                     </TableCell>
@@ -269,12 +275,6 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
                       <Badge variant="secondary">
                         {ROLE_LABELS[leave.user?.role || ""] || leave.user?.role || "N/A"}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(leave.start_date)}
-                      {leave.end_date && leave.end_date !== leave.start_date
-                        ? ` - ${formatDate(leave.end_date)}`
-                        : ""}
                     </TableCell>
                     <TableCell className="capitalize">{leave.type || "N/A"}</TableCell>
                     <TableCell>

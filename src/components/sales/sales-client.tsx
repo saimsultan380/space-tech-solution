@@ -704,12 +704,12 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
+                    <TableHead className="min-w-[180px]">Date</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Agent Name</TableHead>
-                    <TableHead className="min-w-[180px]">Date</TableHead>
                     <TableHead className="w-[100px]">Customer</TableHead>
                     <TableHead className="w-[120px] text-right">
                       Actions
@@ -719,6 +719,19 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                 <TableBody>
                   {sales.map((sale) => (
                     <TableRow key={sale.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                            Sale:{" "}
+                            {sale.sale_date
+                              ? formatDateKarachi(sale.sale_date)
+                              : "N/A"}
+                          </span>
+                          <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
+                            Recorded: {formatDateKarachi(sale.created_at)}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <Link
@@ -758,19 +771,6 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                               className="h-7 w-7 text-muted-foreground hover:text-primary"
                             />
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
-                            Sale:{" "}
-                            {sale.sale_date
-                              ? formatDateKarachi(sale.sale_date)
-                              : "N/A"}
-                          </span>
-                          <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
-                            Recorded: {formatDateKarachi(sale.created_at)}
-                          </span>
                         </div>
                       </TableCell>
                       <TableCell>

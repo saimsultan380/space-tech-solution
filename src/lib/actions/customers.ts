@@ -240,7 +240,7 @@ export async function createCustomer(formData: {
 
   await notifySuperAdmins({
     title: "New Call Log Response",
-    body: `${user.full_name} added a new call log response for ${formData.name}`,
+    body: `${user.full_name} added a new call log response for ${formData.phone || formData.name}`,
     type: "customer",
   });
 

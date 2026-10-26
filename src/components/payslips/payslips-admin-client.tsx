@@ -353,9 +353,9 @@ export function PayslipsAdminClient({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Period</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Emp ID</TableHead>
-                  <TableHead>Period</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">PDF</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -364,12 +364,6 @@ export function PayslipsAdminClient({
               <TableBody>
                 {payslips.map((payslip) => (
                   <TableRow key={payslip.id}>
-                    <TableCell className="font-medium">
-                      {payslip.user?.full_name || "N/A"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {payslip.employee_id_display || "-"}
-                    </TableCell>
                     <TableCell>
                       <p className="text-xs font-medium text-foreground">
                         {formatDate(payslip.period_start)} –{" "}
@@ -378,6 +372,12 @@ export function PayslipsAdminClient({
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {new Date(payslip.period_start).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                       </p>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {payslip.user?.full_name || "N/A"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {payslip.employee_id_display || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge
