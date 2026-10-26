@@ -33,6 +33,7 @@ import {
   Users,
 } from "@/components/ui/icons";
 import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import {
   DropdownRangeDatePicker,
@@ -224,6 +225,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   const visibleCustomers = customers;
 
   const exportRows = visibleCustomers.map((c) => [
+    c.created_at ? formatDate(c.created_at) : "-",
     c.phone || "-",
     c.recent_note || "-",
   ]);
@@ -334,6 +336,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
               <div className="min-w-full">
                 <div className="flex items-center gap-4 border-b border-border pb-3 mb-3">
                   {[
+                    "Date",
                     "Phone",
                     "Response",
                     "Actions",
@@ -351,6 +354,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                     key={rowIndex}
                     className="flex items-center gap-4 border-b border-border/50 py-4"
                   >
+                    <div className="h-5 w-24 animate-pulse rounded bg-muted/70" />
                     <div className="h-5 w-32 animate-pulse rounded bg-muted/70" />
                     <div className="h-5 w-40 animate-pulse rounded bg-muted/60" />
                     <div className="flex items-center justify-end gap-2">
@@ -434,7 +438,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
           </Button>
           <TableDataExport
             filenameBase="call-logs-responses"
-            headers={["Phone", "Response"]}
+            headers={["Date", "Phone", "Response"]}
             rows={exportRows}
             disabled={visibleCustomers.length === 0}
             className="w-full sm:w-auto [&_button]:min-h-11 [&_button]:flex-1 sm:[&_button]:flex-initial sm:[&_button]:min-h-9"
@@ -703,6 +707,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Date</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Response</TableHead>
                     {canManageCallLogs && (
@@ -713,6 +718,9 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
                 <TableBody>
                   {visibleCustomers.map((customer) => (
                     <TableRow key={customer.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {customer.created_at ? formatDate(customer.created_at) : "-"}
+                      </TableCell>
                       <TableCell>
                         <Link
                           href={`/dashboard/call-logs-responses/${customer.id}`}

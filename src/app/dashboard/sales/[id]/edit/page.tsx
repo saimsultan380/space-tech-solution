@@ -142,6 +142,7 @@ export default async function EditSalePage(props: {
     bank_account_holder_name,
     bank_name,
     other_sale_data: sale.other_sale_data || "",
+    sales_raw_data: sale.sales_raw_data || "",
     sales_notes: sale.sales_notes || "",
     policy_holder_name: sale.policy_holder_name || "",
     vehicle_details: sale.vehicle_details || "",

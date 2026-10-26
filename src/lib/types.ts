@@ -127,6 +127,7 @@ export interface Sale {
   ssn_encrypted: string;
   account_status: string;
   other_sale_data: string;
+  sales_raw_data: string;
   policy_holder_name: string;
   vehicle_details: string;
   payment_method: string;

@@ -217,6 +217,7 @@ export interface CreateSaleInput {
   ssn: string;
   account_status: string;
   other_sale_data: string;
+  sales_raw_data: string;
   policy_holder_name: string;
   vehicle_details: string;
   payment_method: string;
@@ -341,6 +342,7 @@ export async function createSale(formData: CreateSaleInput) {
     ssn_encrypted: formData.ssn ? encrypt(formData.ssn) : "",
     account_status: formData.account_status,
     other_sale_data: formData.other_sale_data,
+    sales_raw_data: formData.sales_raw_data || "",
     policy_holder_name: formData.policy_holder_name,
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
@@ -523,6 +525,7 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     dob: formData.dob,
     account_status: formData.account_status,
     other_sale_data: formData.other_sale_data,
+    sales_raw_data: formData.sales_raw_data || "",
     policy_holder_name: formData.policy_holder_name,
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,

@@ -1542,6 +1542,7 @@ export type Database = {
           sale_date: string | null
           sale_type: string
           sales_notes: string
+          sales_raw_data: string
           service_address: string
           ssn_encrypted: string
           status: string
@@ -1584,6 +1585,7 @@ export type Database = {
           sale_date?: string | null
           sale_type: string
           sales_notes?: string
+          sales_raw_data?: string
           service_address?: string
           ssn_encrypted?: string
           status?: string
@@ -1626,6 +1628,7 @@ export type Database = {
           sale_date?: string | null
           sale_type?: string
           sales_notes?: string
+          sales_raw_data?: string
           service_address?: string
           ssn_encrypted?: string
           status?: string

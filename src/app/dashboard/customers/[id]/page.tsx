@@ -6,7 +6,6 @@ import { getNotes } from "@/lib/actions/notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { formatDate } from "@/lib/utils";
-import { decrypt } from "@/lib/encryption";
 import { NotesSection } from "@/components/shared/notes-section";
 import Link from "next/link";
 import { ArrowLeft } from "@/components/ui/icons";
@@ -36,6 +35,7 @@ export default async function CustomerDetailPage(props: {
       role: n.user.role,
     } : null,
   }));
+  const latestResponse = formattedNotes[0]?.content?.trim() || "";
 
   return (
     <div className="space-y-6">
@@ -46,37 +46,26 @@ export default async function CustomerDetailPage(props: {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">{customer.name}</h1>
+          <h1 className="text-3xl font-bold">{customer.phone || "Call Log Response"}</h1>
           <p className="text-muted-foreground">Call Log Response Details</p>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <InfoRow label="Email" value={customer.email || "N/A"} />
-            <InfoRow label="Phone" value={customer.phone || "N/A"} />
-            <InfoRow label="Address" value={customer.address || "N/A"} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Personal Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <InfoRow
-              label="Date of Birth"
-              value={customer.dob ? formatDate(customer.dob) : "N/A"}
-            />
-            <InfoRow label="SSN" value={customer.ssn_encrypted ? decrypt(customer.ssn_encrypted) || "N/A" : "N/A"} />
-            <InfoRow label="Created" value={formatDate(customer.created_at)} />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Call Log Response</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <InfoRow label="Date" value={customer.created_at ? formatDate(customer.created_at) : "N/A"} />
+          <InfoRow label="Phone" value={customer.phone || "N/A"} />
+          <div className="space-y-1">
+            <span className="text-sm text-muted-foreground">Response</span>
+            <p className="text-sm font-medium whitespace-pre-wrap">
+              {latestResponse || "N/A"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <NotesSection notes={formattedNotes} customerId={params.id} />
     </div>
@@ -85,7 +74,7 @@ export default async function CustomerDetailPage(props: {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
+    <div className="flex justify-between gap-4">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-medium">{value}</span>
     </div>

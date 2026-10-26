@@ -84,6 +84,7 @@ const emptyForm = {
   bank_account_holder_name: "",
   bank_name: "",
   other_sale_data: "",
+  sales_raw_data: "",
   sales_notes: "",
   policy_holder_name: "",
   vehicle_details: "",
@@ -661,12 +662,19 @@ export function SaleForm({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <RichTextEditor
+          <Textarea
             id="other_sale_data"
             label="Other Sale Data"
             placeholder="Any additional information regarding this sale..."
             value={form.other_sale_data}
-            onChange={(value) => set("other_sale_data", value)}
+            onChange={(e) => set("other_sale_data", e.target.value)}
+          />
+          <RichTextEditor
+            id="sales_raw_data"
+            label="Sales raw data"
+            placeholder="Write the full sale details here..."
+            value={form.sales_raw_data}
+            onChange={(value) => set("sales_raw_data", value)}
           />
           <Textarea
             id="sales_notes"

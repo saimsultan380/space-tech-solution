@@ -163,14 +163,14 @@ export default async function SaleDetailPage(props: {
               <SummaryRow label="Sale ID" value={sale.id} />
             </div>
             <div className="min-h-[220px] rounded-xl border border-border bg-background p-4">
-              <p className="text-sm font-semibold text-foreground">Other Sale Data</p>
-              {sale.other_sale_data?.trim() ? (
+              <p className="text-sm font-semibold text-foreground">Sales raw data</p>
+              {sale.sales_raw_data?.trim() ? (
                 <div
                   className="mt-3 space-y-2 text-sm leading-relaxed text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(sale.other_sale_data) }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeRichText(sale.sales_raw_data) }}
                 />
               ) : (
-                <p className="mt-3 text-sm text-muted-foreground">No additional sale details yet.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No sales raw data yet.</p>
               )}
             </div>
           </div>
