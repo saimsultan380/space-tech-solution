@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -22,7 +23,8 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_TYPES } from "@/lib/constants";
 import { deleteSale } from "@/lib/actions/sales";
-import type { UserRole, Sale } from "@/lib/types";
+import { createNote, deleteNote, getNotes, updateNote } from "@/lib/actions/notes";
+import type { Note, UserRole, Sale } from "@/lib/types";
 import {
   Plus,
   Search,
@@ -42,6 +44,7 @@ import {
   MapPin,
   Calendar,
   FileText,
+  Loader2,
 } from "@/components/ui/icons";
 import { sanitizeRichText } from "@/lib/rich-text";
 import {
@@ -74,12 +77,111 @@ function formatDateKarachi(date: string | Date): string {
   }).format(new Date(date));
 }
 
+function formatNoteTime(date: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: KARACHI_TIMEZONE,
+  }).format(new Date(date));
+}
+
 function SalesRawDataPopover({ sale }: { sale: Sale }) {
   const html = sanitizeRichText(sale.sales_raw_data);
   const hasData = Boolean(sale.sales_raw_data?.trim());
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+
+  const loadNotes = async () => {
+    setLoadingNotes(true);
+    setError("");
+    try {
+      const rows = await getNotes({ sale_id: sale.id, type: "processing" });
+      setNotes(rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load processing notes");
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      void loadNotes();
+    } else {
+      setEditingId(null);
+      setDraft("");
+      setError("");
+    }
+  };
+
+  const stampDraft = () => {
+    const stamp = `[${formatNoteTime(new Date().toISOString())}]`;
+    setDraft((current) => (current.trim() ? `${current.trim()} ${stamp}` : stamp));
+  };
+
+  const handleAdd = async () => {
+    const content = draft.trim();
+    if (!content || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await createNote({
+        content,
+        sale_id: sale.id,
+        type: "processing",
+      });
+      setDraft("");
+      await loadNotes();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add the note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (noteId: string) => {
+    const content = editDraft.trim();
+    if (!content || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await updateNote(noteId, content);
+      setEditingId(null);
+      await loadNotes();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update the note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (noteId: string) => {
+    if (!confirm("Delete this processing note?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      await deleteNote(noteId);
+      if (editingId === noteId) setEditingId(null);
+      await loadNotes();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete the note");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -91,11 +193,11 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
           <ChevronDown className="h-3 w-3 shrink-0" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 p-0 shadow-2xl">
+      <PopoverContent align="end" className="w-[26rem] p-0 shadow-2xl">
         <div className="border-b border-border px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Sales raw data</p>
         </div>
-        <div className="max-h-80 overflow-y-auto p-4">
+        <div className="max-h-52 overflow-y-auto px-4 py-3">
           {hasData ? (
             <div
               className="space-y-2 text-sm leading-relaxed text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
@@ -104,6 +206,117 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
           ) : (
             <p className="text-sm text-muted-foreground">No sales raw data yet.</p>
           )}
+        </div>
+
+        <div className="border-t border-border bg-muted/20 px-4 py-3">
+          <p className="text-xs font-semibold text-foreground">Add processing note</p>
+          <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+            {loadingNotes && notes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Loading notes…</p>
+            ) : notes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No processing notes yet.</p>
+            ) : (
+              notes.map((note) => (
+                <div key={note.id} className="rounded-md border border-border bg-background px-2.5 py-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 text-[11px] text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {note.user?.full_name || "Staff"}
+                      </span>
+                      {" · "}
+                      {formatNoteTime(note.created_at)}
+                    </p>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-primary"
+                        title="Edit note"
+                        onClick={() => {
+                          setEditingId(note.id);
+                          setEditDraft(note.content);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+                        title="Delete note"
+                        disabled={saving}
+                        onClick={() => void handleDelete(note.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                  {editingId === note.id ? (
+                    <div className="mt-2 space-y-2">
+                      <Textarea
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        className="min-h-[64px] text-xs"
+                        disabled={saving}
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setEditingId(null)}
+                          disabled={saving}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => void handleUpdate(note.id)}
+                          disabled={saving || !editDraft.trim()}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                      {note.content}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Processing notes…"
+            className="mt-2 min-h-[68px] text-xs"
+            disabled={saving}
+          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+              onClick={stampDraft}
+              disabled={saving}
+            >
+              Add timestamp
+            </button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 gap-1 px-2.5 text-xs"
+              onClick={() => void handleAdd()}
+              disabled={saving || !draft.trim()}
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+              Add
+            </Button>
+          </div>
+          {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
         </div>
       </PopoverContent>
     </Popover>
