@@ -41,7 +41,9 @@ import {
   Phone,
   MapPin,
   Calendar,
+  FileText,
 } from "@/components/ui/icons";
+import { sanitizeRichText } from "@/lib/rich-text";
 import {
   DropdownRangeDatePicker,
   toDateRangeFromFilters,
@@ -70,6 +72,42 @@ function formatDateKarachi(date: string | Date): string {
     day: "numeric",
     timeZone: KARACHI_TIMEZONE,
   }).format(new Date(date));
+}
+
+function SalesRawDataPopover({ sale }: { sale: Sale }) {
+  const html = sanitizeRichText(sale.sales_raw_data);
+  const hasData = Boolean(sale.sales_raw_data?.trim());
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 min-w-[80px] items-center justify-between gap-1 rounded-md border border-border px-2.5 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+          title="View sales raw data"
+        >
+          <FileText className="h-3.5 w-3.5 shrink-0" />
+          <span>Raw data</span>
+          <ChevronDown className="h-3 w-3 shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-96 p-0 shadow-2xl">
+        <div className="border-b border-border px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">Sales raw data</p>
+        </div>
+        <div className="max-h-80 overflow-y-auto p-4">
+          {hasData ? (
+            <div
+              className="space-y-2 text-sm leading-relaxed text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">No sales raw data yet.</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ─── Customer Info Popover ────────────────────────────────────────────────────
@@ -710,6 +748,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Agent Name</TableHead>
+                    <TableHead className="w-[120px]">Sales raw data</TableHead>
                     <TableHead className="w-[100px]">Customer</TableHead>
                     <TableHead className="w-[120px] text-right">
                       Actions
@@ -772,6 +811,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             />
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <SalesRawDataPopover sale={sale} />
                       </TableCell>
                       <TableCell>
                         <CustomerInfoPopover sale={sale} />
