@@ -141,7 +141,8 @@ const LABEL_FIELDS: Array<[string, string]> = [
   ["sale type", "sale_type"],
   ["type", "sale_type"],
   ["subtype", "subtype"],
-].sort((a, b) => b[0].length - a[0].length);
+];
+LABEL_FIELDS.sort((a, b) => b[0].length - a[0].length);
 
 const DATE_FIELDS = new Set(["sale_date", "dob", "next_billing_date", "expected_next_bill_date"]);
 const ACCOUNT_STATUSES = new Set(["active", "pending", "cancelled", "canceled", "suspended"]);

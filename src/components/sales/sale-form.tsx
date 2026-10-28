@@ -194,6 +194,47 @@ export function SaleForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4 text-orange-500" />
+            Sales raw data
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <RichTextEditor
+            id="sales_raw_data"
+            label="Sales raw data"
+            placeholder="Paste the sale details here. Labeled lines such as Name, Phone, Email, Address, DOB, Card Number, and Amount fill the matching fields."
+            value={form.sales_raw_data}
+            onChange={(value) => {
+              const previous = saleRawPlainText(formRef.current.sales_raw_data);
+              const nextText = saleRawPlainText(value);
+              if (nextText.length - previous.length >= 12) {
+                applyRawData(value, false);
+                return;
+              }
+              set("sales_raw_data", value);
+            }}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Matching details are placed in the fields below. Anything that is not recognized stays here, and the other fields are left for you to enter.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() => applyRawData(form.sales_raw_data, true)}
+            >
+              Fill matching fields
+            </Button>
+          </div>
+          {rawFillNote ? <p className="text-xs text-foreground">{rawFillNote}</p> : null}
+        </CardContent>
+      </Card>
+
       {/* Sale Type Selection */}
       <Card>
         <CardHeader>
@@ -679,36 +720,6 @@ export function SaleForm({
             value={form.other_sale_data}
             onChange={(e) => set("other_sale_data", e.target.value)}
           />
-          <RichTextEditor
-            id="sales_raw_data"
-            label="Sales raw data"
-            placeholder="Paste the sale details here. Labeled lines such as Name, Phone, Email, Address, DOB, and Amount fill the matching fields."
-            value={form.sales_raw_data}
-            onChange={(value) => {
-              const previous = saleRawPlainText(formRef.current.sales_raw_data);
-              const nextText = saleRawPlainText(value);
-              if (nextText.length - previous.length >= 12) {
-                applyRawData(value, false);
-                return;
-              }
-              set("sales_raw_data", value);
-            }}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground">
-              Matching details are placed in the form. Anything that is not recognized stays here, and the other fields are left for you to enter.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={() => applyRawData(form.sales_raw_data, true)}
-            >
-              Fill matching fields
-            </Button>
-          </div>
-          {rawFillNote ? <p className="text-xs text-foreground">{rawFillNote}</p> : null}
           <Textarea
             id="sales_notes"
             label="Sales Notes for Processing"
