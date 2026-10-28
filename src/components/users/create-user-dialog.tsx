@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
@@ -154,12 +155,11 @@ export function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
               maxLength={15}
               onChange={(e) => setForm((f) => ({ ...f, cnic: formatCnic(e.target.value) }))}
             />
-            <Input
+            <DateField
               id="joining_date"
               label="Joining Date"
-              type="date"
               value={form.joining_date}
-              onChange={(e) => setForm((f) => ({ ...f, joining_date: e.target.value }))}
+              onChange={(value) => setForm((f) => ({ ...f, joining_date: value }))}
             />
           </div>
           <Input

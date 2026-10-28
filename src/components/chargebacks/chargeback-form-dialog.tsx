@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -315,12 +316,11 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           />
         </div>
 
-        <Input
+        <DateField
           id="date"
           label="Chargeback Date"
-          type="date"
           value={form.date}
-          onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+          onChange={(value) => setForm((f) => ({ ...f, date: value }))}
           required
         />
         <div className="space-y-1.5">

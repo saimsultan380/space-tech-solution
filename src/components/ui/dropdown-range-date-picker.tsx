@@ -4,6 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { Calendar as CalendarIcon } from "@/components/ui/icons";
+import { interpretUsDate, isoToUsDate } from "@/components/ui/date-field";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,11 +42,11 @@ export function DropdownRangeDatePicker({ value, onApply, triggerClassName }: Dr
 
   const formattedValue = selected?.from
     ? selected.to
-      ? `${format(selected.from, "dd/MM/yyyy")} - ${format(selected.to, "dd/MM/yyyy")}`
-      : format(selected.from, "dd/MM/yyyy")
+      ? `${format(selected.from, "MM/dd/yyyy")} - ${format(selected.to, "MM/dd/yyyy")}`
+      : format(selected.from, "MM/dd/yyyy")
     : "Date range";
 
-  const years = Array.from({ length: 40 }, (_, i) => today.getFullYear() - 20 + i);
+  const years = Array.from({ length: today.getFullYear() - 1900 + 16 }, (_, i) => today.getFullYear() + 15 - i);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -60,6 +61,18 @@ export function DropdownRangeDatePicker({ value, onApply, triggerClassName }: Dr
       </PopoverTrigger>
       <PopoverContent className="w-auto p-4" align="start">
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <UsRangeInput
+              label="From"
+              date={selected?.from}
+              onPick={(date) => setSelected((current) => ({ from: date, to: current?.to }))}
+            />
+            <UsRangeInput
+              label="To"
+              date={selected?.to}
+              onPick={(date) => setSelected((current) => ({ from: current?.from, to: date }))}
+            />
+          </div>
           <div className="flex gap-2">
             <Select
               value={year.toString()}
@@ -119,6 +132,43 @@ export function DropdownRangeDatePicker({ value, onApply, triggerClassName }: Dr
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function UsRangeInput({
+  label,
+  date,
+  onPick,
+}: {
+  label: string;
+  date?: Date;
+  onPick: (date: Date | undefined) => void;
+}) {
+  const iso = date ? toInputDate(date) : "";
+  const [text, setText] = React.useState(isoToUsDate(iso));
+
+  React.useEffect(() => {
+    setText(isoToUsDate(iso));
+  }, [iso]);
+
+  return (
+    <label className="space-y-1 text-xs font-medium text-muted-foreground">
+      {label}
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder="MM/DD/YYYY"
+        value={text}
+        onChange={(event) => {
+          const parsed = interpretUsDate(event.target.value);
+          setText(parsed.text);
+          if (!parsed.text) onPick(undefined);
+          else if (parsed.iso) onPick(new Date(`${parsed.iso}T00:00:00`));
+        }}
+        onBlur={() => setText(isoToUsDate(iso))}
+        className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      />
+    </label>
   );
 }
 

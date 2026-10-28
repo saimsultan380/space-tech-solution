@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { MonthField } from "@/components/ui/date-field";
 import {
   Table,
   TableBody,
@@ -127,11 +127,10 @@ export function LeavesAdminClient({ leavesResponse }: LeavesAdminClientProps) {
 
       {/* Month filter */}
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          type="month"
+        <MonthField
           value={monthFilter}
-          onChange={(e) => updateFilters({ month: e.target.value })}
-          className="w-auto h-10"
+          onChange={(value) => updateFilters({ month: value })}
+          className="h-10 w-auto"
         />
         <Select
           options={[{ value: "all", label: "All Statuses" }, ...LEAVE_STATUSES]}

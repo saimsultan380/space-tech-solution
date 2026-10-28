@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/loading";
 import {
@@ -330,33 +331,30 @@ export function PayslipFormDialog({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Input
+            <DateField
               id="period_start"
               label="Period Start"
-              type="date"
               value={form.period_start}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, period_start: e.target.value }))
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, period_start: value }))
               }
               required
             />
-            <Input
+            <DateField
               id="period_end"
               label="Period End"
-              type="date"
               value={form.period_end}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, period_end: e.target.value }))
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, period_end: value }))
               }
               required
             />
-            <Input
+            <DateField
               id="pay_date"
               label="Pay Date"
-              type="date"
               value={form.pay_date}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, pay_date: e.target.value }))
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, pay_date: value }))
               }
               required
             />
@@ -392,13 +390,12 @@ export function PayslipFormDialog({
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input
+            <DateField
               id="joining_date"
               label="Joining Date"
-              type="date"
               value={form.joining_date}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, joining_date: e.target.value }))
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, joining_date: value }))
               }
             />
             <Select

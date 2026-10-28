@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/loading";
@@ -513,12 +514,11 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
                       value={educationDegree}
                       onChange={(e) => setEducationDegree(e.target.value)}
                     />
-                    <Input
+                    <DateField
                       id="joining_date"
                       label="Date of Joining"
-                      type="date"
                       value={joiningDate}
-                      onChange={(e) => setJoiningDate(e.target.value)}
+                      onChange={setJoiningDate}
                     />
                     <Select
                       label="Employment Type"

@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { MonthField } from "@/components/ui/date-field";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
@@ -558,11 +558,10 @@ export function AttendanceClient({
                   <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
                     Month
                   </label>
-                  <Input
-                    type="month"
+                  <MonthField
                     value={monthParam}
-                    onChange={(e) => handleMonthChange(e.target.value)}
-                    className="w-[190px] min-w-[190px] pr-10 [color-scheme:light] dark:[color-scheme:dark]"
+                    onChange={handleMonthChange}
+                    className="h-10 w-[190px]"
                   />
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-3">

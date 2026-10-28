@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MonthField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -272,30 +273,20 @@ export function ProcessingAccountFormDialog({
               />
 
               <div>
-                <label
-                  htmlFor="expiration_date"
-                  className="mb-1.5 block text-sm font-medium"
-                >
-                  Expiration Date
-                </label>
-                <input
+                <MonthField
                   id="expiration_date"
-                  type="month"
+                  label="Expiration Date"
                   value={form.expiration_date}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setForm((f) => ({
                       ...f,
-                      expiration_date: e.target.value,
+                      expiration_date: value,
                     }))
                   }
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  placeholder="MM/YYYY"
                 />
-                {errors.expiration_date && (
-                  <p className="mt-1 text-xs text-destructive">
-                    {errors.expiration_date}
-                  </p>
-                )}
+                {errors.expiration_date ? (
+                  <p className="text-xs text-destructive">{errors.expiration_date}</p>
+                ) : null}
               </div>
 
               <Input

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField, MonthField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
@@ -34,7 +35,7 @@ import {
   X,
   Link as LinkIcon,
 } from "@/components/ui/icons";
-import type { UserRole } from "@/lib/types";
+import { mergeSaleRawData, saleRawPlainText } from "@/lib/parse-sale-raw-data";
 
 interface SaleFormProps {
   /** Optional preloaded list; otherwise fetched client-side for super_admin. */
@@ -103,6 +104,22 @@ export function SaleForm({
   const [error, setError] = useState("");
   const [form, setForm] = useState({ ...emptyForm, ...initialValues });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [rawFillNote, setRawFillNote] = useState("");
+  const formRef = useRef(form);
+  const saleDateDefault = useRef(mode === "create" ? form.sale_date : "");
+  formRef.current = form;
+
+  const applyRawData = (html: string, announceEmpty: boolean) => {
+    const { next, filled } = mergeSaleRawData(formRef.current, html, {
+      saleDateDefault: saleDateDefault.current || undefined,
+    });
+    setForm(next);
+    if (filled.length > 0) {
+      setRawFillNote(`Filled ${filled.join(", ")}. Enter any remaining fields yourself.`);
+    } else if (announceEmpty) {
+      setRawFillNote("No matching details found. Enter the fields yourself.");
+    }
+  };
 
   const needsAgentPicker = userRole === "super_admin";
   const { data: fetchedAgents = [] } = useQuery({
@@ -205,12 +222,11 @@ export function SaleForm({
               onChange={(e) => set("subtype", e.target.value)}
               required
             />
-            <Input
+            <DateField
               id="sale_date"
               label="Sale Date"
-              type="date"
               value={form.sale_date}
-              onChange={(e) => set("sale_date", e.target.value)}
+              onChange={(value) => set("sale_date", value)}
               required
             />
             <Select
@@ -321,12 +337,11 @@ export function SaleForm({
               value={form.account_no}
               onChange={(e) => set("account_no", e.target.value)}
             />
-            <Input
+            <DateField
               id="dob"
               label="Date of Birth"
-              type="date"
               value={form.dob}
-              onChange={(e) => set("dob", e.target.value)}
+              onChange={(value) => set("dob", value)}
             />
             <Input
               id="ssn"
@@ -484,22 +499,18 @@ export function SaleForm({
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
-            <Input
+            <MonthField
               id="billed_month"
               label="Billed Month"
-              type="month"
               value={form.billed_month}
-              onChange={(e) => set("billed_month", e.target.value)}
+              onChange={(value) => set("billed_month", value)}
               required
-              className="h-11 py-0 leading-none"
             />
-            <Input
+            <DateField
               id="next_billing_date"
               label="Due Date"
-              type="date"
               value={form.next_billing_date}
-              onChange={(e) => set("next_billing_date", e.target.value)}
-              className="h-11 py-0 leading-none"
+              onChange={(value) => set("next_billing_date", value)}
             />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
@@ -516,13 +527,11 @@ export function SaleForm({
               value={form.payment_status_after_sale}
               onChange={(e) => set("payment_status_after_sale", e.target.value)}
             />
-            <Input
+            <DateField
               id="expected_next_bill_date"
               label="Expected Next Bill Date"
-              type="date"
               value={form.expected_next_bill_date}
-              onChange={(e) => set("expected_next_bill_date", e.target.value)}
-              className="h-11 py-0 leading-none"
+              onChange={(value) => set("expected_next_bill_date", value)}
             />
           </div>
         </CardContent>
@@ -672,10 +681,33 @@ export function SaleForm({
           <RichTextEditor
             id="sales_raw_data"
             label="Sales raw data"
-            placeholder="Write the full sale details here..."
+            placeholder="Paste the sale details here. Labeled lines such as Name, Phone, Email, Address, DOB, and Amount fill the matching fields."
             value={form.sales_raw_data}
-            onChange={(value) => set("sales_raw_data", value)}
+            onChange={(value) => {
+              const previous = saleRawPlainText(formRef.current.sales_raw_data);
+              const nextText = saleRawPlainText(value);
+              if (nextText.length - previous.length >= 12) {
+                applyRawData(value, false);
+                return;
+              }
+              set("sales_raw_data", value);
+            }}
           />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Matching details are placed in the form. Anything that is not recognized stays here, and the other fields are left for you to enter.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={() => applyRawData(form.sales_raw_data, true)}
+            >
+              Fill matching fields
+            </Button>
+          </div>
+          {rawFillNote ? <p className="text-xs text-foreground">{rawFillNote}</p> : null}
           <Textarea
             id="sales_notes"
             label="Sales Notes for Processing"

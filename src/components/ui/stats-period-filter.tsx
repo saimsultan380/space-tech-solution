@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Select } from "@/components/ui/select";
+import { DateField } from "@/components/ui/date-field";
 import { Button } from "@/components/ui/button";
 import {
   currentMonthValue,
@@ -90,32 +91,26 @@ export function StatsPeriodFilter({
 
         {mode === "custom" && (
           <>
-            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              From
-              <input
-                type="date"
-                value={draftFrom}
-                max={draftTo || undefined}
-                onChange={(e) => {
-                  setDraftFrom(e.target.value);
-                  setError(null);
-                }}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-              To
-              <input
-                type="date"
-                value={draftTo}
-                min={draftFrom || undefined}
-                onChange={(e) => {
-                  setDraftTo(e.target.value);
-                  setError(null);
-                }}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
+            <DateField
+              label="From"
+              value={draftFrom}
+              max={draftTo || undefined}
+              onChange={(value) => {
+                setDraftFrom(value);
+                setError(null);
+              }}
+              className="h-10"
+            />
+            <DateField
+              label="To"
+              value={draftTo}
+              min={draftFrom || undefined}
+              onChange={(value) => {
+                setDraftTo(value);
+                setError(null);
+              }}
+              className="h-10"
+            />
             <Button type="button" size="sm" className="h-10" onClick={applyCustom}>
               Apply
             </Button>

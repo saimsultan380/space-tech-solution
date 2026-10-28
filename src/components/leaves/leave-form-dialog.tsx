@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -59,19 +59,17 @@ export function LeaveFormDialog({ open, onClose }: LeaveFormDialogProps) {
           onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input
+          <DateField
             id="start_date"
             label="Start Date"
-            type="date"
             value={form.start_date}
-            onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+            onChange={(value) => setForm((f) => ({ ...f, start_date: value }))}
           />
-          <Input
+          <DateField
             id="end_date"
             label="End Date"
-            type="date"
             value={form.end_date}
-            onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+            onChange={(value) => setForm((f) => ({ ...f, end_date: value }))}
           />
         </div>
         <Textarea

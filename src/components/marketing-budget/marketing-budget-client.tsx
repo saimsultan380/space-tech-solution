@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -745,12 +746,11 @@ function EntryFormDialog({
         <DialogTitle>{entry ? "Edit Marketing Entry" : "Add Marketing Entry"}</DialogTitle>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        <Input
+        <DateField
           id="entry_date"
           label="Date"
-          type="date"
           value={form.entry_date}
-          onChange={(e) => setForm((prev) => ({ ...prev, entry_date: e.target.value }))}
+          onChange={(value) => setForm((prev) => ({ ...prev, entry_date: value }))}
           required
         />
 

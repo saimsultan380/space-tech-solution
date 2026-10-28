@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
@@ -272,12 +273,11 @@ export function EditUserDialog({ user }: EditUserDialogProps) {
                 Optional. Set both fields to change this user&apos;s login password. Minimum 8 characters.
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Input
+                <DateField
                   id="joining_date"
                   label="Joining Date"
-                  type="date"
                   value={form.joining_date}
-                  onChange={(e) => setForm((f) => ({ ...f, joining_date: e.target.value }))}
+                  onChange={(value) => setForm((f) => ({ ...f, joining_date: value }))}
                 />
                 <Input
                   id="address"
