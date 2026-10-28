@@ -36,6 +36,7 @@ import {
   Link as LinkIcon,
 } from "@/components/ui/icons";
 import { mergeSaleRawData, saleRawPlainText } from "@/lib/parse-sale-raw-data";
+import type { UserRole } from "@/lib/types";
 
 interface SaleFormProps {
   /** Optional preloaded list; otherwise fetched client-side for super_admin. */
