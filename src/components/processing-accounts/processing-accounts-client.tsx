@@ -26,6 +26,7 @@ import { ProcessingAccountsImportDialog } from "./processing-accounts-import-dia
 import { DeleteProcessingAccountButton } from "./delete-processing-account-button";
 import { NotifyAdminDialog } from "./notify-admin-dialog";
 import { PROCESSING_ACCOUNT_STATUSES } from "@/lib/constants";
+import { parsePageSize } from "@/lib/page-size";
 import type { UserRole, ProcessingAccountStatus } from "@/lib/types";
 import {
   updateProcessingAccountNotes,
@@ -552,6 +553,7 @@ export function ProcessingAccountsClient({
   const [notifyAccountId, setNotifyAccountId] = useState<string | null>(null);
 
   const page = Number(searchParams.get("page")) || 1;
+  const pageSize = parsePageSize(searchParams.get("pageSize"));
   const statusFilter = searchParams.get("status") || "all";
   const accountTypeFilter = searchParams.get("account_type") || "all";
   const fromDateFilter = searchParams.get("from_date") || "";
@@ -584,6 +586,7 @@ export function ProcessingAccountsClient({
   const accountsQueryKey = [
     "processing-accounts",
     page,
+    pageSize,
     urlSearch,
     statusFilter,
     accountTypeFilter,
@@ -609,7 +612,7 @@ export function ProcessingAccountsClient({
     queryFn: () =>
       getProcessingAccounts({
         page,
-        pageSize: 20,
+        pageSize,
         search: urlSearch,
         status: statusFilter as ProcessingAccountStatus | "all",
         from_date: fromDateFilter,
@@ -636,7 +639,6 @@ export function ProcessingAccountsClient({
     data: initialAccounts = [],
     count = 0,
     totalPages = 1,
-    pageSize = 20,
   } = accountsResponse || {};
 
   const statusMutation = useMutation({

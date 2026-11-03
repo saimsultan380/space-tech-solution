@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { parsePageSize } from "@/lib/page-size";
 import type { MarketingTransactionType, MarketingEntryCampaign } from "@/lib/types";
 
 // ─── Internal row shapes ───────────────────────────────────────────────────────
@@ -672,7 +673,7 @@ export async function getMarketingEntriesPage(filters?: {
   const supabase = await createClient();
 
   const requestedPage = Math.max(1, filters?.page ?? 1);
-  const pageSize = Math.min(100, Math.max(5, filters?.pageSize ?? 20));
+  const pageSize = parsePageSize(filters?.pageSize);
 
   // Run COUNT and first-page DATA in parallel — avoids serial round-trips.
   let countQuery = supabase

@@ -9,6 +9,7 @@ import {
   getDecryptedBankSecrets,
   getDecryptedCardSecrets,
 } from "@/lib/payment-secrets";
+import { maskCardNumber } from "@/lib/card-redaction";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "@/components/ui/icons";
@@ -58,14 +59,18 @@ export default async function EditSalePage(props: {
     merchant_name = (latestPayment.merchant_name as string) || merchant_name;
     if (latestPayment.method === "card") {
       payment_method = "card";
-      const { cardNumber, cardCvv } = getDecryptedCardSecrets({
-        method: "card",
-        encrypted_details: latestPayment.encrypted_details as string | null,
-        card_cvv_encrypted: latestPayment.card_cvv_encrypted as string | null,
-      });
-      const isMasked = user.role !== "super_admin";
-      card_number = isMasked && cardNumber ? `****${cardNumber.slice(-4)}` : cardNumber;
-      card_cvv = isMasked && cardCvv ? "***" : cardCvv;
+      if (user.role === "super_admin") {
+        const { cardNumber, cardCvv } = getDecryptedCardSecrets({
+          method: "card",
+          encrypted_details: latestPayment.encrypted_details as string | null,
+          card_cvv_encrypted: latestPayment.card_cvv_encrypted as string | null,
+        });
+        card_number = cardNumber;
+        card_cvv = cardCvv;
+      } else {
+        card_number = maskCardNumber(latestPayment.card_last_four as string | null);
+        card_cvv = latestPayment.card_last_four ? "***" : "";
+      }
       card_exp = (latestPayment.card_exp as string) || "";
       card_billing_address = (latestPayment.billing_address as string) || "";
     } else if (latestPayment.method === "bank") {

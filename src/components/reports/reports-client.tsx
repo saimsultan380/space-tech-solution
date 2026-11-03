@@ -22,6 +22,7 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/constants";
+import { parsePageSize } from "@/lib/page-size";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -273,7 +274,7 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
   }, [employeeMonthlyStats, empRoleFilter, empSearch]);
 
   const empPage = Math.max(1, Number(searchParams.get("emp_page") || "1") || 1);
-  const empPageSize = 20;
+  const empPageSize = parsePageSize(searchParams.get("pageSize"));
   const empTotalPages = Math.max(
     1,
     Math.ceil(filteredEmployees.length / empPageSize),
@@ -555,6 +556,7 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
             onPageChange={(p) => updateFilters({ emp_page: p })}
             totalItems={filteredEmployees.length}
             pageSize={empPageSize}
+            pageParam="emp_page"
           />
         </CardContent>
       </Card>

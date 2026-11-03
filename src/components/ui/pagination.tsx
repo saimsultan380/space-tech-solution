@@ -1,8 +1,11 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { PAGE_SIZE_OPTIONS, parsePageSize } from "@/lib/page-size";
 
 interface PaginationProps {
   currentPage: number;
@@ -12,6 +15,8 @@ interface PaginationProps {
   showInfo?: boolean;
   totalItems?: number;
   pageSize?: number;
+  /** Query param cleared when the page size changes. Defaults to `page`. */
+  pageParam?: string;
 }
 
 export function Pagination({
@@ -21,20 +26,27 @@ export function Pagination({
   className,
   showInfo = true,
   totalItems,
-  pageSize = 20,
+  pageSize = DEFAULT_PAGE_SIZE,
+  pageParam = "page",
 }: PaginationProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const safeTotalPages = Math.max(1, totalPages);
-
-  if (totalItems !== undefined) {
-    if (totalItems === 0) return null;
-    if (totalItems <= pageSize) return null;
-  } else if (safeTotalPages <= 1) {
-    return null;
-  }
-
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalItems ?? 0);
+  const selectedSize = parsePageSize(pageSize);
   const navDisabled = safeTotalPages <= 1;
+  const startItem = !totalItems ? 0 : (currentPage - 1) * selectedSize + 1;
+  const endItem = !totalItems ? 0 : Math.min(currentPage * selectedSize, totalItems);
+
+  function changePageSize(next: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === DEFAULT_PAGE_SIZE) params.delete("pageSize");
+    else params.set("pageSize", String(next));
+    params.delete(pageParam);
+    if (pageParam !== "page") params.delete("page");
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
 
   return (
     <div className={cn("flex flex-col gap-3 border-t border-border px-2 py-4 sm:flex-row sm:items-center sm:justify-between", className)}>
@@ -45,7 +57,22 @@ export function Pagination({
           <span className="font-medium text-foreground">{totalItems}</span> results
         </div>
       )}
-      <div className={cn("flex items-center space-x-2", showInfo && totalItems !== undefined && "sm:ml-auto")}>
+      <div className={cn("flex flex-wrap items-center gap-2", showInfo && totalItems !== undefined && "sm:ml-auto")}>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Rows
+          <select
+            value={selectedSize}
+            onChange={(event) => changePageSize(Number(event.target.value))}
+            aria-label="Items per page"
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
         <Button
           variant="outline"
           size="icon"
@@ -65,7 +92,7 @@ export function Pagination({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <div className="flex min-w-[7rem] items-center justify-center text-sm font-medium px-2">
+        <div className="flex min-w-[7rem] items-center justify-center px-2 text-sm font-medium">
           Page {currentPage} of {safeTotalPages}
         </div>
 

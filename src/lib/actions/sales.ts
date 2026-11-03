@@ -7,6 +7,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import type { SaleStatus, Sale } from "@/lib/types";
 import { sanitizeFilterValue, formatCurrency } from "@/lib/utils";
 import { notifySuperAdmins } from "./notifications";
+import { SALE_ROW_COLUMNS } from "@/lib/sales-columns";
+import { parsePageSize } from "@/lib/page-size";
 
 function isMissingSourceColumnError(error: { message?: string } | null) {
   const message = error?.message?.toLowerCase() || "";
@@ -52,10 +54,10 @@ function applySalesFilters(
     next = next.eq("agent_id", filters.agent_id);
   }
   if (filters?.from_date) {
-    next = next.gte("created_at", `${filters.from_date}T00:00:00.000Z`);
+    next = next.gte("sale_date", filters.from_date);
   }
   if (filters?.to_date) {
-    next = next.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
+    next = next.lte("sale_date", filters.to_date);
   }
 
   const searchTerm = filters?.search?.trim();
@@ -88,13 +90,13 @@ export async function getSales(filters?: {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   let query = supabase
     .from("sales")
     .select(
-      "*, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)",
+      `${SALE_ROW_COLUMNS}, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)`,
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
@@ -179,13 +181,17 @@ export async function getSale(id: string): Promise<Sale> {
   const { data, error } = await supabase
     .from("sales")
     .select(
-      "*, customer:customers(*), agent:users!sales_agent_id_fkey(id, full_name, email), processor:users!sales_processor_id_fkey(id, full_name, email)"
+      `${SALE_ROW_COLUMNS}, customer:customers(*), agent:users!sales_agent_id_fkey(id, full_name, email), processor:users!sales_processor_id_fkey(id, full_name, email)`
     )
     .eq("id", id)
     .single();
 
   if (error) throw new Error(error.message);
-  return data as unknown as Sale;
+  const { data: rawData, error: rawError } = await supabase.rpc("get_visible_sales_raw_data", {
+    p_sale_id: id,
+  });
+  if (rawError) throw new Error(rawError.message);
+  return { ...(data as object), sales_raw_data: rawData ?? "" } as Sale;
 }
 
 export interface CreateSaleInput {
@@ -525,7 +531,6 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     dob: formData.dob,
     account_status: formData.account_status,
     other_sale_data: formData.other_sale_data,
-    sales_raw_data: formData.sales_raw_data || "",
     policy_holder_name: formData.policy_holder_name,
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
@@ -559,6 +564,12 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
 
   if (error) throw new Error(error.message);
 
+  const { error: rawError } = await supabase.rpc("save_sales_raw_data", {
+    p_sale_id: formData.id,
+    p_submitted: formData.sales_raw_data || "",
+  });
+  if (rawError) throw new Error(rawError.message);
+
   // Revalidate cache tags
   (revalidateTag as any)('dashboard');
   (revalidateTag as any)('sales');
@@ -571,6 +582,16 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
 
   revalidatePath("/dashboard/sales");
   revalidatePath(`/dashboard/sales/${formData.id}`);
+}
+
+export async function getVisibleSalesRawData(saleId: string): Promise<string> {
+  await requireAuth();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_visible_sales_raw_data", {
+    p_sale_id: saleId,
+  });
+  if (error) throw new Error(error.message);
+  return data ?? "";
 }
 
 /** Updates free-text sale fields. Any authenticated staff member may edit (subject to RLS). */

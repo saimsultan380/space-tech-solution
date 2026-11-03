@@ -3,6 +3,7 @@ import { getChargebacks } from "@/lib/actions/chargebacks";
 import { ChargebacksClient } from "@/components/chargebacks/chargebacks-client";
 import { createClient } from "@/lib/supabase/server";
 import type { ChargebackStatus } from "@/lib/types";
+import { parsePageSize } from "@/lib/page-size";
 
 export default async function ChargebacksPage(props: {
   searchParams: Promise<{
@@ -14,12 +15,14 @@ export default async function ChargebacksPage(props: {
     to_date?: string;
     min_amount?: string;
     max_amount?: string;
+    pageSize?: string;
   }>;
 }) {
   const user = await requireAuth();
   const supabase = await createClient();
   const searchParams = await props.searchParams;
   const page = Number(searchParams.page) || 1;
+  const pageSize = parsePageSize(searchParams.pageSize);
   const q = searchParams.q || "";
   const status = (searchParams.status || "all") as ChargebackStatus | "all" | string;
   const assigned_to = user.role === "sales_agent" ? user.id : searchParams.assigned_to || "all";
@@ -31,7 +34,7 @@ export default async function ChargebacksPage(props: {
   const [chargebacksResponse, usersResult] = await Promise.all([
     getChargebacks({
       page,
-      pageSize: 20,
+      pageSize,
       q,
       status,
       assigned_to,

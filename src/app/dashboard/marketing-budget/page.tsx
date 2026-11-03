@@ -5,8 +5,7 @@ import {
 } from "@/lib/actions/marketing-budget";
 import { MarketingBudgetClient } from "@/components/marketing-budget/marketing-budget-client";
 import type { MarketingEntryCampaign } from "@/lib/types";
-
-const ENTRIES_PAGE_SIZE = 20;
+import { parsePageSize } from "@/lib/page-size";
 
 interface MarketingBudgetPageProps {
   searchParams?: Promise<{
@@ -15,6 +14,7 @@ interface MarketingBudgetPageProps {
     campaign?: string;
     q?: string;
     page?: string;
+    pageSize?: string;
   }>;
 }
 
@@ -30,6 +30,7 @@ export default async function MarketingBudgetPage(props: MarketingBudgetPageProp
 
   const q = searchParams?.q?.trim() || "";
   const page = Math.max(1, Number.parseInt(searchParams?.page || "1", 10) || 1);
+  const pageSize = parsePageSize(searchParams?.pageSize);
 
   const [entriesResponse, { stats, chartData }] = await Promise.all([
     getMarketingEntriesPage({
@@ -38,7 +39,7 @@ export default async function MarketingBudgetPage(props: MarketingBudgetPageProp
       campaign: filters.campaign,
       search: q || undefined,
       page,
-      pageSize: ENTRIES_PAGE_SIZE,
+      pageSize,
     }),
     getMarketingEntryStatsAndChart({
       startDate: filters.startDate || undefined,

@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { parsePageSize } from "@/lib/page-size";
 import { TableLoadingOverlay } from "@/components/ui/table-loading-overlay";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -82,7 +83,8 @@ export function AttendanceClient({
   const { data: attendance } = attendanceResponse;
   const activeTab = searchParams.get("tab") === "monthly" ? "monthly" : "daily";
   const monthlyPage = Math.max(1, Number(searchParams.get("monthly_page") || "1") || 1);
-  const monthlyPageSize = 20;
+  const tablePageSize = parsePageSize(searchParams.get("pageSize"));
+  const monthlyPageSize = tablePageSize;
   
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -169,7 +171,7 @@ export function AttendanceClient({
     1,
     Number(searchParams.get("daily_page") || searchParams.get("page") || "1") || 1,
   );
-  const dailyPageSize = 20;
+  const dailyPageSize = tablePageSize;
   const dailyTotalPages = Math.max(1, Math.ceil(filtered.length / dailyPageSize));
   const dailyCurrentPage = Math.min(dailyPage, dailyTotalPages);
   const dailyStartIndex = (dailyCurrentPage - 1) * dailyPageSize;
@@ -684,6 +686,7 @@ export function AttendanceClient({
                 onPageChange={(p) => updateFilters({ tab: "daily", daily_page: p })}
                 totalItems={filtered.length}
                 pageSize={dailyPageSize}
+                pageParam="daily_page"
               />
             </CardContent>
           </Card>
@@ -789,6 +792,7 @@ export function AttendanceClient({
                 onPageChange={(p) => updateFilters({ tab: "monthly", monthly_page: p })}
                 totalItems={filteredSummary.length}
                 pageSize={monthlyPageSize}
+                pageParam="monthly_page"
               />
             </CardContent>
           </Card>

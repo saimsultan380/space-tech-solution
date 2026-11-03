@@ -1,5 +1,7 @@
 "use server";
 
+import { parsePageSize } from "@/lib/page-size";
+
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -79,7 +81,7 @@ export async function getAttendance(filters?: {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   let query = supabase

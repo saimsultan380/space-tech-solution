@@ -1,3 +1,4 @@
+import { parsePageSize } from "@/lib/page-size";
 import { createClient } from "@/lib/supabase/client";
 import { sanitizeFilterValue } from "@/lib/utils";
 import type { Sale } from "@/lib/types";
@@ -14,7 +15,7 @@ export interface SalesStats {
 }
 
 const SALE_LIST_SELECT =
-  "id, sale_type, subtype, status, amount, discount, charged_amount, company_name, customer_name, customer_email, customer_phone, sale_date, created_at, agent_id, processor_id, account_holder_name, card_last_four, utility_company_service_number, policy_holder_name, sales_raw_data, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)";
+  "id, sale_type, subtype, status, amount, discount, charged_amount, company_name, customer_name, customer_email, customer_phone, sale_date, created_at, agent_id, processor_id, account_holder_name, card_last_four, utility_company_service_number, policy_holder_name, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)";
 
 function applySalesFilters(
   query: any,
@@ -39,10 +40,10 @@ function applySalesFilters(
     next = next.eq("agent_id", filters.agent_id);
   }
   if (filters?.from_date) {
-    next = next.gte("created_at", `${filters.from_date}T00:00:00.000Z`);
+    next = next.gte("sale_date", filters.from_date);
   }
   if (filters?.to_date) {
-    next = next.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
+    next = next.lte("sale_date", filters.to_date);
   }
 
   const searchTerm = filters?.search?.trim();
@@ -226,7 +227,7 @@ export async function getSales(filters?: {
 }> {
   const supabase = createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   let query = supabase

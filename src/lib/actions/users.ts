@@ -1,5 +1,7 @@
 "use server";
 
+import { parsePageSize } from "@/lib/page-size";
+
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth";
@@ -16,7 +18,7 @@ export async function getUsers(filters?: {
   await requireRole(["super_admin", "processor", "sales_agent"]);
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   let query = supabase

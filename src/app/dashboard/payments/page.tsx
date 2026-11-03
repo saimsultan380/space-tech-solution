@@ -1,17 +1,19 @@
 import { requireAuth } from "@/lib/auth";
 import { getPayments } from "@/lib/actions/payments";
 import { PaymentsClient } from "@/components/payments/payments-client";
+import { parsePageSize } from "@/lib/page-size";
 
 export default async function PaymentsPage(props: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; pageSize?: string }>;
 }) {
   const [user, searchParams] = await Promise.all([
     requireAuth(),
     props.searchParams,
   ]);
   const page = Number(searchParams.page) || 1;
+  const pageSize = parsePageSize(searchParams.pageSize);
 
-  const result = await getPayments({ page, pageSize: 20 });
+  const result = await getPayments({ page, pageSize });
 
   const formattedPayments = result.data.map((p) => {
     const saleResult = p.sale as unknown as { id: string; company_name: string; status: string } | null;

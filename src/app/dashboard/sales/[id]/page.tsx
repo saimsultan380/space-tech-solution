@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { sanitizeRichText } from "@/lib/rich-text";
+import { maskCardNumber } from "@/lib/card-redaction";
+import { SALE_ROW_COLUMNS } from "@/lib/sales-columns";
 import { NotesSection } from "@/components/shared/notes-section";
 import { decrypt } from "@/lib/encryption";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
@@ -71,7 +73,7 @@ export default async function SaleDetailPage(props: {
   ] = await Promise.all([
     supabase
       .from("sales")
-      .select("*, customer:customers(*), agent:users!sales_agent_id_fkey(id, full_name, email), processor:users!sales_processor_id_fkey(id, full_name, email)")
+      .select(`${SALE_ROW_COLUMNS}, customer:customers(*), agent:users!sales_agent_id_fkey(id, full_name, email), processor:users!sales_processor_id_fkey(id, full_name, email)`)
       .eq("id", params.id)
       .single(),
     supabase
@@ -97,7 +99,15 @@ export default async function SaleDetailPage(props: {
   if (attachmentsError) throw new Error(attachmentsError.message);
   if (paymentsError) throw new Error(paymentsError.message);
 
-  const sale = saleData as unknown as SaleWithExtraDetails;
+  const { data: visibleRaw, error: rawError } = await supabase.rpc("get_visible_sales_raw_data", {
+    p_sale_id: params.id,
+  });
+  if (rawError) throw new Error(rawError.message);
+
+  const sale = {
+    ...(saleData as object),
+    sales_raw_data: visibleRaw ?? "",
+  } as SaleWithExtraDetails;
   const notes = (notesData || []).map((note) => ({
     ...note,
     user: Array.isArray(note.user) ? note.user[0] ?? null : note.user ?? null,
@@ -320,7 +330,7 @@ export default async function SaleDetailPage(props: {
           <CardContent className="space-y-4">
             {payments.map((p) => {
               const cardSecrets =
-                p.method === "card"
+                user.role === "super_admin" && p.method === "card"
                   ? getDecryptedCardSecrets({
                       method: p.method,
                       encrypted_details: p.encrypted_details as string | null | undefined,
@@ -354,9 +364,7 @@ export default async function SaleDetailPage(props: {
                         <span className="break-all font-mono text-foreground">
                           {user.role === "super_admin" && cardSecrets.cardNumber.trim()
                             ? cardSecrets.cardNumber
-                            : p.card_last_four
-                              ? `****${p.card_last_four}`
-                              : "—"}
+                            : maskCardNumber(p.card_last_four) || "—"}
                         </span>
                         <span className="text-muted-foreground">Expiry</span>
                         <span className="font-mono text-foreground">{dash(p.card_exp)}</span>

@@ -4,9 +4,10 @@ import { getPayslips, getMyPayslips } from "@/lib/actions/payslips";
 import { PayslipsAdminClient } from "@/components/payslips/payslips-admin-client";
 import { PayslipsMyClient } from "@/components/payslips/payslips-my-client";
 import { getCompanySettings } from "@/lib/actions/company-settings";
+import { parsePageSize } from "@/lib/page-size";
 
 export default async function PayslipsPage(props: {
-  searchParams: Promise<{ page?: string; q?: string; status?: string; from_date?: string; to_date?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; status?: string; from_date?: string; to_date?: string; pageSize?: string }>;
 }) {
   const user = await requireAuth();
   const searchParams = await props.searchParams;
@@ -15,9 +16,10 @@ export default async function PayslipsPage(props: {
   const status = searchParams.status || "all";
   const from_date = searchParams.from_date || "";
   const to_date = searchParams.to_date || "";
+  const pageSize = parsePageSize(searchParams.pageSize);
   if (user.role === "super_admin") {
     const [payslipsResponse, usersResponse, companySettings] = await Promise.all([
-      getPayslips({ page, pageSize: 20, search, status, from_date, to_date }),
+      getPayslips({ page, pageSize, search, status, from_date, to_date }),
       getUsers({ pageSize: 500 }),
       getCompanySettings(),
     ]);
@@ -25,7 +27,7 @@ export default async function PayslipsPage(props: {
     return <PayslipsAdminClient payslipsResponse={payslipsResponse} employees={employees} companySettings={companySettings} />;
   }
   const [payslipsResponse, companySettings] = await Promise.all([
-    getMyPayslips({ page, pageSize: 20, status, from_date, to_date }),
+    getMyPayslips({ page, pageSize, status, from_date, to_date }),
     getCompanySettings(),
   ]);
   return <PayslipsMyClient payslipsResponse={payslipsResponse} companySettings={companySettings} />;

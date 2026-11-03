@@ -23,6 +23,7 @@ import {
   MessageCircle,
   ExternalLink,
   StickyNote,
+  PhoneCall,
 } from "@/components/ui/icons";
 // Removed PersonalNotepad import
 
@@ -41,6 +42,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Megaphone,
   MessageCircle,
   StickyNote,
+  PhoneCall,
 };
 
 
@@ -57,7 +59,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   super_admin: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/reports", "/dashboard/chat", "/dashboard/personal-notepad"],
+      hrefs: ["/dashboard", "/dashboard/reports", "/dashboard/call-log", "/dashboard/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -86,7 +88,7 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
   sales_agent: [
     {
       title: "Main Menu",
-      hrefs: ["/dashboard", "/dashboard/sales-performance", "/dashboard/chat", "/dashboard/personal-notepad"],
+      hrefs: ["/dashboard", "/dashboard/sales-performance", "/dashboard/call-log", "/dashboard/chat", "/dashboard/personal-notepad"],
     },
     {
       title: "HR Services",
@@ -175,6 +177,7 @@ export function Sidebar({
     role !== "super_admin" && allowedModules && allowedModules.length > 0
       ? fullRoleItems.filter(
           (item) =>
+            item.href === "/dashboard/call-log" ||
             allowedModules.includes(item.href) ||
             (legacyModuleAliases[item.href] || []).some((legacyHref) =>
               allowedModules.includes(legacyHref),

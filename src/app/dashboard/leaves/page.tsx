@@ -3,6 +3,7 @@ import { getAllLeaves, getLeavesForCurrentUser } from "@/lib/actions/leaves";
 import { LeavesAdminClient } from "@/components/leaves/leaves-admin-client";
 import { MyLeavesClient } from "@/components/leaves/my-leaves-client";
 import type { Leave, LeaveStatus, UserRole } from "@/lib/types";
+import { parsePageSize } from "@/lib/page-size";
 
 interface LeavesQueryUserResult {
   id: string;
@@ -59,18 +60,19 @@ function formatLeavesResponse(response: {
 }
 
 export default async function LeavesPage(props: {
-  searchParams: Promise<{ page?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; pageSize?: string }>;
 }) {
   const user = await requireAuth();
   const searchParams = await props.searchParams;
   const page = Number(searchParams.page) || 1;
+  const pageSize = parsePageSize(searchParams.pageSize);
   const status = (searchParams.status as LeaveStatus | "all") || "all";
 
   if (user.role === "super_admin") {
-    const leavesResponse = await getAllLeaves({ page, pageSize: 20, status });
+    const leavesResponse = await getAllLeaves({ page, pageSize, status });
     return <LeavesAdminClient leavesResponse={formatLeavesResponse(leavesResponse)} />;
   }
 
-  const leavesResponse = await getLeavesForCurrentUser({ page, pageSize: 20, status });
+  const leavesResponse = await getLeavesForCurrentUser({ page, pageSize, status });
   return <MyLeavesClient leavesResponse={formatLeavesResponse(leavesResponse)} userRole={user.role} />;
 }

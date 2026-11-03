@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { parsePageSize } from "@/lib/page-size";
 import { requireAuth } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
@@ -12,7 +13,7 @@ export async function getPayments(filters?: {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   const { data, error, count } = await supabase

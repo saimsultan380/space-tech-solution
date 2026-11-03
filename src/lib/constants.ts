@@ -1,7 +1,7 @@
 import type { UserRole } from "@/lib/types";
 
 /** Default table page size. Every list uses the same page length. */
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 24;
 
 export const ROLES = {
   SUPER_ADMIN: "super_admin" as const,
@@ -124,11 +124,13 @@ export const NAV_ITEMS = {
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },
     { href: "/dashboard/reports", label: "Reports", icon: "BarChart3" },
+    { href: "/dashboard/call-log", label: "Call Log", icon: "PhoneCall" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
   sales_agent: [
     { href: "/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { href: "/dashboard/sales-performance", label: "Reports", icon: "BarChart3" },
+    { href: "/dashboard/call-log", label: "Call Log", icon: "PhoneCall" },
     { href: "/dashboard/chat", label: "Team Chat", icon: "MessageCircle" },
     { href: "/dashboard/personal-notepad", label: "Notepad", icon: "StickyNote" },
     { href: "/dashboard/call-logs-responses", label: "Call Logs Responses", icon: "Contact" },

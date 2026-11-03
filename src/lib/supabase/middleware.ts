@@ -3,7 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/supabase";
 
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
-  let supabaseResponse = NextResponse.next({ request });
+  // Do not pass `{ request }` here. In Next.js 16 that copies every request
+  // header onto the continue response and the app router resolves the page
+  // as not-found. Session cookies are still written on the response below.
+  let supabaseResponse = NextResponse.next();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -22,7 +25,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next();
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );

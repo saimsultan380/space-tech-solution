@@ -2,8 +2,6 @@ import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
-  // Optimization: skip middleware for static/public routes early
-  // though the matcher should handle most of this.
   return await updateSession(request);
 }
 

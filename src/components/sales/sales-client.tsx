@@ -22,7 +22,8 @@ import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { SALE_TYPES } from "@/lib/constants";
-import { deleteSale } from "@/lib/actions/sales";
+import { parsePageSize } from "@/lib/page-size";
+import { deleteSale, getVisibleSalesRawData } from "@/lib/actions/sales";
 import { createNote, deleteNote, getNotes, updateNote } from "@/lib/actions/notes";
 import type { Note, UserRole, Sale } from "@/lib/types";
 import {
@@ -89,8 +90,7 @@ function formatNoteTime(date: string): string {
 }
 
 function SalesRawDataPopover({ sale }: { sale: Sale }) {
-  const html = sanitizeRichText(sale.sales_raw_data);
-  const hasData = Boolean(sale.sales_raw_data?.trim());
+  const [rawHtml, setRawHtml] = useState("");
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
@@ -104,7 +104,11 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
     setLoadingNotes(true);
     setError("");
     try {
-      const rows = await getNotes({ sale_id: sale.id, type: "processing" });
+      const [raw, rows] = await Promise.all([
+        getVisibleSalesRawData(sale.id),
+        getNotes({ sale_id: sale.id, type: "processing" }),
+      ]);
+      setRawHtml(sanitizeRichText(raw));
       setNotes(rows);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load processing notes");
@@ -198,10 +202,12 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
           <p className="text-sm font-semibold text-foreground">Sales raw data</p>
         </div>
         <div className="max-h-52 overflow-y-auto px-4 py-3">
-          {hasData ? (
+          {loadingNotes && !rawHtml ? (
+            <p className="text-sm text-muted-foreground">Loading raw data…</p>
+          ) : rawHtml.trim() ? (
             <div
               className="space-y-2 text-sm leading-relaxed text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={{ __html: rawHtml }}
             />
           ) : (
             <p className="text-sm text-muted-foreground">No sales raw data yet.</p>
@@ -467,6 +473,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
   } | null>(null);
 
   const page = Number(searchParams.get("page")) || 1;
+  const pageSize = parsePageSize(searchParams.get("pageSize"));
   const typeFilter = searchParams.get("type") || "all";
   const agentFilterParam = searchParams.get("agent_id") || "all";
   const agentFilter = userRole === "sales_agent" ? userId : agentFilterParam;
@@ -506,6 +513,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     queryKey: [
       "sales",
       page,
+      pageSize,
       typeFilter,
       agentFilter,
       fromDateFilter,
@@ -517,7 +525,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         agent_id: agentFilter,
         sale_type: typeFilter,
         page,
-        pageSize: 20,
+        pageSize,
         from_date: fromDateFilter,
         to_date: toDateFilter,
         search: urlSearch,
@@ -538,7 +546,6 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
     data: sales = [],
     count = 0,
     totalPages = 1,
-    pageSize = 20,
     stats = {
       totalRecords: 0,
       totalAmount: 0,
@@ -591,7 +598,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
             totalPages: Math.max(
               1,
               Math.ceil(
-                Math.max(0, (old.count || 0) - 1) / (old.pageSize || 20),
+                Math.max(0, (old.count || 0) - 1) / (old.pageSize || pageSize),
               ),
             ),
           };

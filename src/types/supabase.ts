@@ -1761,12 +1761,87 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_call_logs: {
+        Row: {
+          id: string
+          agent_id: string
+          log_date: string
+          total_calls: number
+          total_sales: number
+          screenshot_path: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          agent_id: string
+          log_date: string
+          total_calls: number
+          total_sales: number
+          screenshot_path?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          log_date?: string
+          total_calls?: number
+          total_sales?: number
+          screenshot_path?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_call_logs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       ensure_self_chat: { Args: { p_user_id: string }; Returns: string }
+      get_visible_sales_raw_data: { Args: { p_sale_id: string }; Returns: string }
+      save_sales_raw_data: { Args: { p_sale_id: string; p_submitted: string }; Returns: undefined }
+      daily_call_log_stats: {
+        Args: {
+          p_from?: string | null
+          p_to?: string | null
+          p_agent?: string | null
+          p_search?: string | null
+        }
+        Returns: {
+          total_calls: number
+          total_sales: number
+          days_logged: number
+        }[]
+      }
+      daily_call_logs_page: {
+        Args: {
+          p_from?: string | null
+          p_to?: string | null
+          p_agent?: string | null
+          p_search?: string | null
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          agent_id: string
+          agent_name: string | null
+          log_date: string
+          total_calls: number
+          total_sales: number
+          screenshot_path: string | null
+        }[]
+      }
       ensure_user_employee_id: { Args: { p_user_id: string }; Returns: string }
       generate_employee_id: { Args: never; Returns: string }
       get_agent_dashboard_stats: {

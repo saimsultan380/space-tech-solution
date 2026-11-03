@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
+import { parsePageSize } from "@/lib/page-size";
 import { TableDataExport } from "@/components/ui/table-data-export";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import { DeleteCustomerButton } from "./delete-customer-button";
@@ -85,6 +86,7 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
   }, []);
 
   const page = Number(searchParams.get("page")) || 1;
+  const pageSize = parsePageSize(searchParams.get("pageSize"));
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
   const agentFilter = searchParams.get("agent") || "";
@@ -119,11 +121,11 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["customers", page, urlSearch, fromDateFilter, toDateFilter, agentFilter],
+    queryKey: ["customers", page, pageSize, urlSearch, fromDateFilter, toDateFilter, agentFilter],
     queryFn: () =>
       getCustomers({
         page,
-        pageSize: 20,
+        pageSize,
         search: urlSearch,
         createdFromDate: fromDateFilter || undefined,
         createdToDate: toDateFilter || undefined,
@@ -136,7 +138,6 @@ export function CustomersClient({ userRole }: CustomersClientProps) {
     data: customers = [],
     count = 0,
     totalPages = 1,
-    pageSize = 20,
   } = customersResponse || {};
 
   const { data: allAgents = [] } = useQuery({

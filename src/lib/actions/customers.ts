@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { parsePageSize } from "@/lib/page-size";
 import { requireAuth } from "@/lib/auth";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
@@ -56,7 +57,7 @@ export async function getCustomers(filters?: {
   await requireAuth();
   const supabase = await createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

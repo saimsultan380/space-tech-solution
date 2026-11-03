@@ -1,3 +1,4 @@
+import { parsePageSize } from "@/lib/page-size";
 import { createClient } from "@/lib/supabase/client";
 import { decrypt } from "@/lib/encryption";
 import { sanitizeFilterValue } from "@/lib/utils";
@@ -219,7 +220,7 @@ export async function getProcessingAccounts(filters?: {
 }> {
   const supabase = createClient();
   const page = filters?.page || 1;
-  const pageSize = filters?.pageSize || 20;
+  const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
   const normalizeRow = (
