@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,23 @@ import {
 } from "@/lib/call-log";
 import { parsePageSize } from "@/lib/page-size";
 import type { UserRole } from "@/lib/types";
-import { CalendarDays, Eye, Phone, Plus, Search, Target, Trash2, Upload, Wallet } from "@/components/ui/icons";
+import {
+  CalendarDays,
+  Eye,
+  MinusCircle,
+  Phone,
+  Plus,
+  RotateCcw,
+  Search,
+  Target,
+  Trash2,
+  Upload,
+  Wallet,
+} from "@/components/ui/icons";
+
+const VIEWER_MIN_ZOOM = 1;
+const VIEWER_MAX_ZOOM = 4;
+const VIEWER_ZOOM_STEP = 0.25;
 
 function formatLogDate(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate);
@@ -119,68 +135,245 @@ async function discardUpload(path: string) {
   await supabase.storage.from(CALL_LOG_BUCKET).remove([path]);
 }
 
+function ScreenshotViewer({
+  url,
+  alt,
+  onClose,
+}: {
+  url: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  const [zoom, setZoom] = useState(VIEWER_MIN_ZOOM);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef(zoom);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
+    setZoom(VIEWER_MIN_ZOOM);
+    setOffset({ x: 0, y: 0 });
+    setDragging(false);
+    dragRef.current = null;
+  }, [url]);
+
+  const clampZoom = (value: number) =>
+    Math.min(VIEWER_MAX_ZOOM, Math.max(VIEWER_MIN_ZOOM, Math.round(value * 100) / 100));
+
+  const resetView = () => {
+    setZoom(VIEWER_MIN_ZOOM);
+    setOffset({ x: 0, y: 0 });
+  };
+
+  const changeZoom = (next: number) => {
+    const clamped = clampZoom(next);
+    setZoom(clamped);
+    if (clamped <= VIEWER_MIN_ZOOM) setOffset({ x: 0, y: 0 });
+  };
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const delta =
+        Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+      if (delta === 0) return;
+
+      const current = zoomRef.current;
+      // Trackpads send small pixel deltas; mouse wheels send larger line/pixel jumps.
+      const amount =
+        event.deltaMode === 1
+          ? VIEWER_ZOOM_STEP * Math.sign(-delta)
+          : (-delta / 240) * VIEWER_ZOOM_STEP * 4;
+      const next = clampZoom(current + amount);
+      setZoom(next);
+      if (next <= VIEWER_MIN_ZOOM) setOffset({ x: 0, y: 0 });
+    };
+
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, []);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (zoom <= VIEWER_MIN_ZOOM || event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: offset.x,
+      originY: offset.y,
+    };
+    setDragging(true);
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setOffset({
+      x: drag.originX + (event.clientX - drag.startX),
+      y: drag.originY + (event.clientY - drag.startY),
+    });
+  };
+
+  const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = null;
+    setDragging(false);
+  };
+
+  return (
+    <Dialog open onClose={onClose} className="max-w-5xl border-border/60 bg-background p-0 sm:p-0">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 pr-14">
+        <p className="truncate text-sm font-medium">{alt}</p>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Zoom out"
+            disabled={zoom <= VIEWER_MIN_ZOOM}
+            onClick={() => changeZoom(zoom - VIEWER_ZOOM_STEP)}
+          >
+            <MinusCircle className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[3.25rem] text-center text-xs tabular-nums text-muted-foreground">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Zoom in"
+            disabled={zoom >= VIEWER_MAX_ZOOM}
+            onClick={() => changeZoom(zoom + VIEWER_ZOOM_STEP)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            aria-label="Reset zoom"
+            disabled={zoom === VIEWER_MIN_ZOOM && offset.x === 0 && offset.y === 0}
+            onClick={resetView}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div
+        ref={stageRef}
+        className={`relative flex h-[min(78vh,720px)] items-center justify-center overflow-hidden bg-muted/40 select-none ${
+          zoom > VIEWER_MIN_ZOOM ? (dragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
+        }`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={alt}
+          className="max-h-full max-w-full rounded-md object-contain pointer-events-none"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
+          draggable={false}
+        />
+      </div>
+    </Dialog>
+  );
+}
+
 function ScreenshotCell({
   row,
   busy,
+  onView,
   onReplace,
   onRemove,
 }: {
   row: DailyCallLogRow;
   busy: boolean;
+  onView: () => void;
   onReplace: (file: File) => void;
   onRemove: () => void;
 }) {
   return (
-    <div className="flex min-w-[180px] flex-wrap items-center gap-2">
+    <div className="flex min-w-[240px] items-center gap-4">
       {row.screenshot_url ? (
-        <>
-          <a href={row.screenshot_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={row.screenshot_url}
-              alt={`Call log for ${formatLogDate(row.log_date)}`}
-              className="h-10 w-16 rounded-md border border-border object-cover"
-            />
-          </a>
-          <a
-            href={row.screenshot_url}
-            target="_blank"
-            rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={onView}
+          className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={row.screenshot_url}
+            alt={`Call log for ${formatLogDate(row.log_date)}`}
+            className="h-10 w-16 rounded-md border border-border object-cover"
+          />
+        </button>
+      ) : (
+        <span className="shrink-0 text-xs text-muted-foreground">No screenshot</span>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        {row.screenshot_url && (
+          <button
+            type="button"
+            onClick={onView}
             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
           >
             <Eye className="h-3.5 w-3.5" />
             View
-          </a>
-        </>
-      ) : (
-        <span className="text-xs text-muted-foreground">No screenshot</span>
-      )}
-      <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-foreground">
-        <Upload className="h-3.5 w-3.5" />
-        {row.screenshot_url ? "Replace" : "Upload"}
-        <input
-          type="file"
-          accept={CALL_LOG_ACCEPT}
-          className="sr-only"
-          disabled={busy}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) onReplace(file);
-          }}
-        />
-      </label>
-      {row.screenshot_path && (
-        <button
-          type="button"
-          className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
-          disabled={busy}
-          onClick={onRemove}
-        >
-          Remove
-        </button>
-      )}
-      {busy && <Spinner />}
+          </button>
+        )}
+        <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-foreground">
+          <Upload className="h-3.5 w-3.5" />
+          {row.screenshot_url ? "Replace" : "Upload"}
+          <input
+            type="file"
+            accept={CALL_LOG_ACCEPT}
+            className="sr-only"
+            disabled={busy}
+            onChange={(event) => {
+              const nextFile = event.target.files?.[0];
+              event.target.value = "";
+              if (nextFile) onReplace(nextFile);
+            }}
+          />
+        </label>
+        {row.screenshot_path && (
+          <button
+            type="button"
+            className="text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+            disabled={busy}
+            onClick={onRemove}
+          >
+            Remove
+          </button>
+        )}
+        {busy && <Spinner className="h-4 w-4" />}
+      </div>
     </div>
   );
 }
@@ -208,6 +401,7 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
   const [progress, setProgress] = useState<number | null>(null);
   const [rowError, setRowError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<{ url: string; alt: string } | null>(null);
 
   const updateFilters = (updates: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -551,6 +745,13 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
                         <ScreenshotCell
                           row={row}
                           busy={busyId === row.id}
+                          onView={() => {
+                            if (!row.screenshot_url) return;
+                            setViewer({
+                              url: row.screenshot_url,
+                              alt: `Call log for ${formatLogDate(row.log_date)}`,
+                            });
+                          }}
                           onReplace={(nextFile) => void replaceScreenshot(row, nextFile)}
                           onRemove={() => void removeScreenshot(row)}
                         />
@@ -587,6 +788,10 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
           />
         </CardContent>
       </Card>
+
+      {viewer && (
+        <ScreenshotViewer url={viewer.url} alt={viewer.alt} onClose={() => setViewer(null)} />
+      )}
 
       <Dialog open={dialogOpen} onClose={() => !saving && setDialogOpen(false)} className="max-w-md">
         <DialogHeader>
@@ -628,6 +833,7 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
               id="call-log-file"
               type="file"
               accept={CALL_LOG_ACCEPT}
+              disabled={saving}
               onChange={(event) => {
                 const next = event.target.files?.[0] ?? null;
                 if (!next) {
@@ -645,10 +851,18 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
                 setFile(next);
               }}
             />
-            <p className="text-xs text-muted-foreground">PNG, JPG, or WebP. 5 MB maximum.</p>
-            {previewUrl && (
+            <p className="text-xs text-muted-foreground">
+              {editing?.screenshot_url && !file
+                ? "Current screenshot is shown below. Choose a file to replace it."
+                : "PNG, JPG, or WebP. 5 MB maximum."}
+            </p>
+            {(previewUrl || (!file && editing?.screenshot_url)) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="Screenshot preview" className="h-28 w-full rounded-md border border-border object-contain" />
+              <img
+                src={previewUrl || editing?.screenshot_url || ""}
+                alt={file ? "New screenshot preview" : "Current screenshot"}
+                className="h-28 w-full rounded-md border border-border object-contain"
+              />
             )}
             {progress !== null && (
               <div className="space-y-1">
@@ -665,8 +879,14 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
           <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void saveLog()} disabled={saving}>
-            {saving ? <Spinner /> : editing ? "Save" : "Add log"}
+          <Button type="button" onClick={() => void saveLog()} disabled={saving} className="min-w-[6.5rem]">
+            {saving ? (
+              <Spinner className="h-4 w-4 text-primary-foreground" />
+            ) : editing ? (
+              "Update"
+            ) : (
+              "Add log"
+            )}
           </Button>
         </DialogFooter>
       </Dialog>
