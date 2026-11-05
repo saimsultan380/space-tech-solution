@@ -156,7 +156,7 @@ export function DashboardClient({
         <MetricCard
           title="Total Revenue"
           value={formatCurrency(stats.totalRevenue, currency)}
-          description={`Recorded sales · ${rangeLabel}`}
+          description={`Sales date · ${rangeLabel}`}
           trend={revenueTrend}
           Icon={DollarSign}
           iconBgClass="bg-primary/10"
