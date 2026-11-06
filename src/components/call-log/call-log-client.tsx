@@ -43,6 +43,7 @@ import {
   CALL_LOG_ACCEPT,
   CALL_LOG_BUCKET,
   callLogImageFile,
+  normalizeCallLogImageFile,
   weekdayFromIsoDate,
 } from "@/lib/call-log";
 import { parsePageSize } from "@/lib/page-size";
@@ -58,8 +59,11 @@ import {
   Target,
   Trash2,
   Upload,
+  UploadCloud,
   Wallet,
+  X,
 } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
 
 const VIEWER_MIN_ZOOM = 1;
 const VIEWER_MAX_ZOOM = 4;
@@ -305,6 +309,172 @@ function ScreenshotViewer({
   );
 }
 
+function fileFromClipboard(data: DataTransfer | null): File | null {
+  if (!data) return null;
+  const items = Array.from(data.items || []);
+  for (const item of items) {
+    if (!item.type.startsWith("image/")) continue;
+    const raw = item.getAsFile();
+    if (raw) return normalizeCallLogImageFile(raw);
+  }
+  const files = Array.from(data.files || []);
+  const image = files.find((entry) => entry.type.startsWith("image/"));
+  return image ? normalizeCallLogImageFile(image) : null;
+}
+
+function fileFromDrop(data: DataTransfer | null): File | null {
+  if (!data?.files?.length) return null;
+  const image = Array.from(data.files).find(
+    (entry) => entry.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(entry.name),
+  );
+  return image ? normalizeCallLogImageFile(image) : null;
+}
+
+function ScreenshotDropzone({
+  inputId,
+  disabled,
+  previewUrl,
+  existingUrl,
+  hasNewFile,
+  onPick,
+  onClearNew,
+}: {
+  inputId: string;
+  disabled?: boolean;
+  previewUrl: string;
+  existingUrl?: string | null;
+  hasNewFile: boolean;
+  onPick: (file: File) => void;
+  onClearNew: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const shownUrl = previewUrl || (!hasNewFile ? existingUrl || "" : "");
+
+  const acceptFile = (file: File | null) => {
+    if (!file || disabled) return;
+    onPick(file);
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Upload screenshot. Drop, browse, or paste with Ctrl V."
+      className={cn(
+        "relative rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors outline-none",
+        dragOver
+          ? "border-primary bg-primary/5"
+          : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/35",
+        disabled && "pointer-events-none opacity-60",
+        "focus-visible:ring-2 focus-visible:ring-ring",
+      )}
+      onClick={() => {
+        if (!disabled) inputRef.current?.click();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          if (!disabled) inputRef.current?.click();
+        }
+      }}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!disabled) setDragOver(true);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!disabled) setDragOver(true);
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setDragOver(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setDragOver(false);
+        acceptFile(fileFromDrop(event.dataTransfer));
+      }}
+      onPaste={(event) => {
+        const pasted = fileFromClipboard(event.clipboardData);
+        if (!pasted) return;
+        event.preventDefault();
+        acceptFile(pasted);
+      }}
+    >
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="file"
+        accept={CALL_LOG_ACCEPT}
+        className="sr-only"
+        disabled={disabled}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => {
+          const next = event.target.files?.[0] ?? null;
+          event.target.value = "";
+          if (!next) return;
+          acceptFile(normalizeCallLogImageFile(next));
+        }}
+      />
+
+      {shownUrl ? (
+        <div className="space-y-3" onClick={(event) => event.stopPropagation()}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={shownUrl}
+            alt={hasNewFile ? "New screenshot preview" : "Current screenshot"}
+            className="mx-auto h-32 w-full max-w-full rounded-lg border border-border object-contain bg-background"
+          />
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {hasNewFile || existingUrl ? "Replace" : "Upload"}
+            </Button>
+            {hasNewFile && (
+              <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onClearNew}>
+                <X className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {hasNewFile
+              ? "New image ready. Drop, browse, or press Ctrl+V to replace."
+              : "Current screenshot. Drop, browse, or press Ctrl+V to replace."}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <UploadCloud className="h-5 w-5" />
+          </span>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              {dragOver ? "Drop screenshot to upload" : "Drop screenshot here"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              or click to browse · paste with <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px]">Ctrl</kbd>+
+              <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px]">V</kbd>
+            </p>
+            <p className="text-xs text-muted-foreground">PNG, JPG, or WebP · 5 MB max</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScreenshotCell({
   row,
   busy,
@@ -446,6 +616,35 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  const pickScreenshot = (next: File) => {
+    const checked = callLogImageFile(next);
+    if ("error" in checked) {
+      setFormError(checked.error);
+      return;
+    }
+    setFormError("");
+    setFile(normalizeCallLogImageFile(next));
+  };
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+    const onPaste = (event: ClipboardEvent) => {
+      if (saving) return;
+      const pasted = fileFromClipboard(event.clipboardData);
+      if (!pasted) return;
+      event.preventDefault();
+      const checked = callLogImageFile(pasted);
+      if ("error" in checked) {
+        setFormError(checked.error);
+        return;
+      }
+      setFormError("");
+      setFile(normalizeCallLogImageFile(pasted));
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [dialogOpen, saving]);
 
   const openCreate = () => {
     setEditing(null);
@@ -829,41 +1028,18 @@ export function CallLogClient({ userRole, userId }: { userRole: UserRole; userId
             <label htmlFor="call-log-file" className="block text-sm font-medium">
               Screenshot
             </label>
-            <Input
-              id="call-log-file"
-              type="file"
-              accept={CALL_LOG_ACCEPT}
+            <ScreenshotDropzone
+              inputId="call-log-file"
               disabled={saving}
-              onChange={(event) => {
-                const next = event.target.files?.[0] ?? null;
-                if (!next) {
-                  setFile(null);
-                  return;
-                }
-                const checked = callLogImageFile(next);
-                if ("error" in checked) {
-                  setFormError(checked.error);
-                  event.target.value = "";
-                  setFile(null);
-                  return;
-                }
+              previewUrl={previewUrl}
+              existingUrl={editing?.screenshot_url}
+              hasNewFile={Boolean(file)}
+              onPick={pickScreenshot}
+              onClearNew={() => {
+                setFile(null);
                 setFormError("");
-                setFile(next);
               }}
             />
-            <p className="text-xs text-muted-foreground">
-              {editing?.screenshot_url && !file
-                ? "Current screenshot is shown below. Choose a file to replace it."
-                : "PNG, JPG, or WebP. 5 MB maximum."}
-            </p>
-            {(previewUrl || (!file && editing?.screenshot_url)) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewUrl || editing?.screenshot_url || ""}
-                alt={file ? "New screenshot preview" : "Current screenshot"}
-                className="h-28 w-full rounded-md border border-border object-contain"
-              />
-            )}
             {progress !== null && (
               <div className="space-y-1">
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted">
