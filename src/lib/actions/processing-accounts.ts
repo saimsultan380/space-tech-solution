@@ -153,7 +153,33 @@ export async function getProcessingAccountStats(filters?: {
     };
   }
 
-  // No search – fast SQL count queries
+  // One grouped count instead of six round trips. Falls back to per-status
+  // head counts if the RPC is not deployed yet.
+  const accountType =
+    filters?.account_type && filters.account_type !== "all" ? filters.account_type : null;
+  const { data: countData, error: countError } = await (supabase as unknown as {
+    rpc: (
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>;
+  }).rpc("get_processing_account_counts", {
+    p_account_type: accountType,
+    p_from: filters?.from_date ? `${filters.from_date}T00:00:00.000Z` : null,
+    p_to: filters?.to_date ? `${filters.to_date}T23:59:59.999Z` : null,
+  });
+
+  if (!countError && countData && typeof countData === "object") {
+    const row = countData as Record<string, number>;
+    return {
+      total: Number(row.total || 0),
+      active: Number(row.active || 0),
+      not_working: Number(row.not_working || 0),
+      closed: Number(row.closed || 0),
+      reversal_issue: Number(row.reversal_issue || 0),
+      under_review: Number(row.under_review || 0),
+    };
+  }
+
   const [totalRes, ...statusRes] = await Promise.all([
     applyStructuralFilters(supabase.from("processing_accounts").select("id", { count: "exact", head: true })),
     ...statuses.map((s) =>
