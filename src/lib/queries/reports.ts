@@ -351,6 +351,8 @@ export async function getEmployeeMonthlyStats(month?: string, range?: DateRange 
       totalHours: Number(row.total_hours ?? 0),
       callLogResponses: Number(row.call_log_responses ?? 0),
       chargebacks: Number(row.chargebacks ?? 0),
+      chargebackAmount: Number(row.chargeback_amount ?? 0),
+      callToSaleConversion: Number(row.call_to_sale_conversion ?? 0),
       chargebackRatio: Number(row.chargeback_ratio ?? 0),
     }));
   } catch (error) {

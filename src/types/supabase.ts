@@ -1536,6 +1536,7 @@ export type Database = {
           other_sale_data: string
           payment_method: string
           payment_status_after_sale: string | null
+          bill_payment_status: string | null
           policy_holder_name: string
           processing_notes: string
           processor_id: string | null
@@ -1579,6 +1580,7 @@ export type Database = {
           other_sale_data?: string
           payment_method?: string
           payment_status_after_sale?: string | null
+          bill_payment_status?: string | null
           policy_holder_name?: string
           processing_notes?: string
           processor_id?: string | null
@@ -1622,6 +1624,7 @@ export type Database = {
           other_sale_data?: string
           payment_method?: string
           payment_status_after_sale?: string | null
+          bill_payment_status?: string | null
           policy_holder_name?: string
           processing_notes?: string
           processor_id?: string | null

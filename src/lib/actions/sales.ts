@@ -629,6 +629,42 @@ export async function updateSaleNoteFields(
   revalidatePath(`/dashboard/sales/${saleId}`);
 }
 
+const BILL_PAYMENT_STATUS_VALUES = new Set([
+  "already_paid",
+  "reversed_paid_card",
+  "reversed_paid_check",
+  "bill_on_card",
+  "bill_on_cash",
+]);
+
+/** Updates bill payment status from the Sales raw data popup. */
+export async function updateSaleBillPaymentStatus(
+  saleId: string,
+  billPaymentStatus: string | null,
+) {
+  await requireAuth();
+  const supabase = await createClient();
+
+  const next =
+    billPaymentStatus && billPaymentStatus.trim()
+      ? billPaymentStatus.trim()
+      : null;
+
+  if (next && !BILL_PAYMENT_STATUS_VALUES.has(next)) {
+    throw new Error("Invalid bill payment status");
+  }
+
+  const { error } = await supabase
+    .from("sales")
+    .update({ bill_payment_status: next })
+    .eq("id", saleId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/sales");
+  revalidatePath(`/dashboard/sales/${saleId}`);
+}
+
 export async function updateSaleStatus(
   id: string,
   status: SaleStatus,

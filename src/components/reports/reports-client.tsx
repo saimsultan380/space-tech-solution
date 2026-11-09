@@ -99,6 +99,8 @@ interface EmployeeStat {
   totalHours: number;
   callLogResponses: number;
   chargebacks: number;
+  chargebackAmount: number;
+  callToSaleConversion: number;
   chargebackRatio: number;
 }
 
@@ -322,17 +324,17 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
       filteredEmployees.map((emp) => [
         emp.name,
         ROLE_LABELS[emp.role] || emp.role,
+        emp.callLogResponses,
         emp.totalSales,
-        emp.approvedSales,
-        emp.rejectedSales,
+        emp.chargebacks,
         formatCurrency(emp.revenue, currency),
+        formatCurrency(emp.chargebackAmount, currency),
+        `${emp.callToSaleConversion}%`,
+        `${emp.chargebackRatio}%`,
         emp.daysPresent,
         `${emp.totalHours}h`,
-        emp.callLogResponses,
-        emp.chargebacks,
-        `${emp.chargebackRatio}%`,
       ]),
-    [employeeMonthlyStats, currency],
+    [filteredEmployees, currency],
   );
 
   return (
@@ -436,7 +438,19 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                 )}
                 <TableDataExport
                   filenameBase={`employee-performance-${rangeKey}`}
-                  headers={["Employee", "Role", "Total Sales", "Recorded", "Rejected", "Revenue", "Days Present", "Hours Worked", "Call Log Responses", "Chargebacks", "CB Ratio"]}
+                  headers={[
+                    "Employee",
+                    "Role",
+                    "Total Calls",
+                    "Total Sales",
+                    "Total Chargebacks",
+                    "Total Revenue",
+                    "Total Chargeback Amount",
+                    "Call to Sale Conversion",
+                    "Chargeback Ratio",
+                    "Days Present",
+                    "Hours Worked",
+                  ]}
                   rows={employeePerformanceExportRows}
                   disabled={filteredEmployees.length === 0}
                   className="shrink-0"
@@ -497,15 +511,15 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Total Calls</TableHead>
                     <TableHead className="text-right">Total Sales</TableHead>
-                    <TableHead className="text-right">Recorded</TableHead>
-                    <TableHead className="text-right">Rejected</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Total Chargebacks</TableHead>
+                    <TableHead className="text-right">Total Revenue</TableHead>
+                    <TableHead className="text-right">CB Amount</TableHead>
+                    <TableHead className="text-right">Call→Sale</TableHead>
+                    <TableHead className="text-right">CB Ratio</TableHead>
                     <TableHead className="text-right">Days Present</TableHead>
                     <TableHead className="text-right">Hours Worked</TableHead>
-                    <TableHead className="text-right">Call Logs</TableHead>
-                    <TableHead className="text-right">Chargebacks</TableHead>
-                    <TableHead className="text-right">CB Ratio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -515,22 +529,30 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                       <TableCell>
                         <Badge variant="secondary">{ROLE_LABELS[emp.role] || emp.role}</Badge>
                       </TableCell>
-                      <TableCell className="text-right">{emp.totalSales}</TableCell>
-                      <TableCell className="text-right">
-                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{emp.approvedSales}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="font-medium text-red-600 dark:text-red-400">{emp.rejectedSales}</span>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">{formatCurrency(emp.revenue, currency)}</TableCell>
-                      <TableCell className="text-right">{emp.daysPresent}</TableCell>
-                      <TableCell className="text-right">{emp.totalHours}h</TableCell>
                       <TableCell className="text-right">
                         <span className="font-medium text-sky-600 dark:text-sky-400">{emp.callLogResponses}</span>
                       </TableCell>
+                      <TableCell className="text-right">{emp.totalSales}</TableCell>
                       <TableCell className="text-right">
                         <span className={emp.chargebacks > 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
                           {emp.chargebacks}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(emp.revenue, currency)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={emp.chargebackAmount > 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
+                          {formatCurrency(emp.chargebackAmount, currency)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={
+                          emp.callToSaleConversion >= 10
+                            ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                            : emp.callToSaleConversion > 0
+                              ? "font-medium text-amber-600 dark:text-amber-400"
+                              : "text-muted-foreground"
+                        }>
+                          {emp.callToSaleConversion}%
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -544,6 +566,8 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                           {emp.chargebackRatio}%
                         </span>
                       </TableCell>
+                      <TableCell className="text-right">{emp.daysPresent}</TableCell>
+                      <TableCell className="text-right">{emp.totalHours}h</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -135,6 +135,7 @@ export interface Sale {
   card_last_four?: string | null;
   utility_company_phone?: string | null;
   payment_status_after_sale?: string | null;
+  bill_payment_status?: string | null;
   expected_next_bill_date?: string | null;
   guest_pay_enabled?: boolean | null;
   guest_pay_link?: string | null;

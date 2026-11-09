@@ -21,9 +21,13 @@ import { Pagination } from "@/components/ui/pagination";
 
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
-import { SALE_TYPES } from "@/lib/constants";
+import { BILL_PAYMENT_STATUSES, SALE_TYPES } from "@/lib/constants";
 import { parsePageSize } from "@/lib/page-size";
-import { deleteSale, getVisibleSalesRawData } from "@/lib/actions/sales";
+import {
+  deleteSale,
+  getVisibleSalesRawData,
+  updateSaleBillPaymentStatus,
+} from "@/lib/actions/sales";
 import { createNote, deleteNote, getNotes, updateNote } from "@/lib/actions/notes";
 import type { Note, UserRole, Sale } from "@/lib/types";
 import {
@@ -37,13 +41,7 @@ import {
   Target,
   Zap,
   Shield,
-  User,
-  Contact,
   ChevronDown,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
   FileText,
   Loader2,
 } from "@/components/ui/icons";
@@ -90,6 +88,7 @@ function formatNoteTime(date: string): string {
 }
 
 function SalesRawDataPopover({ sale }: { sale: Sale }) {
+  const queryClient = useQueryClient();
   const [rawHtml, setRawHtml] = useState("");
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -99,6 +98,14 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [billPaymentStatus, setBillPaymentStatus] = useState(
+    sale.bill_payment_status ?? "",
+  );
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  useEffect(() => {
+    setBillPaymentStatus(sale.bill_payment_status ?? "");
+  }, [sale.bill_payment_status, sale.id]);
 
   const loadNotes = async () => {
     setLoadingNotes(true);
@@ -125,6 +132,22 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
       setEditingId(null);
       setDraft("");
       setError("");
+    }
+  };
+
+  const handleBillPaymentStatusChange = async (value: string) => {
+    const previous = billPaymentStatus;
+    setBillPaymentStatus(value);
+    setSavingStatus(true);
+    setError("");
+    try {
+      await updateSaleBillPaymentStatus(sale.id, value || null);
+      await queryClient.invalidateQueries({ queryKey: ["sales"] });
+    } catch (e) {
+      setBillPaymentStatus(previous);
+      setError(e instanceof Error ? e.message : "Could not update bill payment status");
+    } finally {
+      setSavingStatus(false);
     }
   };
 
@@ -215,7 +238,24 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
         </div>
 
         <div className="border-t border-border bg-muted/20 px-4 py-3">
-          <p className="text-xs font-semibold text-foreground">Add processing note</p>
+          <Select
+            id={`bill_payment_status_${sale.id}`}
+            label="Bill payment status"
+            placeholder="Select status"
+            options={BILL_PAYMENT_STATUSES.map((opt) => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
+            value={billPaymentStatus}
+            onChange={(e) => void handleBillPaymentStatusChange(e.target.value)}
+            disabled={savingStatus}
+            className="h-9 text-xs sm:h-9 sm:text-xs"
+          />
+          {savingStatus ? (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">Saving status…</p>
+          ) : null}
+
+          <p className="mt-3 text-xs font-semibold text-foreground">Add processing note</p>
           <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
             {loadingNotes && notes.length === 0 ? (
               <p className="text-xs text-muted-foreground">Loading notes…</p>
@@ -323,132 +363,6 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
             </Button>
           </div>
           {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// ─── Customer Info Popover ────────────────────────────────────────────────────
-function CustomerInfoPopover({ sale }: { sale: Sale }) {
-  const isInsurance = sale.sale_type === "insurance";
-  const name =
-    sale.customer?.name || sale.customer_name || sale.account_holder_name || "—";
-  const email = sale.customer?.email || sale.customer_email || null;
-  const phone = sale.customer?.phone || sale.customer_phone || null;
-  const address = sale.customer?.address || sale.service_address || null;
-  const dob = sale.customer?.dob || sale.dob || null;
-  const holder = isInsurance
-    ? sale.policy_holder_name || sale.account_holder_name || null
-    : sale.account_holder_name || null;
-  const accountNo = (sale.customer as { account_no?: string } | undefined)?.account_no || null;
-  const ssnLast4 = sale.ssn_encrypted
-    ? sale.ssn_encrypted.replace(/\D/g, "").slice(-4) || "••••"
-    : null;
-
-  type InfoRowProps = { icon: React.ReactNode; label: string; value: string | null | undefined };
-  const InfoRow = ({ icon, label, value }: InfoRowProps) => {
-    if (!value) return null;
-    return (
-      <div className="flex items-start gap-2 py-1.5">
-        <span className="mt-0.5 text-muted-foreground shrink-0">{icon}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
-            {label}
-          </p>
-          <p className="text-xs text-foreground break-words leading-snug">{value}</p>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex h-8 min-w-[80px] items-center justify-between gap-1 rounded-md px-2.5 text-xs font-medium transition-colors whitespace-nowrap border border-border text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40"
-          title="View customer info"
-        >
-          <User className="h-3.5 w-3.5 shrink-0" />
-          <span>Info</span>
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent align="end" className="w-80 p-3 shadow-2xl bg-popover border-border">
-        {/* Header */}
-        <div className="mb-1.5 flex items-center gap-2.5 border-b border-border pb-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-            {name
-              .split(/\s+/)
-              .filter(Boolean)
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase() || "?"}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{name}</p>
-            <p className="text-[10px] text-muted-foreground">Customer Info</p>
-          </div>
-        </div>
-
-        {/* Info rows — all fields matching sale detail "Customer Info" card */}
-        <div className="divide-y divide-border/50">
-          <InfoRow
-            icon={<Mail className="h-3.5 w-3.5" />}
-            label="Email"
-            value={email}
-          />
-          <InfoRow
-            icon={<Phone className="h-3.5 w-3.5" />}
-            label="Phone"
-            value={phone}
-          />
-          <InfoRow
-            icon={<MapPin className="h-3.5 w-3.5" />}
-            label="Service Address"
-            value={address}
-          />
-          <InfoRow
-            icon={<User className="h-3.5 w-3.5" />}
-            label={isInsurance ? "Policy Holder" : "Account Holder"}
-            value={holder}
-          />
-          <InfoRow
-            icon={<Contact className="h-3.5 w-3.5" />}
-            label="Account / Policy No."
-            value={accountNo}
-          />
-          <InfoRow
-            icon={<Calendar className="h-3.5 w-3.5" />}
-            label="Date of Birth"
-            value={dob}
-          />
-          <InfoRow
-            icon={<Shield className="h-3.5 w-3.5" />}
-            label="SSN (last 4)"
-            value={ssnLast4}
-          />
-        </div>
-
-        {/* Footer: two separate links — customer profile + sale detail */}
-        <div className="mt-2.5 grid grid-cols-2 gap-1.5 border-t border-border pt-2.5">
-          <Link
-            href={`/dashboard/customers/${sale.customer_id}`}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors"
-          >
-            <User className="h-3 w-3" />
-            Customer profile
-          </Link>
-          <Link
-            href={`/dashboard/sales/${sale.id}`}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-          >
-            <Eye className="h-3 w-3" />
-            Sale detail
-          </Link>
         </div>
       </PopoverContent>
     </Popover>
@@ -969,7 +883,6 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     <TableHead>Amount</TableHead>
                     <TableHead>Agent Name</TableHead>
                     <TableHead className="w-[120px]">Sales raw data</TableHead>
-                    <TableHead className="w-[100px]">Customer</TableHead>
                     <TableHead className="w-[120px] text-right">
                       Actions
                     </TableHead>
@@ -1034,9 +947,6 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       </TableCell>
                       <TableCell>
                         <SalesRawDataPopover sale={sale} />
-                      </TableCell>
-                      <TableCell>
-                        <CustomerInfoPopover sale={sale} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-0.5">

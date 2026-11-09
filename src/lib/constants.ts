@@ -97,6 +97,14 @@ export const PROCESSING_ACCOUNT_STATUSES = [
   { value: "under_review", label: "Under Review" },
 ];
 
+export const BILL_PAYMENT_STATUSES = [
+  { value: "already_paid", label: "Already Paid" },
+  { value: "reversed_paid_card", label: "Reversed got paid with card" },
+  { value: "reversed_paid_check", label: "Reversed got paid with check" },
+  { value: "bill_on_card", label: "Bill is on card" },
+  { value: "bill_on_cash", label: "Bill is on cash" },
+] as const;
+
 export const CURRENCIES = [
   { value: "PKR", label: "Pakistani Rupee (PKR)" },
   { value: "USD", label: "US Dollar (USD)" },

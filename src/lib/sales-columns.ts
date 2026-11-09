@@ -6,6 +6,7 @@ export const SALE_ROW_COLUMNS = [
   "agent_id",
   "agent_name",
   "amount",
+  "bill_payment_status",
   "billed_month",
   "card_last_four",
   "charged_amount",
