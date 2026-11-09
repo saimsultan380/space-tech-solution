@@ -50,7 +50,7 @@ export async function createPersonalNote(payload: {
     return { error: error.message };
   }
 
-  revalidatePath("/");
+  revalidatePath("/dashboard/personal-notepad");
   return { data: data as PersonalNote };
 }
 
@@ -74,7 +74,7 @@ export async function updatePersonalNote(
     return { error: error.message };
   }
 
-  revalidatePath("/");
+  revalidatePath("/dashboard/personal-notepad");
   return { data: data as PersonalNote };
 }
 
@@ -93,7 +93,7 @@ export async function deletePersonalNote(id: string) {
     return { error: error.message };
   }
 
-  revalidatePath("/");
+  revalidatePath("/dashboard/personal-notepad");
   return { error: null };
 }
 

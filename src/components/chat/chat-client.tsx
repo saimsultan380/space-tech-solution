@@ -326,6 +326,7 @@ function ChatClientContent({
   const [members, setMembers] = useState<Member[]>([]);
   const [newMsg, setNewMsg] = useState("");
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
 
   // UI panels
@@ -855,7 +856,7 @@ function ChatClientContent({
   };
 
   const handleSend = useCallback(async () => {
-    if (!activeChannelId || sending) return;
+    if (!activeChannelId || sendingRef.current) return;
 
     // If editing, save the edit instead of sending a new message
     if (editingMsgId) {
@@ -863,12 +864,17 @@ function ChatClientContent({
       return;
     }
 
-    if (!newMsg.trim()) return;
-    const content = newMsg;
+    const content = newMsg.trim();
+    if (!content) return;
+
+    // Sync lock prevents Enter key-repeat / double-submit from resending
+    // the same text before React re-renders with cleared input / sending=true.
+    sendingRef.current = true;
+    setSending(true);
+
     const replyId = replyTo?.id;
     setNewMsg("");
     setReplyTo(null);
-    setSending(true);
 
     const optimisticMsg: ChatMessage = {
       id: `optimistic-${Date.now()}`,
@@ -884,14 +890,22 @@ function ChatClientContent({
     };
     setMessages((prev) => [...prev, optimisticMsg]);
 
-    await sendMessage(activeChannelId, content, { replyToId: replyId });
-    setSending(false);
-    inputRef.current?.focus();
-  }, [newMsg, activeChannelId, sending, replyTo, currentUserId, currentUserName, currentUserAvatar, currentUserRole, editingMsgId]);
+    try {
+      await sendMessage(activeChannelId, content, { replyToId: replyId });
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  }, [newMsg, activeChannelId, replyTo, currentUserId, currentUserName, currentUserAvatar, currentUserRole, editingMsgId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Escape" && editingMsgId) { handleCancelEdit(); return; }
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (e.repeat || sendingRef.current) return;
+      void handleSend();
+    }
   }, [handleSend, editingMsgId]);
 
   const handleFileUpload = async (file: File) => {
