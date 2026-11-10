@@ -711,7 +711,8 @@ export function SaleForm({
         </Card>
       )}
 
-      {/* Manual record for older sales and checking. New card sales use Charge a Sale. */}
+      {/* New card sales only show Charge a Sale. Payment Details is for checking and older manual sales. */}
+      {(mode === "edit" || form.payment_method === "checking") && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -723,7 +724,7 @@ export function SaleForm({
           <p className="text-xs text-muted-foreground">
             {mode === "edit"
               ? "Older sales stay manual here. Updating this card or bank record does not send a new charge to a merchant."
-              : "Use this for checking. A new card sale is entered only in Charge a Sale, and the two sections do not copy each other."}
+              : "Checking sales are saved here and are not sent to a merchant."}
           </p>
           <div className="flex gap-3">
             <button
@@ -803,12 +804,6 @@ export function SaleForm({
             </div>
           )}
 
-          {mode === "create" && form.payment_method === "card" && (
-            <p className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-              This new card sale starts in Charge a Sale. Nothing typed there is copied back into Payment Details.
-            </p>
-          )}
-
           {form.payment_method === "checking" && (
             <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -853,6 +848,7 @@ export function SaleForm({
           )}
         </CardContent>
       </Card>
+      )}
 
       {mode === "create" && form.payment_method === "card" && (
         <Card>
@@ -864,8 +860,26 @@ export function SaleForm({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              New card sales start here. The card is sent only to the merchant you select. It is not filled from Payment Details or from pasted sales raw data.
+              Enter the card here. It is sent only to the merchant you select.
             </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => set("payment_method", "card")}
+                className="flex-1 rounded-xl border-2 border-primary bg-primary/5 p-4 text-center text-sm font-medium text-primary"
+              >
+                <CreditCard className="mx-auto mb-1.5 h-5 w-5" />
+                Card
+              </button>
+              <button
+                type="button"
+                onClick={() => set("payment_method", "checking")}
+                className="flex-1 rounded-xl border-2 border-border p-4 text-center text-sm font-medium transition-all hover:border-muted-foreground/30"
+              >
+                <Building2 className="mx-auto mb-1.5 h-5 w-5" />
+                Checking
+              </button>
+            </div>
             <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
