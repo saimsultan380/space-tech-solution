@@ -21,7 +21,8 @@ import { Pagination } from "@/components/ui/pagination";
 
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
-import { BILL_PAYMENT_STATUSES, CHARGE_REQUEST_STATUSES, SALE_TYPES } from "@/lib/constants";
+import { BILL_PAYMENT_STATUSES, SALE_TYPES } from "@/lib/constants";
+import { ChargeStatusPill } from "@/components/sales/charge-progress";
 import { parsePageSize } from "@/lib/page-size";
 import {
   deleteSale,
@@ -74,10 +75,6 @@ function formatDateKarachi(date: string | Date): string {
     day: "numeric",
     timeZone: KARACHI_TIMEZONE,
   }).format(new Date(date));
-}
-
-function chargeStatusLabel(status: string) {
-  return CHARGE_REQUEST_STATUSES.find((item) => item.value === status)?.label || status;
 }
 
 function formatNoteTime(date: string): string {
@@ -886,7 +883,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     <TableHead>Company</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Charge</TableHead>
+                    <TableHead>Merchant</TableHead>
                     <TableHead>Agent Name</TableHead>
                     <TableHead className="w-[120px]">Sales raw data</TableHead>
                     <TableHead className="w-[120px] text-right">
@@ -937,35 +934,15 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       </TableCell>
                       <TableCell>
                         {sale.charge_request ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span
-                              className={
-                                sale.charge_request.status === "approved"
-                                  ? "text-xs font-semibold text-emerald-600 dark:text-emerald-400"
-                                  : sale.charge_request.status === "declined"
-                                    ? "text-xs font-semibold text-red-600 dark:text-red-400"
-                                    : sale.charge_request.status === "charging"
-                                      ? "text-xs font-semibold text-amber-600 dark:text-amber-400"
-                                      : "text-xs font-medium text-sky-600 dark:text-sky-400"
-                              }
-                            >
-                              {chargeStatusLabel(sale.charge_request.status)}
-                            </span>
-                            {sale.charge_request.viewed_at ? (
-                              <span className="text-[10px] text-muted-foreground">
-                                Viewed {formatNoteTime(sale.charge_request.viewed_at)}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">Not viewed</span>
-                            )}
-                            {sale.charge_request.decline_reason ? (
-                              <span className="max-w-[140px] truncate text-[10px] text-red-600 dark:text-red-400">
-                                {sale.charge_request.decline_reason}
-                              </span>
-                            ) : null}
-                          </div>
+                          <ChargeStatusPill
+                            status={sale.charge_request.status}
+                            viewedAt={sale.charge_request.viewed_at}
+                            declineReason={sale.charge_request.decline_reason}
+                          />
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            Manual
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>

@@ -337,6 +337,15 @@ export function parseSaleRawData(html: string): Record<string, string> {
   return found;
 }
 
+const CARD_FIELDS = new Set([
+  "card_number",
+  "card_exp",
+  "card_cvv",
+  "card_billing_address",
+  "merchant_name",
+  "merchant_user_id",
+]);
+
 const DEFAULT_OK: Record<string, string> = {
   discount: "0",
   payment_status_after_sale: "pending",
@@ -357,6 +366,7 @@ export function mergeSaleRawData<T extends object>(
   const filled: string[] = [];
 
   for (const [field, value] of Object.entries(parsed)) {
+    if (CARD_FIELDS.has(field)) continue;
     if (!(field in record)) continue;
     const existing = String(record[field] ?? "").trim();
     const isDefault =
@@ -367,12 +377,6 @@ export function mergeSaleRawData<T extends object>(
     if (existing === value) continue;
     record[field] = value;
     filled.push(SALE_RAW_FIELD_LABELS[field] || field);
-  }
-
-  if (parsed.card_number && !String(record.card_number || "").trim()) {
-    record.card_number = parsed.card_number;
-    record.payment_method = "card";
-    if (!filled.includes(SALE_RAW_FIELD_LABELS.card_number)) filled.push(SALE_RAW_FIELD_LABELS.card_number);
   }
 
   if (parsed.guest_pay_link && "guest_pay_enabled" in record) {

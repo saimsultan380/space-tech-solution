@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { listMerchantChargeRequests } from "@/lib/actions/merchant-charges";
-import { CHARGE_REQUEST_STATUSES } from "@/lib/constants";
+import { ChargeStatusPill } from "@/components/sales/charge-progress";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,10 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, Spinner } from "@/components/ui/loading";
-
-function statusLabel(status: string) {
-  return CHARGE_REQUEST_STATUSES.find((item) => item.value === status)?.label || status;
-}
 
 export function MerchantChargesClient() {
   const { currency } = useCurrency();
@@ -64,7 +60,13 @@ export function MerchantChargesClient() {
                     <TableCell>{request.company_name || "—"}</TableCell>
                     <TableCell>{formatCurrency(request.charged_amount || 0, currency)}</TableCell>
                     <TableCell>{request.agent_name || "—"}</TableCell>
-                    <TableCell>{statusLabel(request.status)}</TableCell>
+                    <TableCell>
+                      <ChargeStatusPill
+                        status={request.status}
+                        viewedAt={request.viewed_at}
+                        declineReason={request.decline_reason}
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
                       <Link
                         href={`/dashboard/merchant-charges/${request.id}`}

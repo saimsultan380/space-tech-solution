@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { transitionMerchantCharge } from "@/lib/actions/merchant-charges";
-import { CHARGE_REQUEST_STATUSES } from "@/lib/constants";
+import { ChargeProgress } from "@/components/sales/charge-progress";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import type { SaleChargeRequest } from "@/lib/types";
@@ -33,8 +33,6 @@ export function MerchantChargeDetail({
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const statusLabel =
-    CHARGE_REQUEST_STATUSES.find((item) => item.value === request.status)?.label || request.status;
 
   const run = async (next: "charging" | "approved" | "declined") => {
     setPending(true);
@@ -58,11 +56,17 @@ export function MerchantChargeDetail({
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{request.company_name || "Card charge"}</h1>
           <p className="text-sm text-muted-foreground">
-            {request.customer_name || "Customer"} · {request.agent_name || "Agent"} · {statusLabel}
+            {request.customer_name || "Customer"} · {request.agent_name || "Agent"}
           </p>
         </div>
         <p className="text-xl font-semibold">{formatCurrency(request.charged_amount || 0, currency)}</p>
       </div>
+      <ChargeProgress
+        status={request.status}
+        merchantName={request.merchant_name}
+        viewedAt={request.viewed_at}
+        declineReason={request.decline_reason}
+      />
 
       <Card>
         <CardHeader>
