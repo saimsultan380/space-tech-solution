@@ -244,11 +244,41 @@ export async function getSales(filters?: {
 
   if (error) throw new Error(error.message);
 
+  const salesRows = (data || []) as unknown as Sale[];
+  const saleIds = salesRows.map((sale) => sale.id);
+  if (saleIds.length > 0) {
+    const { data: charges } = await (supabase as any)
+      .from("sale_charge_requests")
+      .select(
+        "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name)",
+      )
+      .in("sale_id", saleIds);
+    const bySale = new Map<string, Sale["charge_request"]>();
+    for (const charge of charges || []) {
+      bySale.set(charge.sale_id, {
+        id: charge.id,
+        sale_id: charge.sale_id,
+        agent_id: charge.agent_id,
+        merchant_user_id: charge.merchant_user_id,
+        status: charge.status,
+        viewed_at: charge.viewed_at,
+        charging_at: charge.charging_at,
+        decided_at: charge.decided_at,
+        decline_reason: charge.decline_reason,
+        created_at: charge.created_at,
+        merchant_name: charge.merchant?.full_name ?? null,
+      });
+    }
+    for (const sale of salesRows) {
+      sale.charge_request = bySale.get(sale.id) ?? null;
+    }
+  }
+
   const stats =
     rpcStats ?? (await fetchSalesStatsFallback(supabase, filters)) ?? emptyStats();
 
   return {
-    data: (data || []) as unknown as Sale[],
+    data: salesRows,
     count: count || 0,
     page,
     pageSize,

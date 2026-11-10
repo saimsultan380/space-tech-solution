@@ -7,9 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouteLoading } from "@/components/providers/route-loading-provider";
 import { getInitials, formatDateTime, cn, formatCnic } from "@/lib/utils";
-import { LogOut, Menu, Bell, BellOff, BellRing, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, ShoppingCart, AlertTriangle, Users, CalendarDays, Info } from "@/components/ui/icons";
+import { LogOut, Menu, Bell, BellOff, BellRing, Search, ChevronLeft, ChevronRight, Sun, Moon, MessageSquare, ShoppingCart, AlertTriangle, Users, CalendarDays, Info, CreditCard, X } from "@/components/ui/icons";
 import Image from "next/image";
 import { ROLE_LABELS } from "@/lib/constants";
+import { splitNotificationHref } from "@/lib/notification-href";
 import type { Notification, UserRole, RealtimePayload } from "@/lib/types";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
 
@@ -79,6 +80,11 @@ interface UserProfile {
 
 const NOTIFICATION_STYLES = {
   sale: { icon: ShoppingCart, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  merchant_charge: { icon: CreditCard, color: "text-sky-500", bg: "bg-sky-500/10" },
+  charge_viewed: { icon: CreditCard, color: "text-sky-500", bg: "bg-sky-500/10" },
+  charge_charging: { icon: CreditCard, color: "text-amber-500", bg: "bg-amber-500/10" },
+  charge_approved: { icon: CreditCard, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  charge_declined: { icon: CreditCard, color: "text-rose-500", bg: "bg-rose-500/10" },
   chargeback: { icon: AlertTriangle, color: "text-rose-500", bg: "bg-rose-500/10" },
   customer: { icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
   leave: { icon: CalendarDays, color: "text-amber-500", bg: "bg-amber-500/10" },
@@ -115,6 +121,7 @@ export function Header({
   }, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [sideNotice, setSideNotice] = useState<Notification | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
@@ -222,6 +229,7 @@ export function Header({
               });
             } else {
               setNotifications((prev) => [notif, ...prev].slice(0, 20));
+              setSideNotice(notif);
             }
             return;
           }
@@ -314,6 +322,23 @@ export function Header({
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
   };
 
+  useEffect(() => {
+    if (!sideNotice) return;
+    const timer = setTimeout(() => setSideNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [sideNotice]);
+
+  const openGeneralNotification = (notification: Notification) => {
+    void markAsRead(notification.id);
+    const { href } = splitNotificationHref(notification.body);
+    setNotificationsOpen(false);
+    setSideNotice(null);
+    if (href) {
+      startLoading();
+      router.push(href);
+    }
+  };
+
   const markAllAsRead = async () => {
     if (!userId || unreadCount === 0) return;
     const supabase = createClient();
@@ -385,6 +410,30 @@ export function Header({
 
   return (
     <>
+    {sideNotice ? (
+      <button
+        type="button"
+        onClick={() => openGeneralNotification(sideNotice)}
+        className="fixed right-4 top-20 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-border bg-card p-3 text-left shadow-lg"
+      >
+        <span className="flex items-start justify-between gap-2">
+          <span className="text-sm font-semibold text-foreground">{sideNotice.title}</span>
+          <span
+            role="presentation"
+            onClick={(event) => {
+              event.stopPropagation();
+              setSideNotice(null);
+            }}
+            className="text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+          </span>
+        </span>
+        <span className="mt-1 block text-xs text-muted-foreground">
+          {splitNotificationHref(sideNotice.body).text}
+        </span>
+      </button>
+    ) : null}
     <header
       style={{
         backgroundColor: "var(--theme-shell-bg-color, hsl(var(--background)))",
@@ -760,7 +809,7 @@ export function Header({
                             <button
                               key={n.id}
                               type="button"
-                              onClick={() => markAsRead(n.id)}
+                              onClick={() => openGeneralNotification(n)}
                               className={cn(
                                 "w-full border-b border-foreground/5 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/30",
                                 !n.is_read && "bg-primary/[0.03]"
@@ -780,7 +829,7 @@ export function Header({
                                     </span>
                                   </div>
                                   <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-                                    {n.body}
+                                    {splitNotificationHref(n.body).text}
                                   </p>
                                 </div>
                               </div>
@@ -831,7 +880,7 @@ export function Header({
                           <button
                             key={n.id}
                             type="button"
-                            onClick={() => markAsRead(n.id)}
+                            onClick={() => openGeneralNotification(n)}
                             className={cn(
                               "w-full border-b border-foreground/5 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/30",
                               !n.is_read && "bg-primary/[0.03]"
@@ -851,7 +900,7 @@ export function Header({
                                   </span>
                                 </div>
                                 <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-                                  {n.body}
+                                  {splitNotificationHref(n.body).text}
                                 </p>
                               </div>
                             </div>

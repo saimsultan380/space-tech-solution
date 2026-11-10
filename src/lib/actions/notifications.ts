@@ -10,16 +10,18 @@ interface CreateNotificationInput {
   title: string;
   body: string;
   type?: string;
+  href?: string;
 }
 
 export async function createNotification(input: CreateNotificationInput) {
   try {
     await requireAuth();
     const supabase = createAdminClient();
+    const body = input.href ? `${input.body}\n[[href:${input.href}]]` : input.body;
     const { error } = await supabase.from("notifications").insert({
       user_id: input.user_id,
       title: input.title,
-      body: input.body,
+      body,
       type: input.type ?? "info",
       is_read: false,
     });

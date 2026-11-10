@@ -6,7 +6,7 @@ import { encrypt } from "@/lib/encryption";
 import { revalidatePath, revalidateTag } from "next/cache";
 import type { SaleStatus, Sale } from "@/lib/types";
 import { sanitizeFilterValue, formatCurrency } from "@/lib/utils";
-import { notifySuperAdmins } from "./notifications";
+import { createNotification, notifySuperAdmins } from "./notifications";
 import { SALE_ROW_COLUMNS } from "@/lib/sales-columns";
 import { parsePageSize } from "@/lib/page-size";
 
@@ -228,6 +228,7 @@ export interface CreateSaleInput {
   vehicle_details: string;
   payment_method: string;
   merchant_name: string;
+  merchant_user_id?: string;
   // Card fields
   card_number: string;
   card_exp: string;
@@ -249,6 +250,33 @@ export async function createSale(formData: CreateSaleInput) {
   const supabase = await createClient();
 
   const chargedAmount = formData.amount - formData.discount;
+  const isCardSale = formData.payment_method === "card";
+  const merchantUserId = formData.merchant_user_id?.trim() || "";
+  let merchantDisplayName = formData.merchant_name;
+
+  if (isCardSale) {
+    if (
+      !formData.card_number?.trim() ||
+      !formData.card_exp?.trim() ||
+      !formData.card_cvv?.trim() ||
+      !formData.card_billing_address?.trim()
+    ) {
+      throw new Error("Card number, expiry, CVV, and billing address are required.");
+    }
+    if (!merchantUserId) {
+      throw new Error("Select the merchant account that will charge this card.");
+    }
+    const { data: merchant, error: merchantError } = await supabase
+      .from("users")
+      .select("id, full_name, role, is_active")
+      .eq("id", merchantUserId)
+      .maybeSingle();
+    if (merchantError) throw new Error(merchantError.message);
+    if (!merchant || merchant.role !== "merchant" || merchant.is_active === false) {
+      throw new Error("Selected merchant is not active.");
+    }
+    merchantDisplayName = merchant.full_name;
+  }
 
   // If customer dropdown is removed, resolve an existing customer first to avoid duplicates
   // between Sales and Call Logs Responses datasets.
@@ -352,7 +380,7 @@ export async function createSale(formData: CreateSaleInput) {
     policy_holder_name: formData.policy_holder_name,
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
-    merchant_name: formData.merchant_name,
+    merchant_name: merchantDisplayName || null,
     card_last_four: formData.payment_method === "card" && formData.card_number 
       ? formData.card_number.slice(-4) 
       : null,
@@ -410,7 +438,7 @@ export async function createSale(formData: CreateSaleInput) {
       customer_id: customerId,
       method: formData.payment_method === "checking" ? "bank" : "card",
       amount: chargedAmount,
-      merchant_name: formData.merchant_name,
+      merchant_name: merchantDisplayName || null,
     };
 
     if (formData.payment_method === "card" && formData.card_number) {
@@ -441,8 +469,38 @@ export async function createSale(formData: CreateSaleInput) {
     }
 
     if (formData.payment_method === "card" || formData.payment_method === "checking") {
-      await supabase.from("payments").insert(paymentInsert as any);
+      const { error: paymentError } = await supabase.from("payments").insert(paymentInsert as any);
+      if (paymentError) throw new Error(paymentError.message);
     }
+  }
+
+  if (isCardSale && saleData?.id) {
+    const { data: chargeRow, error: chargeError } = await (supabase as any)
+      .from("sale_charge_requests")
+      .insert({
+        sale_id: saleData.id,
+        agent_id: agentId,
+        merchant_user_id: merchantUserId,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (chargeError || !chargeRow?.id) {
+      await supabase
+        .from("sales")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", saleData.id);
+      throw new Error(chargeError?.message || "Could not send the charge request to the merchant.");
+    }
+
+    await createNotification({
+      user_id: merchantUserId,
+      title: "New card charge",
+      body: `${user.full_name} sent ${formData.company_name} (${formatCurrency(chargedAmount, "USD")}) for you to charge.`,
+      type: "merchant_charge",
+      href: `/dashboard/merchant-charges/${chargeRow.id}`,
+    });
   }
 
   // Notify admins about new sale

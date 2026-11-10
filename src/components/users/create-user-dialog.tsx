@@ -16,6 +16,7 @@ import { BankNameField } from "./bank-name-field";
 const ROLE_OPTIONS = [
   { value: "sales_agent", label: "Sales Agent" },
   { value: "processor", label: "Processor" },
+  { value: "merchant", label: "Merchant" },
   { value: "super_admin", label: "Super Admin" },
 ];
 

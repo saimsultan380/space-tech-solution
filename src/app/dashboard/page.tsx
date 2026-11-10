@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { DashboardWrapper } from "@/components/dashboard/dashboard-wrapper";
+import { redirect } from "next/navigation";
 
 interface DashboardPageProps {
   searchParams?: Promise<{
@@ -14,6 +15,10 @@ export default async function DashboardPage(props: DashboardPageProps) {
     requireAuth(),
     props.searchParams ? props.searchParams : Promise.resolve(undefined),
   ]);
+
+  if (user.role === "merchant") {
+    redirect("/dashboard/merchant-charges");
+  }
 
   return (
     <DashboardWrapper

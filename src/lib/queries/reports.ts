@@ -350,6 +350,7 @@ export async function getEmployeeMonthlyStats(month?: string, range?: DateRange 
       daysPresent: Number(row.days_present ?? 0),
       totalHours: Number(row.total_hours ?? 0),
       callLogResponses: Number(row.call_log_responses ?? 0),
+      callSetupCharges: Number(row.call_setup_charges ?? 0),
       chargebacks: Number(row.chargebacks ?? 0),
       chargebackAmount: Number(row.chargeback_amount ?? 0),
       callToSaleConversion: Number(row.call_to_sale_conversion ?? 0),

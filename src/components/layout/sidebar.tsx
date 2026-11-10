@@ -140,6 +140,16 @@ const SECTION_CONFIG: Record<UserRole, { title: string; hrefs: string[] }[]> = {
       hrefs: ["/dashboard/settings"],
     },
   ],
+  merchant: [
+    {
+      title: "Main Menu",
+      hrefs: ["/dashboard/merchant-charges", "/dashboard/chat", "/dashboard/personal-notepad"],
+    },
+    {
+      title: "System",
+      hrefs: ["/dashboard/settings"],
+    },
+  ],
 };
 
 export function Sidebar({

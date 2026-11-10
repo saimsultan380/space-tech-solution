@@ -16,6 +16,7 @@ import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-sect
 import { createClient } from "@/lib/supabase/client";
 import { createSaleAttachment } from "@/lib/actions/sale-attachments";
 import { getSalesAgentOptions } from "@/lib/queries/users";
+import { getActiveMerchants } from "@/lib/actions/merchant-charges";
 import {
   SALE_TYPES,
   UTILITY_SUBTYPES,
@@ -80,6 +81,7 @@ const emptyForm = {
   card_exp: "",
   card_cvv: "",
   card_billing_address: "",
+  merchant_user_id: "",
   merchant_name: "",
   routing_number: "",
   bank_account_number: "",
@@ -131,6 +133,12 @@ export function SaleForm({
   });
   const salesAgentUsers =
     salesAgentUsersProp.length > 0 ? salesAgentUsersProp : fetchedAgents;
+  const { data: merchants = [] } = useQuery({
+    queryKey: ["active-merchants"],
+    queryFn: getActiveMerchants,
+    enabled: mode === "create",
+    staleTime: 60_000,
+  });
 
   const isUtility = form.sale_type === "utility";
   const isInsurance = form.sale_type === "insurance";
@@ -146,10 +154,22 @@ export function SaleForm({
       setError("Please select the assigned sales agent.");
       return;
     }
+    if (mode === "create" && form.payment_method === "card") {
+      if (!form.card_number.trim() || !form.card_exp.trim() || !form.card_cvv.trim() || !form.card_billing_address.trim()) {
+        setError("Enter the card number, expiry, CVV, and billing address before sending the sale.");
+        return;
+      }
+      if (!form.merchant_user_id) {
+        setError("Select the merchant account that will charge this card.");
+        return;
+      }
+    }
     setLoading(true);
     setError("");
+    const selectedMerchant = merchants.find((merchant) => merchant.id === form.merchant_user_id);
     const payload: CreateSaleInput = {
       ...form,
+      merchant_name: selectedMerchant?.full_name || form.merchant_name,
       amount: Number(form.amount),
       discount: Number(form.discount),
     };
@@ -579,131 +599,6 @@ export function SaleForm({
         </CardContent>
       </Card>
 
-      {/* Payment Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="h-4 w-4 text-blue-500" />
-            Payment Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {mode === "edit" && (
-            <p className="text-xs text-muted-foreground">
-              Payment fields are filled from the latest saved payment record. Update them only if you need to
-              change card or bank details.
-            </p>
-          )}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => set("payment_method", "card")}
-              className={`flex-1 rounded-xl border-2 p-4 text-center text-sm font-medium transition-all ${
-                form.payment_method === "card"
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border hover:border-muted-foreground/30"
-              }`}
-            >
-              <CreditCard className="mx-auto mb-1.5 h-5 w-5" />
-              Card
-            </button>
-            <button
-              type="button"
-              onClick={() => set("payment_method", "checking")}
-              className={`flex-1 rounded-xl border-2 p-4 text-center text-sm font-medium transition-all ${
-                form.payment_method === "checking"
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border hover:border-muted-foreground/30"
-              }`}
-            >
-              <Building2 className="mx-auto mb-1.5 h-5 w-5" />
-              Checking
-            </button>
-          </div>
-
-          {form.payment_method === "card" && (
-            <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Input
-                  id="card_number"
-                  label="Card Number"
-                  placeholder="XXXX XXXX XXXX XXXX"
-                  value={form.card_number}
-                  onChange={(e) => set("card_number", e.target.value)}
-                />
-                <Input
-                  id="card_exp"
-                  label="Expiry (MM/YY)"
-                  placeholder="MM/YY"
-                  value={form.card_exp}
-                  onChange={(e) => set("card_exp", e.target.value)}
-                />
-                <Input
-                  id="card_cvv"
-                  label="CVV"
-                  type="text"
-                  placeholder="XXX"
-                  autoComplete="off"
-                  value={form.card_cvv}
-                  onChange={(e) => set("card_cvv", e.target.value)}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  id="card_billing_address"
-                  label="Billing Address"
-                  value={form.card_billing_address}
-                  onChange={(e) => set("card_billing_address", e.target.value)}
-                />
-                <Input
-                  id="merchant_name"
-                  label="Merchant Name"
-                  value={form.merchant_name}
-                  onChange={(e) => set("merchant_name", e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {form.payment_method === "checking" && (
-            <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  id="routing_number"
-                  label="Routing Number"
-                  type={mode === "edit" ? "text" : "password"}
-                  autoComplete="off"
-                  value={form.routing_number}
-                  onChange={(e) => set("routing_number", e.target.value)}
-                />
-                <Input
-                  id="bank_account_number"
-                  label="Account Number"
-                  type={mode === "edit" ? "text" : "password"}
-                  autoComplete="off"
-                  value={form.bank_account_number}
-                  onChange={(e) => set("bank_account_number", e.target.value)}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  id="bank_account_holder_name"
-                  label="Account Holder Name"
-                  value={form.bank_account_holder_name}
-                  onChange={(e) => set("bank_account_holder_name", e.target.value)}
-                />
-                <Input
-                  id="bank_name"
-                  label="Bank Name"
-                  value={form.bank_name}
-                  onChange={(e) => set("bank_name", e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Notes */}
       <Card>
         <CardHeader>
@@ -815,6 +710,153 @@ export function SaleForm({
           </CardContent>
         </Card>
       )}
+
+      {/* Payment details sit on the send step so the card is filled before Create Sale. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-blue-500" />
+            Payment Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mode === "edit" && (
+            <p className="text-xs text-muted-foreground">
+              Payment fields are filled from the latest saved payment record. Update them only if you need to
+              change card or bank details.
+            </p>
+          )}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => set("payment_method", "card")}
+              className={`flex-1 rounded-xl border-2 p-4 text-center text-sm font-medium transition-all ${
+                form.payment_method === "card"
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border hover:border-muted-foreground/30"
+              }`}
+            >
+              <CreditCard className="mx-auto mb-1.5 h-5 w-5" />
+              Card
+            </button>
+            <button
+              type="button"
+              onClick={() => set("payment_method", "checking")}
+              className={`flex-1 rounded-xl border-2 p-4 text-center text-sm font-medium transition-all ${
+                form.payment_method === "checking"
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border hover:border-muted-foreground/30"
+              }`}
+            >
+              <Building2 className="mx-auto mb-1.5 h-5 w-5" />
+              Checking
+            </button>
+          </div>
+
+          {form.payment_method === "card" && (
+            <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Input
+                  id="card_number"
+                  label="Card Number"
+                  placeholder="XXXX XXXX XXXX XXXX"
+                  value={form.card_number}
+                  onChange={(e) => set("card_number", e.target.value)}
+                  required={mode === "create"}
+                />
+                <Input
+                  id="card_exp"
+                  label="Expiry (MM/YY)"
+                  placeholder="MM/YY"
+                  value={form.card_exp}
+                  onChange={(e) => set("card_exp", e.target.value)}
+                  required={mode === "create"}
+                />
+                <Input
+                  id="card_cvv"
+                  label="CVV"
+                  type="text"
+                  placeholder="XXX"
+                  autoComplete="off"
+                  value={form.card_cvv}
+                  onChange={(e) => set("card_cvv", e.target.value)}
+                  required={mode === "create"}
+                />
+              </div>
+              <Input
+                id="card_billing_address"
+                label="Billing Address"
+                value={form.card_billing_address}
+                onChange={(e) => set("card_billing_address", e.target.value)}
+                required={mode === "create"}
+              />
+              {mode === "create" ? (
+                <div className="space-y-2">
+                  <Select
+                    id="merchant_user_id"
+                    label="Merchant account"
+                    placeholder={merchants.length === 0 ? "No active merchant" : "Select merchant"}
+                    options={merchants.map((merchant) => ({
+                      value: merchant.id,
+                      label: merchant.full_name,
+                    }))}
+                    value={form.merchant_user_id}
+                    onChange={(e) => set("merchant_user_id", e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This request goes only to the selected merchant. They charge the card, and you will see Pending, Viewed, Charging, then Approved.
+                  </p>
+                </div>
+              ) : (
+                <Input
+                  id="merchant_name"
+                  label="Merchant Name"
+                  value={form.merchant_name}
+                  onChange={(e) => set("merchant_name", e.target.value)}
+                />
+              )}
+            </div>
+          )}
+
+          {form.payment_method === "checking" && (
+            <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  id="routing_number"
+                  label="Routing Number"
+                  type={mode === "edit" ? "text" : "password"}
+                  autoComplete="off"
+                  value={form.routing_number}
+                  onChange={(e) => set("routing_number", e.target.value)}
+                />
+                <Input
+                  id="bank_account_number"
+                  label="Account Number"
+                  type={mode === "edit" ? "text" : "password"}
+                  autoComplete="off"
+                  value={form.bank_account_number}
+                  onChange={(e) => set("bank_account_number", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  id="bank_account_holder_name"
+                  label="Account Holder Name"
+                  value={form.bank_account_holder_name}
+                  onChange={(e) => set("bank_account_holder_name", e.target.value)}
+                />
+                <Input
+                  id="bank_name"
+                  label="Bank Name"
+                  value={form.bank_name}
+                  onChange={(e) => set("bank_name", e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Submit */}
       {error && (

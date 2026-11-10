@@ -7,12 +7,14 @@ export const ROLES = {
   SUPER_ADMIN: "super_admin" as const,
   SALES_AGENT: "sales_agent" as const,
   PROCESSOR: "processor" as const,
+  MERCHANT: "merchant" as const,
 };
 
 export const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
   sales_agent: "Sales Agent",
   processor: "Processor",
+  merchant: "Merchant",
 };
 
 /** Compact labels for inline hints (e.g. note author). */
@@ -20,7 +22,16 @@ export const ROLE_HINT_LABELS: Record<string, string> = {
   super_admin: "Admin",
   sales_agent: "Sales agent",
   processor: "Processor",
+  merchant: "Merchant",
 };
+
+export const CHARGE_REQUEST_STATUSES = [
+  { value: "pending", label: "Pending" },
+  { value: "viewed", label: "Viewed" },
+  { value: "charging", label: "Charging" },
+  { value: "approved", label: "Approved" },
+  { value: "declined", label: "Declined" },
+] as const;
 
 export const SALE_TYPES = [
   { value: "utility", label: "Utility" },
@@ -162,6 +173,12 @@ export const NAV_ITEMS = {
     { href: "/dashboard/attendance", label: "Attendance", icon: "Clock" },
     { href: "/dashboard/leaves", label: "Leaves", icon: "CalendarDays" },
     { href: "/dashboard/marketing-budget", label: "Marketing Budget", icon: "Megaphone" },
+    { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
+  ],
+  merchant: [
+    { href: "/dashboard/merchant-charges", label: "Dashboard", icon: "CreditCard" },
+    { href: "/dashboard/chat", label: "Team Chat", icon: "MessageCircle" },
+    { href: "/dashboard/personal-notepad", label: "Notepad", icon: "StickyNote" },
     { href: "/dashboard/settings", label: "Settings", icon: "Settings" },
   ],
 };

@@ -3,7 +3,8 @@ import { SettingsClient } from "@/components/settings/settings-client";
 import { getUsers } from "@/lib/actions/users";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { getCompanySettings } from "@/lib/actions/company-settings";
-import type { AppUser } from "@/lib/types";
+import { listCallSetupCharges, type CallSetupCharge } from "@/lib/actions/call-setup-charges";
+import type { AppUser, UserRole } from "@/lib/types";
 
 export default async function SettingsPage() {
   const user = await requireAuth();
@@ -11,14 +12,15 @@ export default async function SettingsPage() {
     id: string;
     full_name: string;
     email: string;
-    role: "super_admin" | "sales_agent" | "processor";
+    role: UserRole;
     allowed_modules: string[] | null;
   }> = [];
 
-  const [attendanceSettings, companySettings, usersResponse] = await Promise.all([
+  const [attendanceSettings, companySettings, usersResponse, callSetupCharges] = await Promise.all([
     getAttendanceSettings(),
     getCompanySettings(),
     user.role === "super_admin" ? getUsers({ pageSize: 500 }) : Promise.resolve(null),
+    user.role === "super_admin" ? listCallSetupCharges() : Promise.resolve([] as CallSetupCharge[]),
   ]);
 
   if (user.role === "super_admin" && usersResponse) {
@@ -37,6 +39,7 @@ export default async function SettingsPage() {
       manageableUsers={manageableUsers}
       attendanceSettings={attendanceSettings}
       companySettings={companySettings}
+      callSetupCharges={callSetupCharges}
     />
   );
 }

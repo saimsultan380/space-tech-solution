@@ -11,6 +11,7 @@ import { NotesSection } from "@/components/shared/notes-section";
 import { decrypt } from "@/lib/encryption";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { SaleDetailNoteFields } from "@/components/sales/sale-detail-note-fields";
+import { SaleChargeStatus } from "@/components/sales/sale-charge-status";
 import Link from "next/link";
 import type { Sale } from "@/lib/types";
 
@@ -151,6 +152,8 @@ export default async function SaleDetailPage(props: {
           </Link>
         )}
       </div>
+
+      <SaleChargeStatus saleId={sale.id} />
 
       {/* Summary — mirrors list columns + key identifiers */}
       <Card className="border-primary/20 bg-primary/[0.04]">

@@ -98,6 +98,7 @@ interface EmployeeStat {
   daysPresent: number;
   totalHours: number;
   callLogResponses: number;
+  callSetupCharges: number;
   chargebacks: number;
   chargebackAmount: number;
   callToSaleConversion: number;
@@ -325,6 +326,7 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
         emp.name,
         ROLE_LABELS[emp.role] || emp.role,
         emp.callLogResponses,
+        formatCurrency(emp.callSetupCharges, currency),
         emp.totalSales,
         emp.chargebacks,
         formatCurrency(emp.revenue, currency),
@@ -442,6 +444,7 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                     "Employee",
                     "Role",
                     "Total Calls",
+                    "Call Setup Charges",
                     "Total Sales",
                     "Total Chargebacks",
                     "Total Revenue",
@@ -512,6 +515,7 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                     <TableHead>Employee</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="text-right">Total Calls</TableHead>
+                    <TableHead className="text-right">Call Setup</TableHead>
                     <TableHead className="text-right">Total Sales</TableHead>
                     <TableHead className="text-right">Total Chargebacks</TableHead>
                     <TableHead className="text-right">Total Revenue</TableHead>
@@ -531,6 +535,9 @@ export function ReportsClient({ month, from, to }: ReportsClientProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="font-medium text-sky-600 dark:text-sky-400">{emp.callLogResponses}</span>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(emp.callSetupCharges || 0, currency)}
                       </TableCell>
                       <TableCell className="text-right">{emp.totalSales}</TableCell>
                       <TableCell className="text-right">

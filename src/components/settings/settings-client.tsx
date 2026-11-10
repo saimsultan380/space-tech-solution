@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/loading";
 import { CURRENCIES, getSidebarModuleOptionsForRole, ROLE_LABELS } from "@/lib/constants";
-import type { AppUser } from "@/lib/types";
+import type { AppUser, UserRole } from "@/lib/types";
 import { formatCnic } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { updateProfile, updatePreferences, changePassword } from "@/lib/actions/profile";
@@ -17,6 +17,8 @@ import { updateUserAllowedModules } from "@/lib/actions/users";
 import { updateAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { updateCompanySettings, type CompanySettings } from "@/lib/actions/company-settings";
 import { ThemeAppearance } from "@/components/settings/theme-appearance";
+import { CallSetupChargesSettings } from "@/components/settings/call-setup-charges";
+import type { CallSetupCharge } from "@/lib/actions/call-setup-charges";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { useRouter } from "next/navigation";
 import {
@@ -29,6 +31,7 @@ import {
   UploadCloud,
   CheckCircle2,
   Palette,
+  PhoneCall,
 } from "@/components/ui/icons";
 
 interface SettingsClientProps {
@@ -54,13 +57,14 @@ interface SettingsClientProps {
     id: string;
     full_name: string;
     email: string;
-    role: "super_admin" | "sales_agent" | "processor";
+    role: UserRole;
     allowed_modules: string[] | null;
   }>;
   companySettings: CompanySettings;
+  callSetupCharges: CallSetupCharge[];
 }
 
-export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings }: SettingsClientProps) {
+export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings, callSetupCharges }: SettingsClientProps) {
   const router = useRouter();
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
@@ -406,6 +410,12 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
             Security
           </TabsTrigger>
           {user.role === "super_admin" && (
+            <TabsTrigger value="call-setup">
+              <PhoneCall className="mr-1.5 h-4 w-4" />
+              Call Setup
+            </TabsTrigger>
+          )}
+          {user.role === "super_admin" && (
             <TabsTrigger value="attendance">
               <Clock3 className="mr-1.5 h-4 w-4" />
               Attendance Timing
@@ -641,6 +651,12 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
             </CardContent>
           </Card>
         </TabsContent>
+
+        {user.role === "super_admin" && (
+          <TabsContent value="call-setup" className="mt-4">
+            <CallSetupChargesSettings initial={callSetupCharges} />
+          </TabsContent>
+        )}
 
         {user.role === "super_admin" && (
           <TabsContent value="branding" className="mt-4">

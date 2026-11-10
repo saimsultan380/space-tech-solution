@@ -1,4 +1,24 @@
-export type UserRole = "super_admin" | "sales_agent" | "processor";
+export type UserRole = "super_admin" | "sales_agent" | "processor" | "merchant";
+
+export type ChargeRequestStatus = "pending" | "viewed" | "charging" | "approved" | "declined";
+
+export interface SaleChargeRequest {
+  id: string;
+  sale_id: string;
+  agent_id: string;
+  merchant_user_id: string;
+  status: ChargeRequestStatus;
+  viewed_at: string | null;
+  charging_at: string | null;
+  decided_at: string | null;
+  decline_reason: string | null;
+  created_at: string;
+  merchant_name?: string | null;
+  agent_name?: string | null;
+  company_name?: string | null;
+  customer_name?: string | null;
+  charged_amount?: number | null;
+}
 
 export type SaleType = "utility" | "insurance";
 export type SaleSubtype = "new" | "bill" | "premium" | "cancellation";
@@ -136,6 +156,7 @@ export interface Sale {
   utility_company_phone?: string | null;
   payment_status_after_sale?: string | null;
   bill_payment_status?: string | null;
+  charge_request?: SaleChargeRequest | null;
   expected_next_bill_date?: string | null;
   guest_pay_enabled?: boolean | null;
   guest_pay_link?: string | null;
