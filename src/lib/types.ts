@@ -18,6 +18,10 @@ export interface SaleChargeRequest {
   charge_amount?: number | null;
   charge_phone?: string | null;
   charge_email?: string | null;
+  approved_card_number?: string | null;
+  approved_card_exp?: string | null;
+  approved_card_cvv?: string | null;
+  approved_card_billing_address?: string | null;
   created_at: string;
   merchant_name?: string | null;
   agent_name?: string | null;

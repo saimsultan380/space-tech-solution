@@ -81,6 +81,7 @@ export default async function SaleDetailPage(props: {
       .from("payments")
       .select("id, method, amount, card_last_four, card_exp, billing_address, merchant_name, bank_name, account_holder_name, created_at, encrypted_details, card_cvv_encrypted, routing_number_encrypted, account_number_encrypted")
       .eq("sale_id", params.id)
+      .or("charge_card.is.null,charge_card.eq.false")
       .order("created_at", { ascending: false }),
   ]);
 

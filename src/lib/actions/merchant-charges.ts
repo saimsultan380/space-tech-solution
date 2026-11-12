@@ -87,7 +87,31 @@ export async function getSaleChargeRequest(saleId: string): Promise<SaleChargeRe
 
   if (error) return null;
   if (!data) return null;
-  return mapChargeRow(data);
+  const mapped = mapChargeRow(data);
+  if (mapped.status !== "approved") return mapped;
+  const card = await loadApprovedChargeCard(mapped.sale_id);
+  return { ...mapped, ...card };
+}
+
+async function loadApprovedChargeCard(saleId: string) {
+  const admin = createAdminClient() as any;
+  const { data: chargePayment } = await admin
+    .from("payments")
+    .select("encrypted_details, card_cvv_encrypted, card_exp, billing_address, card_last_four, customer_id, amount")
+    .eq("sale_id", saleId)
+    .eq("method", "card")
+    .eq("charge_card", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!chargePayment) return {};
+  const secrets = getDecryptedCardSecrets(chargePayment);
+  return {
+    approved_card_number: secrets.cardNumber || null,
+    approved_card_exp: chargePayment.card_exp || null,
+    approved_card_cvv: secrets.cardCvv || null,
+    approved_card_billing_address: chargePayment.billing_address || null,
+  };
 }
 
 async function loadChargeForActor(id: string) {
@@ -208,6 +232,64 @@ async function applyChargeDecision(
   if (error) throw new Error(error.message);
 }
 
+async function copyApprovedCardToPaymentDetails(saleId: string, merchantName: string) {
+  const admin = createAdminClient() as any;
+  const { data: chargePayment, error: chargeError } = await admin
+    .from("payments")
+    .select("encrypted_details, card_cvv_encrypted, card_exp, billing_address, card_last_four, customer_id, amount")
+    .eq("sale_id", saleId)
+    .eq("method", "card")
+    .eq("charge_card", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (chargeError) throw new Error(chargeError.message);
+  if (!chargePayment) return;
+
+  const cardFields = {
+    method: "card",
+    card_last_four: chargePayment.card_last_four,
+    card_exp: chargePayment.card_exp,
+    card_cvv_encrypted: chargePayment.card_cvv_encrypted,
+    billing_address: chargePayment.billing_address,
+    encrypted_details: chargePayment.encrypted_details,
+    merchant_name: merchantName || null,
+    charge_card: false,
+  };
+
+  const { data: detailsPayment, error: detailsError } = await admin
+    .from("payments")
+    .select("id")
+    .eq("sale_id", saleId)
+    .eq("method", "card")
+    .or("charge_card.is.null,charge_card.eq.false")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (detailsError) throw new Error(detailsError.message);
+
+  if (detailsPayment?.id) {
+    const { error } = await admin.from("payments").update(cardFields).eq("id", detailsPayment.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await admin.from("payments").insert({
+      ...cardFields,
+      sale_id: saleId,
+      customer_id: chargePayment.customer_id,
+      amount: chargePayment.amount,
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  if (chargePayment.card_last_four) {
+    const { error } = await admin
+      .from("sales")
+      .update({ card_last_four: chargePayment.card_last_four })
+      .eq("id", saleId);
+    if (error) throw new Error(error.message);
+  }
+}
+
 export async function transitionMerchantCharge(
   id: string,
   next: "charging" | "approved" | "declined",
@@ -234,13 +316,8 @@ export async function transitionMerchantCharge(
   if (next === "approved" || next === "declined") {
     await applyChargeDecision(row, next, companyName);
   }
-  if (next === "approved" && companyName) {
-    const admin = createAdminClient() as any;
-    const { error: paymentError } = await admin
-      .from("payments")
-      .update({ merchant_name: companyName })
-      .eq("sale_id", row.sale_id);
-    if (paymentError) throw new Error(paymentError.message);
+  if (next === "approved") {
+    await copyApprovedCardToPaymentDetails(row.sale_id, companyName);
   }
 
   const company = row.sale?.company_name || "the sale";

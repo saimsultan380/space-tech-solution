@@ -455,9 +455,7 @@ export async function createSale(formData: CreateSaleInput) {
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
     merchant_name: merchantDisplayName || null,
-    card_last_four: isCardSale && (manualCard || chargeCard)
-      ? (manualCard || chargeCard).slice(-4)
-      : null,
+    card_last_four: isCardSale && manualCard ? manualCard.slice(-4) : null,
     charge_first_name: formData.charge_first_name?.trim() || null,
     charge_last_name: formData.charge_last_name?.trim() || null,
     charge_amount: chargeAmount != null && Number.isFinite(chargeAmount) ? chargeAmount : null,
@@ -520,20 +518,15 @@ export async function createSale(formData: CreateSaleInput) {
       merchant_name: merchantDisplayName || null,
     };
 
-    const cardForPayment = manualCard || chargeCard;
-    if (formData.payment_method === "card" && cardForPayment) {
-      const usingChargeCard = !manualCard;
-      paymentInsert.card_last_four = cardForPayment.slice(-4);
-      paymentInsert.card_exp = usingChargeCard ? formData.charge_card_exp : formData.card_exp;
-      const cvv = usingChargeCard ? formData.charge_card_cvv : formData.card_cvv;
-      paymentInsert.card_cvv_encrypted = cvv ? encrypt(cvv) : null;
-      paymentInsert.billing_address = usingChargeCard
-        ? formData.charge_card_billing_address
-        : formData.card_billing_address;
+    if (formData.payment_method === "card" && manualCard) {
+      paymentInsert.card_last_four = manualCard.slice(-4);
+      paymentInsert.card_exp = formData.card_exp;
+      paymentInsert.card_cvv_encrypted = formData.card_cvv ? encrypt(formData.card_cvv) : null;
+      paymentInsert.billing_address = formData.card_billing_address;
       paymentInsert.encrypted_details = encrypt(
-        JSON.stringify({ card_number: cardForPayment })
+        JSON.stringify({ card_number: manualCard })
       );
-      if (usingChargeCard) paymentInsert.charge_card = true;
+      paymentInsert.charge_card = false;
     } else if (formData.payment_method === "checking") {
       paymentInsert.bank_name = formData.bank_name;
       paymentInsert.account_holder_name = formData.bank_account_holder_name;
@@ -551,7 +544,7 @@ export async function createSale(formData: CreateSaleInput) {
       );
     }
 
-    if (manualCard && chargeCard && saleData?.id) {
+    if (chargeCard && saleData?.id) {
       const { error: chargePaymentError } = await supabase.from("payments").insert({
         sale_id: saleData.id,
         customer_id: customerId,
@@ -568,7 +561,10 @@ export async function createSale(formData: CreateSaleInput) {
       if (chargePaymentError) throw new Error(chargePaymentError.message);
     }
 
-    if (formData.payment_method === "card" || formData.payment_method === "checking") {
+    const savePaymentDetails =
+      (formData.payment_method === "card" && Boolean(manualCard)) ||
+      formData.payment_method === "checking";
+    if (savePaymentDetails) {
       const { error: paymentError } = await supabase.from("payments").insert(paymentInsert as any);
       if (paymentError) throw new Error(paymentError.message);
     }

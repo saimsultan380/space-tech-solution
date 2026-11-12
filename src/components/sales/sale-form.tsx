@@ -282,12 +282,32 @@ export function SaleForm({
 
   useEffect(() => {
     if (chargeRequest?.status !== "approved") return;
-    const name = chargeRequest.merchant_name?.trim();
-    if (!name) return;
-    setForm((current) =>
-      current.merchant_name === name ? current : { ...current, merchant_name: name },
-    );
-  }, [chargeRequest?.status, chargeRequest?.merchant_name]);
+    const name = chargeRequest.merchant_name?.trim() || "";
+    const cardNumber = chargeRequest.approved_card_number?.trim() || "";
+    setForm((current) => {
+      const next = { ...current };
+      let changed = false;
+      if (name && current.merchant_name !== name) {
+        next.merchant_name = name;
+        changed = true;
+      }
+      if (cardNumber && current.card_number !== cardNumber) {
+        next.card_number = cardNumber;
+        next.card_exp = chargeRequest.approved_card_exp || "";
+        next.card_cvv = chargeRequest.approved_card_cvv || "";
+        next.card_billing_address = chargeRequest.approved_card_billing_address || "";
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [
+    chargeRequest?.status,
+    chargeRequest?.merchant_name,
+    chargeRequest?.approved_card_number,
+    chargeRequest?.approved_card_exp,
+    chargeRequest?.approved_card_cvv,
+    chargeRequest?.approved_card_billing_address,
+  ]);
 
   const chargeRemarks = chargeRequest?.remarks || chargeRequest?.decline_reason || "";
   const chargeApproved = chargeRequest?.status === "approved";
@@ -1093,13 +1113,8 @@ export function SaleForm({
                     {loading ? <Spinner /> : "Send charge request"}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Sends this card to the merchant account. They approve or decline it and can leave remarks here. Approved is green and declined is red. The sale is added when they approve.
+                    Payment Details still saves on its own. This button only sends the charge. The card is copied into Payment Details after the merchant approves.
                   </p>
-                  {merchants.length === 0 ? (
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
-                      Add an active merchant user first. The request is sent to that account.
-                    </p>
-                  ) : null}
                 </div>
               )}
             </div>
