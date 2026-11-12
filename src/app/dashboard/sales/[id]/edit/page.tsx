@@ -142,6 +142,11 @@ export default async function EditSalePage(props: {
     card_cvv,
     card_billing_address,
     merchant_name,
+    charge_first_name: sale.charge_first_name || "",
+    charge_last_name: sale.charge_last_name || "",
+    charge_amount: sale.charge_amount != null ? String(sale.charge_amount) : "",
+    charge_phone: sale.charge_phone || "",
+    charge_email: sale.charge_email || "",
     routing_number,
     bank_account_number,
     bank_account_holder_name,
@@ -167,6 +172,7 @@ export default async function EditSalePage(props: {
       </div>
       <SaleForm
         salesAgentUsers={salesAgentUsers}
+        currentUserName={user.full_name}
         userRole={user.role}
         mode="edit"
         saleId={sale.id}

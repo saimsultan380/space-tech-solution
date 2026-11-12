@@ -12,7 +12,7 @@ export default async function NewSalePage() {
           Fill in all details for the {user.role === "sales_agent" ? "sale" : "new sale record"}
         </p>
       </div>
-      <SaleForm userRole={user.role} />
+      <SaleForm userRole={user.role} currentUserName={user.full_name} />
     </div>
   );
 }

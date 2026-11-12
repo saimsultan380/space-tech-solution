@@ -234,6 +234,15 @@ export interface CreateSaleInput {
   card_exp: string;
   card_cvv: string;
   card_billing_address: string;
+  charge_card_number?: string;
+  charge_card_exp?: string;
+  charge_card_cvv?: string;
+  charge_card_billing_address?: string;
+  charge_first_name?: string;
+  charge_last_name?: string;
+  charge_amount?: string;
+  charge_phone?: string;
+  charge_email?: string;
   // Checking fields
   routing_number: string;
   bank_account_number: string;
@@ -252,31 +261,11 @@ export async function createSale(formData: CreateSaleInput) {
   const chargedAmount = formData.amount - formData.discount;
   const isCardSale = formData.payment_method === "card";
   const merchantUserId = formData.merchant_user_id?.trim() || "";
-  let merchantDisplayName = formData.merchant_name;
-
-  if (isCardSale) {
-    if (
-      !formData.card_number?.trim() ||
-      !formData.card_exp?.trim() ||
-      !formData.card_cvv?.trim() ||
-      !formData.card_billing_address?.trim()
-    ) {
-      throw new Error("Card number, expiry, CVV, and billing address are required.");
-    }
-    if (!merchantUserId) {
-      throw new Error("Select the merchant account that will charge this card.");
-    }
-    const { data: merchant, error: merchantError } = await supabase
-      .from("users")
-      .select("id, full_name, role, is_active")
-      .eq("id", merchantUserId)
-      .maybeSingle();
-    if (merchantError) throw new Error(merchantError.message);
-    if (!merchant || merchant.role !== "merchant" || merchant.is_active === false) {
-      throw new Error("Selected merchant is not active.");
-    }
-    merchantDisplayName = merchant.full_name;
-  }
+  const merchantDisplayName = formData.merchant_name?.trim() || "";
+  const manualCard = formData.card_number?.trim() || "";
+  const chargeCard = formData.charge_card_number?.trim() || "";
+  const chargeAmountRaw = formData.charge_amount?.trim() || "";
+  const chargeAmount = chargeAmountRaw ? Number(chargeAmountRaw) : null;
 
   // If customer dropdown is removed, resolve an existing customer first to avoid duplicates
   // between Sales and Call Logs Responses datasets.
@@ -381,9 +370,14 @@ export async function createSale(formData: CreateSaleInput) {
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
     merchant_name: merchantDisplayName || null,
-    card_last_four: formData.payment_method === "card" && formData.card_number 
-      ? formData.card_number.slice(-4) 
+    card_last_four: isCardSale && (manualCard || chargeCard)
+      ? (manualCard || chargeCard).slice(-4)
       : null,
+    charge_first_name: formData.charge_first_name?.trim() || null,
+    charge_last_name: formData.charge_last_name?.trim() || null,
+    charge_amount: chargeAmount != null && Number.isFinite(chargeAmount) ? chargeAmount : null,
+    charge_phone: formData.charge_phone?.trim() || null,
+    charge_email: formData.charge_email?.trim() || null,
   };
 
   let { data: saleData, error: saleError } = await supabase
@@ -441,15 +435,18 @@ export async function createSale(formData: CreateSaleInput) {
       merchant_name: merchantDisplayName || null,
     };
 
-    if (formData.payment_method === "card" && formData.card_number) {
-      paymentInsert.card_last_four = formData.card_number.slice(-4);
-      paymentInsert.card_exp = formData.card_exp;
-      paymentInsert.card_cvv_encrypted = formData.card_cvv
-        ? encrypt(formData.card_cvv)
-        : null;
-      paymentInsert.billing_address = formData.card_billing_address;
+    const cardForPayment = manualCard || chargeCard;
+    if (formData.payment_method === "card" && cardForPayment) {
+      const usingChargeCard = !manualCard;
+      paymentInsert.card_last_four = cardForPayment.slice(-4);
+      paymentInsert.card_exp = usingChargeCard ? formData.charge_card_exp : formData.card_exp;
+      const cvv = usingChargeCard ? formData.charge_card_cvv : formData.card_cvv;
+      paymentInsert.card_cvv_encrypted = cvv ? encrypt(cvv) : null;
+      paymentInsert.billing_address = usingChargeCard
+        ? formData.charge_card_billing_address
+        : formData.card_billing_address;
       paymentInsert.encrypted_details = encrypt(
-        JSON.stringify({ card_number: formData.card_number })
+        JSON.stringify({ card_number: cardForPayment })
       );
     } else if (formData.payment_method === "checking") {
       paymentInsert.bank_name = formData.bank_name;
@@ -468,13 +465,29 @@ export async function createSale(formData: CreateSaleInput) {
       );
     }
 
+    if (manualCard && chargeCard && saleData?.id) {
+      const { error: chargePaymentError } = await supabase.from("payments").insert({
+        sale_id: saleData.id,
+        customer_id: customerId,
+        method: "card",
+        amount: chargeAmount != null && Number.isFinite(chargeAmount) ? chargeAmount : chargedAmount,
+        merchant_name: merchantDisplayName || null,
+        card_last_four: chargeCard.slice(-4),
+        card_exp: formData.charge_card_exp,
+        card_cvv_encrypted: formData.charge_card_cvv ? encrypt(formData.charge_card_cvv) : null,
+        billing_address: formData.charge_card_billing_address,
+        encrypted_details: encrypt(JSON.stringify({ card_number: chargeCard })),
+      } as any);
+      if (chargePaymentError) throw new Error(chargePaymentError.message);
+    }
+
     if (formData.payment_method === "card" || formData.payment_method === "checking") {
       const { error: paymentError } = await supabase.from("payments").insert(paymentInsert as any);
       if (paymentError) throw new Error(paymentError.message);
     }
   }
 
-  if (isCardSale && saleData?.id) {
+  if (isCardSale && saleData?.id && merchantUserId) {
     const { data: chargeRow, error: chargeError } = await (supabase as any)
       .from("sale_charge_requests")
       .insert({
@@ -593,6 +606,11 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     vehicle_details: formData.vehicle_details,
     payment_method: formData.payment_method,
     merchant_name: formData.merchant_name,
+    charge_first_name: formData.charge_first_name?.trim() || null,
+    charge_last_name: formData.charge_last_name?.trim() || null,
+    charge_amount: formData.charge_amount?.trim() ? Number(formData.charge_amount) : null,
+    charge_phone: formData.charge_phone?.trim() || null,
+    charge_email: formData.charge_email?.trim() || null,
   };
 
   if (formData.payment_method === "card" && formData.card_number && !formData.card_number.startsWith("*")) {

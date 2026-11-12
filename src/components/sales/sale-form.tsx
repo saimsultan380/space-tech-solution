@@ -16,7 +16,6 @@ import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-sect
 import { createClient } from "@/lib/supabase/client";
 import { createSaleAttachment } from "@/lib/actions/sale-attachments";
 import { getSalesAgentOptions } from "@/lib/queries/users";
-import { getActiveMerchants } from "@/lib/actions/merchant-charges";
 import {
   SALE_TYPES,
   UTILITY_SUBTYPES,
@@ -42,6 +41,7 @@ import type { UserRole } from "@/lib/types";
 interface SaleFormProps {
   /** Optional preloaded list; otherwise fetched client-side for super_admin. */
   salesAgentUsers?: Array<{ id: string; full_name: string }>;
+  currentUserName?: string;
   userRole: UserRole;
   mode?: "create" | "edit";
   saleId?: string;
@@ -85,6 +85,11 @@ const emptyForm = {
   charge_card_exp: "",
   charge_card_cvv: "",
   charge_card_billing_address: "",
+  charge_first_name: "",
+  charge_last_name: "",
+  charge_amount: "",
+  charge_phone: "",
+  charge_email: "",
   merchant_user_id: "",
   merchant_name: "",
   routing_number: "",
@@ -100,6 +105,7 @@ const emptyForm = {
 
 export function SaleForm({
   salesAgentUsers: salesAgentUsersProp = [],
+  currentUserName = "",
   userRole,
   mode = "create",
   saleId,
@@ -137,12 +143,6 @@ export function SaleForm({
   });
   const salesAgentUsers =
     salesAgentUsersProp.length > 0 ? salesAgentUsersProp : fetchedAgents;
-  const { data: merchants = [] } = useQuery({
-    queryKey: ["active-merchants"],
-    queryFn: getActiveMerchants,
-    enabled: mode === "create",
-    staleTime: 60_000,
-  });
 
   const isUtility = form.sale_type === "utility";
   const isInsurance = form.sale_type === "insurance";
@@ -158,32 +158,11 @@ export function SaleForm({
       setError("Please select the assigned sales agent.");
       return;
     }
-    if (mode === "create" && form.payment_method === "card") {
-      if (
-        !form.charge_card_number.trim() ||
-        !form.charge_card_exp.trim() ||
-        !form.charge_card_cvv.trim() ||
-        !form.charge_card_billing_address.trim()
-      ) {
-        setError("Enter the card number, expiry, CVV, and billing address in Charge a Sale.");
-        return;
-      }
-      if (!form.merchant_user_id) {
-        setError("Select the merchant account that will charge this card.");
-        return;
-      }
-    }
     setLoading(true);
     setError("");
-    const selectedMerchant = merchants.find((merchant) => merchant.id === form.merchant_user_id);
-    const chargeThisSale = mode === "create" && form.payment_method === "card";
     const payload: CreateSaleInput = {
       ...form,
-      card_number: chargeThisSale ? form.charge_card_number : form.card_number,
-      card_exp: chargeThisSale ? form.charge_card_exp : form.card_exp,
-      card_cvv: chargeThisSale ? form.charge_card_cvv : form.card_cvv,
-      card_billing_address: chargeThisSale ? form.charge_card_billing_address : form.card_billing_address,
-      merchant_name: selectedMerchant?.full_name || form.merchant_name,
+      merchant_name: form.merchant_name,
       amount: Number(form.amount),
       discount: Number(form.discount),
     };
@@ -778,7 +757,6 @@ export function SaleForm({
                   autoComplete="off"
                   value={form.card_number}
                   onChange={(e) => set("card_number", e.target.value)}
-                  required={mode === "create"}
                 />
                 <Input
                   id="card_exp"
@@ -788,7 +766,6 @@ export function SaleForm({
                   autoComplete="off"
                   value={form.card_exp}
                   onChange={(e) => set("card_exp", e.target.value)}
-                  required={mode === "create"}
                 />
                 <Input
                   id="card_cvv"
@@ -799,7 +776,6 @@ export function SaleForm({
                   autoComplete="off"
                   value={form.card_cvv}
                   onChange={(e) => set("card_cvv", e.target.value)}
-                  required={mode === "create"}
                 />
               </div>
               <Input
@@ -809,18 +785,16 @@ export function SaleForm({
                 autoComplete="off"
                 value={form.card_billing_address}
                 onChange={(e) => set("card_billing_address", e.target.value)}
-                required={mode === "create"}
               />
-              {mode === "edit" && (
-                <Input
-                  id="merchant_name"
-                  name="payment-merchant-name"
-                  label="Merchant Name"
-                  autoComplete="off"
-                  value={form.merchant_name}
-                  onChange={(e) => set("merchant_name", e.target.value)}
-                />
-              )}
+              <Input
+                id="merchant_name"
+                name="payment-merchant-name"
+                label="Merchant Name"
+                placeholder="Merchant who charges this card"
+                autoComplete="off"
+                value={form.merchant_name}
+                onChange={(e) => set("merchant_name", e.target.value)}
+              />
             </div>
           )}
 
@@ -869,7 +843,7 @@ export function SaleForm({
         </CardContent>
       </Card>
 
-      {mode === "create" && form.payment_method === "card" && (
+      {form.payment_method === "card" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -879,9 +853,56 @@ export function SaleForm({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              New card sales are added here. This card is sent only to the merchant you select, and it is not copied from Payment Details.
+              This card is separate from Payment Details. It is not copied from the card above.
             </p>
             <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  id="charge_first_name"
+                  name="charge-first-name"
+                  label="First Name"
+                  autoComplete="off"
+                  value={form.charge_first_name}
+                  onChange={(e) => set("charge_first_name", e.target.value)}
+                />
+                <Input
+                  id="charge_last_name"
+                  name="charge-last-name"
+                  label="Last Name"
+                  autoComplete="off"
+                  value={form.charge_last_name}
+                  onChange={(e) => set("charge_last_name", e.target.value)}
+                />
+                <Input
+                  id="charge_amount"
+                  name="charge-amount"
+                  label="Amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  autoComplete="off"
+                  value={form.charge_amount}
+                  onChange={(e) => set("charge_amount", e.target.value)}
+                  placeholder="0.00"
+                />
+                <Input
+                  id="charge_phone"
+                  name="charge-phone"
+                  label="Phone Number"
+                  autoComplete="off"
+                  value={form.charge_phone}
+                  onChange={(e) => set("charge_phone", e.target.value)}
+                />
+              </div>
+              <Input
+                id="charge_email"
+                name="charge-email"
+                label="Email"
+                type="email"
+                autoComplete="off"
+                value={form.charge_email}
+                onChange={(e) => set("charge_email", e.target.value)}
+              />
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   id="charge_card_number"
@@ -891,7 +912,6 @@ export function SaleForm({
                   autoComplete="off"
                   value={form.charge_card_number}
                   onChange={(e) => set("charge_card_number", e.target.value)}
-                  required
                 />
                 <Input
                   id="charge_card_exp"
@@ -901,7 +921,6 @@ export function SaleForm({
                   autoComplete="off"
                   value={form.charge_card_exp}
                   onChange={(e) => set("charge_card_exp", e.target.value)}
-                  required
                 />
                 <Input
                   id="charge_card_cvv"
@@ -912,7 +931,6 @@ export function SaleForm({
                   autoComplete="off"
                   value={form.charge_card_cvv}
                   onChange={(e) => set("charge_card_cvv", e.target.value)}
-                  required
                 />
               </div>
               <Input
@@ -922,25 +940,20 @@ export function SaleForm({
                 autoComplete="off"
                 value={form.charge_card_billing_address}
                 onChange={(e) => set("charge_card_billing_address", e.target.value)}
-                required
               />
-              <Select
-                id="merchant_user_id"
-                name="charge-merchant"
-                label="Merchant account"
-                placeholder={merchants.length === 0 ? "No active merchant" : "Select merchant"}
-                options={merchants.map((merchant) => ({
-                  value: merchant.id,
-                  label: merchant.full_name,
-                }))}
-                value={form.merchant_user_id}
-                onChange={(e) => set("merchant_user_id", e.target.value)}
-                required
+              <Input
+                id="charge_assigned_person"
+                name="charge-assigned-person"
+                label="Assigned person"
+                readOnly
+                className="bg-secondary/40"
+                value={
+                  userRole === "super_admin"
+                    ? form.agent_name.trim() || "No sales agent assigned yet"
+                    : currentUserName || "Assigned to you"
+                }
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Only this merchant can open the card. You will see Pending, then Viewed, Charging, and Approved or Declined.
-            </p>
           </CardContent>
         </Card>
       )}

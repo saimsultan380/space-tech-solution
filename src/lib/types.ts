@@ -152,6 +152,11 @@ export interface Sale {
   vehicle_details: string;
   payment_method: string;
   merchant_name: string;
+  charge_first_name?: string | null;
+  charge_last_name?: string | null;
+  charge_amount?: number | null;
+  charge_phone?: string | null;
+  charge_email?: string | null;
   card_last_four?: string | null;
   utility_company_phone?: string | null;
   payment_status_after_sale?: string | null;
