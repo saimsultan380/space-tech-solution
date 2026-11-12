@@ -19,7 +19,7 @@ import {
 import { EmptyState, Spinner } from "@/components/ui/loading";
 import { Pagination } from "@/components/ui/pagination";
 
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate, formatInAppZone } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { BILL_PAYMENT_STATUSES, SALE_TYPES } from "@/lib/constants";
 import { ChargeStatusPill } from "@/components/sales/charge-progress";
@@ -66,26 +66,14 @@ import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-inp
 import { getSales } from "@/lib/queries/sales";
 import { getSalesAgentOptions } from "@/lib/queries/users";
 
-const KARACHI_TIMEZONE = "Asia/Karachi";
-
-function formatDateKarachi(date: string | Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: KARACHI_TIMEZONE,
-  }).format(new Date(date));
-}
-
 function formatNoteTime(date: string): string {
-  return new Intl.DateTimeFormat("en-US", {
+  return formatInAppZone(date, {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: KARACHI_TIMEZONE,
-  }).format(new Date(date));
+  });
 }
 
 function SalesRawDataPopover({ sale }: { sale: Sale }) {
@@ -899,11 +887,11 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                           <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
                             Sale:{" "}
                             {sale.sale_date
-                              ? formatDateKarachi(sale.sale_date)
+                              ? formatDate(sale.sale_date)
                               : "N/A"}
                           </span>
                           <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
-                            Recorded: {formatDateKarachi(sale.created_at)}
+                            Recorded: {formatDate(sale.created_at)}
                           </span>
                         </div>
                       </TableCell>

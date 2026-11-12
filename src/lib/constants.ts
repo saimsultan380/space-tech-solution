@@ -3,6 +3,11 @@ import type { UserRole } from "@/lib/types";
 /** Default table page size. Every list uses the same page length. */
 export const DEFAULT_PAGE_SIZE = 24;
 
+/** Business timezone for dates, times, and attendance. US Eastern. */
+export const APP_TIMEZONE = "America/New_York";
+
+export const DEFAULT_CURRENCY = "USD";
+
 export const ROLES = {
   SUPER_ADMIN: "super_admin" as const,
   SALES_AGENT: "sales_agent" as const,
@@ -117,8 +122,8 @@ export const BILL_PAYMENT_STATUSES = [
 ] as const;
 
 export const CURRENCIES = [
-  { value: "PKR", label: "Pakistani Rupee (PKR)" },
   { value: "USD", label: "US Dollar (USD)" },
+  { value: "PKR", label: "Pakistani Rupee (PKR)" },
   { value: "EUR", label: "Euro (EUR)" },
   { value: "GBP", label: "British Pound (GBP)" },
   { value: "AED", label: "UAE Dirham (AED)" },

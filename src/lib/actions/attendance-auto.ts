@@ -76,7 +76,7 @@ async function getAttendanceSettingsAdmin(): Promise<AttendanceSettings> {
 }
 
 function getAppTimeZone() {
-  return process.env.APP_TIMEZONE || process.env.TZ || "";
+  return process.env.APP_TIMEZONE || "America/New_York";
 }
 
 function getNowInTimeZone() {

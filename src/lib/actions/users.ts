@@ -101,7 +101,7 @@ export async function createUser(formData: {
       email: formData.email,
       full_name: formData.full_name,
       role: formData.role,
-      preferred_currency: "PKR",
+      preferred_currency: "USD",
       allowed_modules: formData.allowedModules && formData.allowedModules.length > 0 ? formData.allowedModules : null,
       joining_date: formData.joining_date || null,
       category: formData.category || "Permanent",

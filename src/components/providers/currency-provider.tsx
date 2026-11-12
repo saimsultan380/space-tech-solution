@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
+import { DEFAULT_CURRENCY } from "@/lib/constants";
 
 type CurrencyContextValue = {
   currency: string;
@@ -10,7 +11,7 @@ type CurrencyContextValue = {
 const STORAGE_KEY = "preferred_currency";
 
 const CurrencyContext = createContext<CurrencyContextValue>({
-  currency: "USD",
+  currency: DEFAULT_CURRENCY,
   setCurrency: () => {},
 });
 
@@ -21,10 +22,10 @@ export function CurrencyProvider({
   currency?: string | null;
   children: React.ReactNode;
 }) {
-  const [currentCurrency, setCurrentCurrency] = useState(currency || "USD");
+  const [currentCurrency, setCurrentCurrency] = useState(currency || DEFAULT_CURRENCY);
 
   const setCurrency = useCallback((next: string) => {
-    const normalized = (next || "USD").toUpperCase();
+    const normalized = (next || DEFAULT_CURRENCY).toUpperCase();
     setCurrentCurrency(normalized);
 
     try {
@@ -35,8 +36,7 @@ export function CurrencyProvider({
   }, []);
 
   useEffect(() => {
-    if (!currency) return;
-    const normalized = currency.toUpperCase();
+    const normalized = (currency || DEFAULT_CURRENCY).toUpperCase();
     setCurrentCurrency(normalized);
     try {
       localStorage.setItem(STORAGE_KEY, normalized);
@@ -44,17 +44,6 @@ export function CurrencyProvider({
       // ignore
     }
   }, [currency]);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setCurrentCurrency(stored.toUpperCase());
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -68,7 +57,7 @@ export function CurrencyProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ currency: currentCurrency || "USD", setCurrency }),
+    () => ({ currency: currentCurrency || DEFAULT_CURRENCY, setCurrency }),
     [currentCurrency, setCurrency]
   );
 

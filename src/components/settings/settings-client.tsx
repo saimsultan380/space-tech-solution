@@ -79,7 +79,7 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
-  const [currency, setCurrency] = useState(user.preferred_currency || "PKR");
+  const [currency, setCurrency] = useState(user.preferred_currency || "USD");
   const { setCurrency: setGlobalCurrency } = useCurrency();
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [prefsMessage, setPrefsMessage] = useState<string | null>(null);

@@ -141,7 +141,7 @@ BEGIN
       COALESCE(SUM(charge.amount), 0) AS call_setup_charges
     FROM sales s
     JOIN call_setup_charges charge
-      ON COALESCE(s.sale_date, (s.created_at AT TIME ZONE 'Asia/Karachi')::date)
+      ON COALESCE(s.sale_date, (s.created_at AT TIME ZONE 'America/New_York')::date)
          BETWEEN charge.starts_on AND charge.ends_on
     WHERE s.created_at >= v_month_start
       AND s.created_at < v_month_end
@@ -274,7 +274,7 @@ BEGIN
       COALESCE(SUM(charge.amount), 0) AS call_setup_charges
     FROM sales s
     JOIN call_setup_charges charge
-      ON COALESCE(s.sale_date, (s.created_at AT TIME ZONE 'Asia/Karachi')::date)
+      ON COALESCE(s.sale_date, (s.created_at AT TIME ZONE 'America/New_York')::date)
          BETWEEN charge.starts_on AND charge.ends_on
     WHERE s.created_at >= range_start
       AND s.created_at < range_end

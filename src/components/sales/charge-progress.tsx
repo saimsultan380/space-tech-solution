@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, formatInAppZone } from "@/lib/utils";
 import type { ChargeRequestStatus } from "@/lib/types";
 
 const FLOW = ["pending", "viewed", "charging", "approved"] as const;
@@ -11,15 +11,14 @@ const LABEL: Record<ChargeRequestStatus, string> = {
   declined: "Declined",
 };
 
-function karachiTime(value: string | null | undefined) {
+function appTime(value: string | null | undefined) {
   if (!value) return null;
-  return new Intl.DateTimeFormat("en-US", {
+  return formatInAppZone(value, {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "Asia/Karachi",
-  }).format(new Date(value));
+  });
 }
 
 function stepState(step: (typeof FLOW)[number], status: ChargeRequestStatus) {
@@ -42,7 +41,7 @@ export function ChargeStatusPill({
   viewedAt?: string | null;
   declineReason?: string | null;
 }) {
-  const viewed = karachiTime(viewedAt);
+  const viewed = appTime(viewedAt);
   const detail =
     status === "pending"
       ? "Not opened"
@@ -86,7 +85,7 @@ export function ChargeProgress({
   viewedAt?: string | null;
   declineReason?: string | null;
 }) {
-  const viewed = karachiTime(viewedAt);
+  const viewed = appTime(viewedAt);
   const summary =
     status === "pending"
       ? "Waiting for the merchant to open this request."

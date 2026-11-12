@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { APP_TIMEZONE, DEFAULT_CURRENCY } from "@/lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -7,32 +8,53 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   amount: number,
-  currency: string = "USD",
+  currency: string = DEFAULT_CURRENCY,
 ): string {
   const safe = Number(amount ?? 0);
-  const curr = currency || "USD";
+  const curr = currency || DEFAULT_CURRENCY;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: curr,
   }).format(Number.isFinite(safe) ? safe : 0);
 }
 
-export function formatDate(date: string | Date): string {
+function isCalendarDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function formatInAppZone(
+  date: string | Date,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  if (typeof date === "string" && isCalendarDate(date)) {
+    const [year, month, day] = date.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-US", {
+      ...options,
+      timeZone: "UTC",
+    }).format(new Date(Date.UTC(year, month - 1, day)));
+  }
   return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+    ...options,
+    timeZone: APP_TIMEZONE,
   }).format(new Date(date));
 }
 
+export function formatDate(date: string | Date): string {
+  return formatInAppZone(date, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function formatDateTime(date: string | Date): string {
-  return new Intl.DateTimeFormat("en-US", {
+  return formatInAppZone(date, {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(date));
+  });
 }
 
 export function getInitials(name: string): string {

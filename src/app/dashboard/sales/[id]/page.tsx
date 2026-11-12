@@ -34,17 +34,6 @@ type SaleWithExtraDetails = Sale & {
   guest_pay_link?: string | null;
 };
 
-const KARACHI_TIMEZONE = "Asia/Karachi";
-
-function formatDateKarachi(date: string | Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: KARACHI_TIMEZONE,
-  }).format(new Date(date));
-}
-
 function dash(v: string | null | undefined): string {
   const t = v?.trim();
   return t ? t : "—";
@@ -141,7 +130,7 @@ export default async function SaleDetailPage(props: {
           </div>
           <p className="text-muted-foreground">
             {sale.sale_type} / {sale.subtype} sale
-            {sale.sale_date ? ` · ${formatDateKarachi(sale.sale_date)}` : ""}
+            {sale.sale_date ? ` · ${formatDate(sale.sale_date)}` : ""}
           </p>
         </div>
         {canEdit && (
@@ -172,7 +161,7 @@ export default async function SaleDetailPage(props: {
               <SummaryRow label="Type" value={`${sale.sale_type} / ${sale.subtype}`} />
               <SummaryRow label="Charged amount" value={formatCurrency(sale.charged_amount, currency)} />
               <SummaryRow label="Agent Name" value={agentName} />
-              <SummaryRow label="Recorded on" value={formatDateKarachi(sale.created_at)} />
+              <SummaryRow label="Recorded on" value={formatDate(sale.created_at)} />
               <SummaryRow label="Sale ID" value={sale.id} />
             </div>
             <div className="min-h-[220px] rounded-xl border border-border bg-background p-4">
@@ -240,8 +229,8 @@ export default async function SaleDetailPage(props: {
               <InfoRow label="Vehicle Details" value={dash(sale.vehicle_details)} />
             )}
             <InfoRow label="Account Status" value={dash(sale.account_status)} />
-            <InfoRow label="Created" value={formatDateKarachi(sale.created_at)} />
-            <InfoRow label="Last updated" value={formatDateKarachi(sale.updated_at)} />
+            <InfoRow label="Created" value={formatDate(sale.created_at)} />
+            <InfoRow label="Last updated" value={formatDate(sale.updated_at)} />
           </CardContent>
         </Card>
 
@@ -398,7 +387,7 @@ export default async function SaleDetailPage(props: {
                       </>
                     )}
                     <span className="text-muted-foreground">Recorded</span>
-                    <span className="text-foreground">{formatDateKarachi(p.created_at)}</span>
+                    <span className="text-foreground">{formatDate(p.created_at)}</span>
                   </div>
                 </div>
               );
