@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,9 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Spinner } from "@/components/ui/loading";
-import { createSale, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
+import { createSale, sendSaleChargeRequest, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
+import { getActiveMerchants, getSaleChargeRequest } from "@/lib/actions/merchant-charges";
+import { ChargeStatusPill } from "@/components/sales/charge-progress";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { createClient } from "@/lib/supabase/client";
 import { createSaleAttachment } from "@/lib/actions/sale-attachments";
@@ -148,6 +150,17 @@ export function SaleForm({
   const isInsurance = form.sale_type === "insurance";
   const subtypeOptions = isUtility ? UTILITY_SUBTYPES : INSURANCE_SUBTYPES;
   const chargedAmount = Number(form.amount || 0) - Number(form.discount || 0);
+  const { data: merchants = [] } = useQuery({
+    queryKey: ["active-merchants"],
+    queryFn: () => getActiveMerchants(),
+    staleTime: 60_000,
+  });
+  const { data: chargeRequest, refetch: refetchCharge } = useQuery({
+    queryKey: ["sale-charge", saleId],
+    queryFn: () => getSaleChargeRequest(saleId as string),
+    enabled: Boolean(saleId),
+    refetchInterval: saleId ? 10000 : false,
+  });
 
   const set = (field: string, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -204,6 +217,81 @@ export function SaleForm({
     }
     setLoading(false);
   };
+
+  const sendCharge = async () => {
+    if (userRole === "super_admin" && mode === "create" && !form.agent_id?.trim()) {
+      setError("Please select the assigned sales agent.");
+      return;
+    }
+    if (merchants.length === 0) {
+      setError("Add an active merchant account before sending a charge.");
+      return;
+    }
+    if (
+      !form.charge_card_number.trim() ||
+      !form.charge_card_exp.trim() ||
+      !form.charge_card_cvv.trim() ||
+      !form.charge_card_billing_address.trim()
+    ) {
+      setError("Enter the card number, expiry, CVV, and billing address in Charge a Sale before sending it to the merchant.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    const payload: CreateSaleInput = {
+      ...form,
+      merchant_name: form.merchant_name,
+      amount: Number(form.amount),
+      discount: Number(form.discount),
+      send_to_merchant: true,
+    };
+    try {
+      if (mode === "edit" && saleId) {
+        await sendSaleChargeRequest({ ...payload, id: saleId });
+        await refetchCharge();
+      } else {
+        const newSaleId = await createSale(payload);
+        if (pendingFiles.length > 0) {
+          const supabase = createClient();
+          for (const file of pendingFiles) {
+            const safeName = file.name.replace(/[^\w.\-()\s]/g, "_");
+            const path = `sales/${newSaleId}/${Date.now()}-${safeName}`;
+            const { error: uploadError } = await supabase.storage
+              .from("avatars")
+              .upload(path, file, { upsert: false, cacheControl: "3600" });
+            if (uploadError) throw new Error(uploadError.message);
+            const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+            await createSaleAttachment({
+              sale_id: newSaleId,
+              file_name: file.name,
+              file_path: path,
+              file_url: data.publicUrl,
+              mime_type: file.type || "application/octet-stream",
+              size_bytes: file.size || 0,
+            });
+          }
+        }
+        router.push(`/dashboard/sales/${newSaleId}/edit`);
+        return;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send the charge request");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (chargeRequest?.status !== "approved") return;
+    const name = chargeRequest.merchant_name?.trim();
+    if (!name) return;
+    setForm((current) =>
+      current.merchant_name === name ? current : { ...current, merchant_name: name },
+    );
+  }, [chargeRequest?.status, chargeRequest?.merchant_name]);
+
+  const chargeRemarks = chargeRequest?.remarks || chargeRequest?.decline_reason || "";
+  const chargeApproved = chargeRequest?.status === "approved";
+  const chargeDeclined = chargeRequest?.status === "declined";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -953,6 +1041,67 @@ export function SaleForm({
                     : currentUserName || "Assigned to you"
                 }
               />
+              {chargeRequest ? (
+                <div
+                  className={`rounded-xl border px-4 py-3 ${
+                    chargeApproved
+                      ? "border-emerald-500/40 bg-emerald-500/10"
+                      : chargeDeclined
+                        ? "border-rose-500/40 bg-rose-500/10"
+                        : "border-amber-500/40 bg-amber-500/10"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">Merchant response</p>
+                    <ChargeStatusPill
+                      status={chargeRequest.status}
+                      viewedAt={chargeRequest.viewed_at}
+                      declineReason={chargeRequest.decline_reason}
+                      remarks={chargeRequest.remarks}
+                    />
+                  </div>
+                  {chargeApproved && chargeRequest.merchant_name ? (
+                    <p className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      Merchant: {chargeRequest.merchant_name}
+                    </p>
+                  ) : null}
+                  {chargeRemarks ? (
+                    <p
+                      className={`mt-2 text-sm ${
+                        chargeDeclined
+                          ? "text-rose-700 dark:text-rose-300"
+                          : chargeApproved
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-foreground"
+                      }`}
+                    >
+                      Remarks: {chargeRemarks}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {chargeApproved
+                        ? "Approved. These details were added to the sale."
+                        : chargeDeclined
+                          ? "Declined. The sale was not added from this charge."
+                          : "Waiting for the merchant to approve or decline."}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button type="button" onClick={() => void sendCharge()} disabled={loading}>
+                    {loading ? <Spinner /> : "Send charge request"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Sends this card to the merchant account. They approve or decline it and can leave remarks here. Approved is green and declined is red. The sale is added when they approve.
+                  </p>
+                  {merchants.length === 0 ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Add an active merchant user first. The request is sent to that account.
+                    </p>
+                  ) : null}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

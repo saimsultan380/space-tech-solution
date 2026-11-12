@@ -250,7 +250,7 @@ export async function getSales(filters?: {
     const { data: charges } = await (supabase as any)
       .from("sale_charge_requests")
       .select(
-        "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name)",
+        "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name)",
       )
       .in("sale_id", saleIds);
     const bySale = new Map<string, Sale["charge_request"]>();
@@ -265,6 +265,7 @@ export async function getSales(filters?: {
         charging_at: charge.charging_at,
         decided_at: charge.decided_at,
         decline_reason: charge.decline_reason,
+        remarks: charge.remarks ?? charge.decline_reason ?? null,
         created_at: charge.created_at,
         merchant_name: charge.merchant?.full_name ?? null,
       });

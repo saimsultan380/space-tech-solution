@@ -65,6 +65,7 @@ export function MerchantChargesClient() {
                         status={request.status}
                         viewedAt={request.viewed_at}
                         declineReason={request.decline_reason}
+                        remarks={request.remarks}
                       />
                     </TableCell>
                     <TableCell className="text-right">

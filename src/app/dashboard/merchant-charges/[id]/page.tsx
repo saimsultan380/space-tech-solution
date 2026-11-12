@@ -15,7 +15,10 @@ export default async function MerchantChargeDetailPage({
     <MerchantChargeDetail
       request={request}
       card={card}
-      canCharge={user.role === "merchant" && request.merchant_user_id === user.id}
+      canCharge={
+        user.role === "merchant" &&
+        (!request.merchant_user_id || request.merchant_user_id === user.id)
+      }
     />
   );
 }

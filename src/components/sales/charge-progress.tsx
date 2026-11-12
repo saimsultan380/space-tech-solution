@@ -36,10 +36,12 @@ export function ChargeStatusPill({
   status,
   viewedAt,
   declineReason,
+  remarks,
 }: {
   status: ChargeRequestStatus;
   viewedAt?: string | null;
   declineReason?: string | null;
+  remarks?: string | null;
 }) {
   const viewed = appTime(viewedAt);
   const detail =
@@ -52,8 +54,8 @@ export function ChargeStatusPill({
         : status === "charging"
           ? "Card is being charged"
           : status === "approved"
-            ? "Merchant approved"
-            : declineReason || "Merchant declined";
+            ? remarks || "Merchant approved"
+            : remarks || declineReason || "Merchant declined";
 
   return (
     <div className="flex flex-col items-start gap-1">
@@ -79,11 +81,13 @@ export function ChargeProgress({
   merchantName,
   viewedAt,
   declineReason,
+  remarks,
 }: {
   status: ChargeRequestStatus;
   merchantName?: string | null;
   viewedAt?: string | null;
   declineReason?: string | null;
+  remarks?: string | null;
 }) {
   const viewed = appTime(viewedAt);
   const summary =
@@ -96,16 +100,18 @@ export function ChargeProgress({
         : status === "charging"
           ? "The card is being charged now."
           : status === "approved"
-            ? "Approved. You can keep adding sales."
-            : declineReason
-              ? `Declined: ${declineReason}`
+            ? remarks
+              ? `Approved. ${remarks}`
+              : "Approved. The sale details were added."
+            : remarks || declineReason
+              ? `Declined: ${remarks || declineReason}`
               : "The merchant declined this charge.";
 
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-foreground">Merchant approval</p>
-        <ChargeStatusPill status={status} viewedAt={viewedAt} declineReason={declineReason} />
+        <ChargeStatusPill status={status} viewedAt={viewedAt} declineReason={declineReason} remarks={remarks} />
       </div>
       <ol className="mt-3 grid grid-cols-4 gap-2">
         {FLOW.map((step) => {

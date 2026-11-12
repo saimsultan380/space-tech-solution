@@ -19,6 +19,7 @@ export function SaleChargeStatus({ saleId }: { saleId: string }) {
       merchantName={data.merchant_name}
       viewedAt={data.viewed_at}
       declineReason={data.decline_reason}
+      remarks={data.remarks}
     />
   );
 }

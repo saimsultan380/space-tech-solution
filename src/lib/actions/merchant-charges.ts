@@ -36,8 +36,17 @@ function mapChargeRow(row: any): SaleChargeRequest {
     charging_at: row.charging_at,
     decided_at: row.decided_at,
     decline_reason: row.decline_reason,
+    remarks: row.remarks ?? row.decline_reason ?? null,
     created_at: row.created_at,
-    merchant_name: row.merchant?.full_name ?? row.merchant_name ?? null,
+    charge_first_name: row.sale?.charge_first_name ?? null,
+    charge_last_name: row.sale?.charge_last_name ?? null,
+    charge_amount: row.sale?.charge_amount ?? null,
+    charge_phone: row.sale?.charge_phone ?? null,
+    charge_email: row.sale?.charge_email ?? null,
+    merchant_name:
+      row.status === "approved" && row.sale?.merchant_name
+        ? row.sale.merchant_name
+        : row.merchant?.full_name ?? row.merchant_name ?? null,
     agent_name: row.agent?.full_name ?? row.agent_name ?? null,
     company_name: row.sale?.company_name ?? row.company_name ?? null,
     customer_name: row.sale?.customer_name ?? row.customer_name ?? null,
@@ -51,13 +60,13 @@ export async function listMerchantChargeRequests(): Promise<SaleChargeRequest[]>
   let query = admin
     .from("sale_charge_requests")
     .select(
-      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount)",
+      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email)",
     )
     .order("created_at", { ascending: false })
     .limit(200);
 
   if (user.role === "merchant") {
-    query = query.eq("merchant_user_id", user.id);
+    query = query.or(`merchant_user_id.eq.${user.id},merchant_user_id.is.null`);
   }
 
   const { data, error } = await query;
@@ -71,7 +80,7 @@ export async function getSaleChargeRequest(saleId: string): Promise<SaleChargeRe
   const { data, error } = await supabase
     .from("sale_charge_requests")
     .select(
-      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name)",
+      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(merchant_name)",
     )
     .eq("sale_id", saleId)
     .maybeSingle();
@@ -87,14 +96,14 @@ async function loadChargeForActor(id: string) {
   const { data, error } = await admin
     .from("sale_charge_requests")
     .select(
-      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, customer_phone)",
+      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, customer_phone, status, discount, merchant_name, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Charge request not found");
-  if (user.role === "merchant" && data.merchant_user_id !== user.id) {
+  if (user.role === "merchant" && data.merchant_user_id && data.merchant_user_id !== user.id) {
     throw new Error("This request is assigned to another merchant");
   }
   return { user, row: data, admin };
@@ -143,6 +152,7 @@ async function loadCardForCharge(admin: any, row: any) {
     .select("method, encrypted_details, card_cvv_encrypted, card_exp, billing_address, card_last_four")
     .eq("sale_id", row.sale_id)
     .eq("method", "card")
+    .order("charge_card", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -160,14 +170,53 @@ async function loadCardForCharge(admin: any, row: any) {
   };
 }
 
+async function applyChargeDecision(
+  row: any,
+  next: "approved" | "declined",
+  merchantName: string,
+) {
+  const admin = createAdminClient() as any;
+  const sale = row.sale || {};
+  if (next === "declined") {
+    if (sale.status === "pending") {
+      const { error } = await admin.from("sales").update({ status: "rejected" }).eq("id", row.sale_id);
+      if (error) throw new Error(error.message);
+    }
+    return;
+  }
+
+  const name = [sale.charge_first_name, sale.charge_last_name]
+    .map((part: string | null) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const patch: Record<string, unknown> = {};
+  if (sale.status === "pending") patch.status = "approved";
+  if (name) patch.customer_name = name;
+  if (sale.charge_phone) patch.customer_phone = sale.charge_phone;
+  if (sale.charge_email) patch.customer_email = sale.charge_email;
+  if (sale.charge_amount != null && sale.charge_amount !== "") {
+    const amount = Number(sale.charge_amount);
+    const discount = Number(sale.discount || 0);
+    if (Number.isFinite(amount)) {
+      patch.amount = amount;
+      patch.charged_amount = amount - (Number.isFinite(discount) ? discount : 0);
+    }
+  }
+  if (merchantName) patch.merchant_name = merchantName;
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await admin.from("sales").update(patch).eq("id", row.sale_id);
+  if (error) throw new Error(error.message);
+}
+
 export async function transitionMerchantCharge(
   id: string,
   next: "charging" | "approved" | "declined",
   reason?: string,
+  merchantCompanyName?: string,
 ) {
   if (!CHARGE_STATUSES.has(next)) throw new Error("Invalid status");
   const { user, row } = await loadChargeForActor(id);
-  if (user.role !== "merchant" || row.merchant_user_id !== user.id) {
+  if (user.role !== "merchant" || (row.merchant_user_id && row.merchant_user_id !== user.id)) {
     throw new Error("Only the assigned merchant can charge this card");
   }
 
@@ -178,6 +227,21 @@ export async function transitionMerchantCharge(
     p_reason: reason ?? null,
   });
   if (error) throw new Error(error.message);
+  const companyName = merchantCompanyName?.trim() || "";
+  if (next === "approved" && !companyName) {
+    throw new Error("Enter the merchant name before approving.");
+  }
+  if (next === "approved" || next === "declined") {
+    await applyChargeDecision(row, next, companyName);
+  }
+  if (next === "approved" && companyName) {
+    const admin = createAdminClient() as any;
+    const { error: paymentError } = await admin
+      .from("payments")
+      .update({ merchant_name: companyName })
+      .eq("sale_id", row.sale_id);
+    if (paymentError) throw new Error(paymentError.message);
+  }
 
   const company = row.sale?.company_name || "the sale";
   const amount = row.sale?.charged_amount;
@@ -193,7 +257,7 @@ export async function transitionMerchantCharge(
     await notifyAgent(
       row,
       "Charge approved",
-      `The card charge for ${company} was approved. You can keep adding sales.`,
+      `The card charge for ${company} was approved. The sale details were added.`,
       "charge_approved",
     );
   } else {

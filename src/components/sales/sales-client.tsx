@@ -926,6 +926,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             status={sale.charge_request.status}
                             viewedAt={sale.charge_request.viewed_at}
                             declineReason={sale.charge_request.decline_reason}
+                            remarks={sale.charge_request.remarks}
                           />
                         ) : (
                           <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">

@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import type { SaleChargeRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/loading";
@@ -30,6 +31,7 @@ export function MerchantChargeDetail({
 }) {
   const router = useRouter();
   const { currency } = useCurrency();
+  const [merchantCompany, setMerchantCompany] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -37,8 +39,13 @@ export function MerchantChargeDetail({
   const run = async (next: "charging" | "approved" | "declined") => {
     setPending(true);
     setError("");
+    if (next === "approved" && !merchantCompany.trim()) {
+      setError("Enter the merchant name. This is the company name shown on the sale.");
+      setPending(false);
+      return;
+    }
     try {
-      await transitionMerchantCharge(request.id, next, reason);
+      await transitionMerchantCharge(request.id, next, reason, merchantCompany);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update this request");
@@ -66,7 +73,36 @@ export function MerchantChargeDetail({
         merchantName={request.merchant_name}
         viewedAt={request.viewed_at}
         declineReason={request.decline_reason}
+        remarks={request.remarks}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Charge details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="text-xs text-muted-foreground">Name</p>
+            <p className="font-medium">
+              {[request.charge_first_name, request.charge_last_name].filter(Boolean).join(" ") || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Amount</p>
+            <p className="font-medium">
+              {request.charge_amount != null ? formatCurrency(Number(request.charge_amount), currency) : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Phone</p>
+            <p className="font-medium">{request.charge_phone || "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Email</p>
+            <p className="font-medium">{request.charge_email || "—"}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -92,9 +128,15 @@ export function MerchantChargeDetail({
         </CardContent>
       </Card>
 
-      {request.decline_reason ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          Declined: {request.decline_reason}
+      {request.status === "approved" ? (
+        <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+          Approved{request.merchant_name ? ` by ${request.merchant_name}` : ""}.{" "}
+          {request.remarks ? `Remarks: ${request.remarks}` : "The sale details were added."}
+        </p>
+      ) : null}
+      {request.status === "declined" ? (
+        <p className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">
+          Declined. {request.remarks || request.decline_reason || "No remarks."}
         </p>
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -107,14 +149,24 @@ export function MerchantChargeDetail({
 
       {canCharge && request.status === "charging" ? (
         <div className="space-y-3">
+          <Input
+            id="merchant_company_name"
+            label="Merchant name"
+            placeholder="Company name"
+            value={merchantCompany}
+            onChange={(e) => setMerchantCompany(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            This company name is the merchant name shown on the sale.
+          </p>
           <Textarea
-            label="Decline reason"
-            placeholder="Required only if the charge fails"
+            label="Remarks"
+            placeholder="Shown on Charge a Sale. Required if you decline."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => void run("approved")} disabled={pending}>
+            <Button type="button" onClick={() => void run("approved")} disabled={pending || !merchantCompany.trim()}>
               {pending ? <Spinner /> : "Mark approved"}
             </Button>
             <Button
@@ -129,9 +181,6 @@ export function MerchantChargeDetail({
         </div>
       ) : null}
 
-      {request.status === "approved" ? (
-        <p className="text-sm text-emerald-600 dark:text-emerald-400">This charge is approved. It cannot be charged again.</p>
-      ) : null}
     </div>
   );
 }

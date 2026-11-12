@@ -20,6 +20,77 @@ function isSubtypeConstraintError(error: { message?: string } | null) {
   return message.includes("subtype") && (message.includes("invalid") || message.includes("constraint"));
 }
 
+async function createChargeRequestForSale(input: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  saleId: string;
+  agentId: string;
+  senderName: string;
+  companyName: string;
+  amount: number;
+  deleteSaleOnFailure?: boolean;
+}) {
+  const { supabase, saleId, agentId, senderName, companyName, amount, deleteSaleOnFailure = true } = input;
+  const { data: existing } = await (supabase as any)
+    .from("sale_charge_requests")
+    .select("id, status")
+    .eq("sale_id", saleId)
+    .maybeSingle();
+  if (existing?.id) {
+    throw new Error("This sale already has a charge request.");
+  }
+
+  const { data: merchants, error: merchantError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("role", "merchant")
+    .eq("is_active", true);
+  if (merchantError) throw new Error(merchantError.message);
+  if (!merchants?.length) {
+    if (deleteSaleOnFailure) {
+      await supabase
+        .from("sales")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", saleId);
+    }
+    throw new Error("Add an active merchant account before sending a charge.");
+  }
+
+  const merchantUserId = merchants.length === 1 ? merchants[0].id : null;
+  const { data: chargeRow, error: chargeError } = await (supabase as any)
+    .from("sale_charge_requests")
+    .insert({
+      sale_id: saleId,
+      agent_id: agentId,
+      merchant_user_id: merchantUserId,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (chargeError || !chargeRow?.id) {
+    if (deleteSaleOnFailure) {
+      await supabase
+        .from("sales")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", saleId);
+    }
+    throw new Error(chargeError?.message || "Could not send the charge request to the merchant.");
+  }
+
+  const targets = merchants || [];
+  await Promise.all(
+    targets.map((merchant) =>
+      createNotification({
+        user_id: merchant.id,
+        title: "New card charge",
+        body: `${senderName} sent ${companyName} (${formatCurrency(amount, "USD")}) for you to charge.`,
+        type: "merchant_charge",
+        href: `/dashboard/merchant-charges/${chargeRow.id}`,
+      }),
+    ),
+  );
+}
+
 export interface SalesStats {
   totalRecords: number;
   totalAmount: number;
@@ -243,6 +314,7 @@ export interface CreateSaleInput {
   charge_amount?: string;
   charge_phone?: string;
   charge_email?: string;
+  send_to_merchant?: boolean;
   // Checking fields
   routing_number: string;
   bank_account_number: string;
@@ -260,12 +332,25 @@ export async function createSale(formData: CreateSaleInput) {
 
   const chargedAmount = formData.amount - formData.discount;
   const isCardSale = formData.payment_method === "card";
-  const merchantUserId = formData.merchant_user_id?.trim() || "";
   const merchantDisplayName = formData.merchant_name?.trim() || "";
   const manualCard = formData.card_number?.trim() || "";
   const chargeCard = formData.charge_card_number?.trim() || "";
   const chargeAmountRaw = formData.charge_amount?.trim() || "";
   const chargeAmount = chargeAmountRaw ? Number(chargeAmountRaw) : null;
+  const sendToMerchant = Boolean(formData.send_to_merchant);
+
+  if (sendToMerchant) {
+    if (
+      !chargeCard ||
+      !formData.charge_card_exp?.trim() ||
+      !formData.charge_card_cvv?.trim() ||
+      !formData.charge_card_billing_address?.trim()
+    ) {
+      throw new Error(
+        "Enter the card number, expiry, CVV, and billing address in Charge a Sale before sending it to the merchant.",
+      );
+    }
+  }
 
   // If customer dropdown is removed, resolve an existing customer first to avoid duplicates
   // between Sales and Call Logs Responses datasets.
@@ -335,7 +420,7 @@ export async function createSale(formData: CreateSaleInput) {
     user.role === "super_admin" && formData.agent_id ? formData.agent_id : user.id;
 
   const saleInsertPayload: Record<string, unknown> = {
-    status: "approved",
+    status: sendToMerchant ? "pending" : "approved",
     sale_type: formData.sale_type,
     subtype: formData.subtype,
     customer_id: customerId,
@@ -448,6 +533,7 @@ export async function createSale(formData: CreateSaleInput) {
       paymentInsert.encrypted_details = encrypt(
         JSON.stringify({ card_number: cardForPayment })
       );
+      if (usingChargeCard) paymentInsert.charge_card = true;
     } else if (formData.payment_method === "checking") {
       paymentInsert.bank_name = formData.bank_name;
       paymentInsert.account_holder_name = formData.bank_account_holder_name;
@@ -477,6 +563,7 @@ export async function createSale(formData: CreateSaleInput) {
         card_cvv_encrypted: formData.charge_card_cvv ? encrypt(formData.charge_card_cvv) : null,
         billing_address: formData.charge_card_billing_address,
         encrypted_details: encrypt(JSON.stringify({ card_number: chargeCard })),
+        charge_card: true,
       } as any);
       if (chargePaymentError) throw new Error(chargePaymentError.message);
     }
@@ -487,32 +574,14 @@ export async function createSale(formData: CreateSaleInput) {
     }
   }
 
-  if (isCardSale && saleData?.id && merchantUserId) {
-    const { data: chargeRow, error: chargeError } = await (supabase as any)
-      .from("sale_charge_requests")
-      .insert({
-        sale_id: saleData.id,
-        agent_id: agentId,
-        merchant_user_id: merchantUserId,
-        status: "pending",
-      })
-      .select("id")
-      .single();
-
-    if (chargeError || !chargeRow?.id) {
-      await supabase
-        .from("sales")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", saleData.id);
-      throw new Error(chargeError?.message || "Could not send the charge request to the merchant.");
-    }
-
-    await createNotification({
-      user_id: merchantUserId,
-      title: "New card charge",
-      body: `${user.full_name} sent ${formData.company_name} (${formatCurrency(chargedAmount, "USD")}) for you to charge.`,
-      type: "merchant_charge",
-      href: `/dashboard/merchant-charges/${chargeRow.id}`,
+  if (sendToMerchant && saleData?.id) {
+    await createChargeRequestForSale({
+      supabase,
+      saleId: saleData.id,
+      agentId,
+      senderName: user.full_name,
+      companyName: formData.company_name,
+      amount: chargeAmount != null && Number.isFinite(chargeAmount) ? chargeAmount : chargedAmount,
     });
   }
 
@@ -658,6 +727,69 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
 
   revalidatePath("/dashboard/sales");
   revalidatePath(`/dashboard/sales/${formData.id}`);
+}
+
+export async function sendSaleChargeRequest(formData: UpdateSaleInput) {
+  const user = await requireRole(["super_admin", "sales_agent", "processor"]);
+  const chargeCard = formData.charge_card_number?.trim() || "";
+  if (
+    !chargeCard ||
+    chargeCard.startsWith("*") ||
+    !formData.charge_card_exp?.trim() ||
+    !formData.charge_card_cvv?.trim() ||
+    !formData.charge_card_billing_address?.trim()
+  ) {
+    throw new Error(
+      "Enter the card number, expiry, CVV, and billing address in Charge a Sale before sending it to the merchant.",
+    );
+  }
+
+  await updateSaleDetails(formData);
+  const supabase = await createClient();
+  const { data: sale, error: saleError } = await supabase
+    .from("sales")
+    .select("id, customer_id, agent_id")
+    .eq("id", formData.id)
+    .single();
+  if (saleError || !sale) throw new Error(saleError?.message || "Sale not found");
+
+  const chargeAmountRaw = formData.charge_amount?.trim() || "";
+  const chargeAmount = chargeAmountRaw ? Number(chargeAmountRaw) : null;
+  const amount =
+    chargeAmount != null && Number.isFinite(chargeAmount)
+      ? chargeAmount
+      : Number(formData.amount) - Number(formData.discount || 0);
+
+  const { error: paymentError } = await supabase.from("payments").insert({
+    sale_id: sale.id,
+    customer_id: sale.customer_id,
+    method: "card",
+    amount,
+    merchant_name: formData.merchant_name?.trim() || null,
+    card_last_four: chargeCard.slice(-4),
+    card_exp: formData.charge_card_exp,
+    card_cvv_encrypted: formData.charge_card_cvv ? encrypt(formData.charge_card_cvv) : null,
+    billing_address: formData.charge_card_billing_address,
+    encrypted_details: encrypt(JSON.stringify({ card_number: chargeCard })),
+    charge_card: true,
+  } as any);
+  if (paymentError) throw new Error(paymentError.message);
+
+  const agentId =
+    user.role === "super_admin" && formData.agent_id ? formData.agent_id : (sale.agent_id as string);
+  await createChargeRequestForSale({
+    supabase,
+    saleId: sale.id as string,
+    agentId,
+    senderName: user.full_name,
+    companyName: formData.company_name,
+    amount,
+    deleteSaleOnFailure: false,
+  });
+
+  revalidatePath("/dashboard/sales");
+  revalidatePath(`/dashboard/sales/${formData.id}`);
+  revalidatePath("/dashboard/merchant-charges");
 }
 
 export async function getVisibleSalesRawData(saleId: string): Promise<string> {
