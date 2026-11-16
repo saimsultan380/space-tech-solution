@@ -46,7 +46,7 @@ const FormInput: React.FC<FormInputProps> = ({ icon, type, placeholder, value, o
                 value={value}
                 onChange={onChange}
                 required={required}
-                className="w-full pl-10 pr-3 py-2 bg-white/10 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-blue-500/50 transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#1e293b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                className="w-full pl-10 pr-3 py-2 bg-white/10 border border-white/10 rounded-lg !text-white placeholder-white/40 caret-white focus:outline-none focus:border-blue-500/50 transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#1e293b_inset] [&:-webkit-autofill]:![-webkit-text-fill-color:white] [&:-webkit-autofill]:![caret-color:white]"
             />
         </div>
     );

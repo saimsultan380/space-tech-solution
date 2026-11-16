@@ -118,7 +118,7 @@ export function RichTextEditor({
           contentEditable
           suppressContentEditableWarning
           data-placeholder={placeholder}
-          className="min-h-[140px] px-3 py-2 text-sm leading-5 text-foreground outline-none [&_*]:!m-0 [&_*]:!bg-transparent [&_*]:!p-0 [&_*]:!text-inherit [&_*]:!leading-5 empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
+          className="min-h-[140px] px-3 py-2 text-sm leading-5 text-foreground outline-none [&_*]:!m-0 [&_*]:!bg-transparent [&_*]:!p-0 [&_*]:!text-foreground [&_*]:!leading-5 [&_*]:![caret-color:hsl(var(--foreground))] [&_*]:![-webkit-text-fill-color:hsl(var(--foreground))] empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
           onPaste={(event) => {
             event.preventDefault();
             const pasted = event.clipboardData.getData("text/plain");

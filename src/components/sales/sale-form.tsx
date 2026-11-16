@@ -219,10 +219,6 @@ export function SaleForm({
   };
 
   const sendCharge = async () => {
-    if (userRole === "super_admin" && mode === "create" && !form.agent_id?.trim()) {
-      setError("Please select the assigned sales agent.");
-      return;
-    }
     if (merchants.length === 0) {
       setError("Add an active merchant account before sending a charge.");
       return;
@@ -1056,9 +1052,7 @@ export function SaleForm({
                 readOnly
                 className="bg-secondary/40"
                 value={
-                  userRole === "super_admin"
-                    ? form.agent_name.trim() || "No sales agent assigned yet"
-                    : currentUserName || "Assigned to you"
+                  form.agent_name.trim() || currentUserName || "Assigned to you"
                 }
               />
               {chargeRequest ? (

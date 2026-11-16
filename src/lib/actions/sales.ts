@@ -426,7 +426,7 @@ export async function createSale(formData: CreateSaleInput) {
     customer_id: customerId,
     agent_id: agentId,
     processor_id: user.role === "processor" ? user.id : null,
-    agent_name: formData.agent_name || null,
+    agent_name: formData.agent_name?.trim() || (agentId === user.id ? user.full_name : null),
     company_name: formData.company_name,
     utility_company_service_number: formData.utility_company_service_number?.trim() || "",
     utility_company_phone: formData.utility_company_phone?.trim() || null,
