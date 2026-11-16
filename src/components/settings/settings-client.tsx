@@ -34,6 +34,7 @@ import {
   CheckCircle2,
   Palette,
   PhoneCall,
+  Building2,
 } from "@/components/ui/icons";
 
 interface SettingsClientProps {
@@ -398,8 +399,6 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
         </p>
       </div>
 
-      {user.role === "super_admin" && <MerchantNamesSettings initial={merchantNames} />}
-
       <Tabs defaultValue="profile">
         <TabsList className="h-auto min-h-11 w-full flex-wrap justify-start gap-2 overflow-visible bg-transparent p-0 sm:min-h-10">
           <TabsTrigger value="profile">
@@ -414,6 +413,12 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
             <Lock className="mr-1.5 h-4 w-4" />
             Security
           </TabsTrigger>
+          {user.role === "super_admin" && (
+            <TabsTrigger value="merchants">
+              <Building2 className="mr-1.5 h-4 w-4" />
+              Merchant Names
+            </TabsTrigger>
+          )}
           {user.role === "super_admin" && (
             <TabsTrigger value="call-setup">
               <PhoneCall className="mr-1.5 h-4 w-4" />
@@ -656,6 +661,12 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
             </CardContent>
           </Card>
         </TabsContent>
+
+        {user.role === "super_admin" && (
+          <TabsContent value="merchants" className="mt-4">
+            <MerchantNamesSettings initial={merchantNames} />
+          </TabsContent>
+        )}
 
         {user.role === "super_admin" && (
           <TabsContent value="call-setup" className="mt-4">

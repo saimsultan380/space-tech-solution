@@ -3,7 +3,10 @@ import { getSale } from "@/lib/actions/sales";
 import { getSalesAgentUserOptions } from "@/lib/actions/users";
 import { SaleForm } from "@/components/sales/sale-form";
 import { getSaleAttachments } from "@/lib/actions/sale-attachments";
-import { getLatestPaymentRowForSale } from "@/lib/actions/payments";
+import {
+  getChargeCardPaymentForSale,
+  getLatestPaymentRowForSale,
+} from "@/lib/actions/payments";
 import { decrypt } from "@/lib/encryption";
 import {
   getDecryptedBankSecrets,
@@ -33,16 +36,16 @@ export default async function EditSalePage(props: {
 }) {
   const params = await props.params;
   const user = await requireRole(["super_admin", "sales_agent"]);
-  const [sale, attachments, salesAgentUsers, latestPayment] = await Promise.all(
-    [
+  const [sale, attachments, salesAgentUsers, latestPayment, chargePayment] =
+    await Promise.all([
       getSale(params.id),
       getSaleAttachments(params.id),
       user.role === "super_admin"
         ? getSalesAgentUserOptions()
         : Promise.resolve([] as Array<{ id: string; full_name: string }>),
       getLatestPaymentRowForSale(params.id),
-    ],
-  );
+      getChargeCardPaymentForSale(params.id),
+    ]);
 
   let payment_method = sale.payment_method || "card";
   let card_number = "";
@@ -50,6 +53,10 @@ export default async function EditSalePage(props: {
   let card_cvv = "";
   let card_billing_address = "";
   let merchant_name = sale.merchant_name || "";
+  let charge_card_number = "";
+  let charge_card_exp = "";
+  let charge_card_cvv = "";
+  let charge_card_billing_address = "";
   let routing_number = "";
   let bank_account_number = "";
   let bank_account_holder_name = "";
@@ -91,6 +98,23 @@ export default async function EditSalePage(props: {
         (latestPayment.account_holder_name as string) || "";
       bank_name = (latestPayment.bank_name as string) || "";
     }
+  }
+
+  if (chargePayment) {
+    if (user.role === "super_admin") {
+      const { cardNumber, cardCvv } = getDecryptedCardSecrets({
+        method: "card",
+        encrypted_details: chargePayment.encrypted_details as string | null,
+        card_cvv_encrypted: chargePayment.card_cvv_encrypted as string | null,
+      });
+      charge_card_number = cardNumber;
+      charge_card_cvv = cardCvv;
+    } else {
+      charge_card_number = maskCardNumber(chargePayment.card_last_four as string | null);
+      charge_card_cvv = chargePayment.card_last_four ? "***" : "";
+    }
+    charge_card_exp = (chargePayment.card_exp as string) || "";
+    charge_card_billing_address = (chargePayment.billing_address as string) || "";
   }
 
   const initialValues = {
@@ -148,6 +172,10 @@ export default async function EditSalePage(props: {
     charge_phone: sale.charge_phone || "",
     charge_email: sale.charge_email || "",
     charge_merchant_name: sale.charge_merchant_name || "",
+    charge_card_number,
+    charge_card_exp,
+    charge_card_cvv,
+    charge_card_billing_address,
     routing_number,
     bank_account_number,
     bank_account_holder_name,

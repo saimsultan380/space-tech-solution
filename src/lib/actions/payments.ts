@@ -64,6 +64,26 @@ export async function getLatestPaymentRowForSale(saleId: string) {
   return data;
 }
 
+/** Charge a Sale card row for a sale (edit form Charge a Sale fields). */
+export async function getChargeCardPaymentForSale(saleId: string) {
+  await requireAuth();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("payments")
+    .select(
+      "id, method, amount, card_last_four, card_exp, billing_address, merchant_name, created_at, encrypted_details, card_cvv_encrypted",
+    )
+    .eq("sale_id", saleId)
+    .eq("method", "card")
+    .eq("charge_card", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function createPayment(formData: {
   sale_id: string;
   customer_id: string;

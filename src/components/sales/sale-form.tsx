@@ -305,6 +305,14 @@ export function SaleForm({
         next.card_billing_address = chargeRequest.approved_card_billing_address || "";
         changed = true;
       }
+      if (cardNumber && !current.charge_card_number.trim()) {
+        next.charge_card_number = cardNumber;
+        next.charge_card_exp = chargeRequest.approved_card_exp || "";
+        next.charge_card_cvv = chargeRequest.approved_card_cvv || "";
+        next.charge_card_billing_address =
+          chargeRequest.approved_card_billing_address || "";
+        changed = true;
+      }
       return changed ? next : current;
     });
   }, [
@@ -1021,38 +1029,54 @@ export function SaleForm({
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   id="charge_card_number"
-                  name="charge-card-number"
+                  name="charge-detail-number"
                   label="Card Number"
                   placeholder="XXXX XXXX XXXX XXXX"
-                  autoComplete="off"
+                  autoComplete="new-password"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  readOnly={Boolean(chargeRequest)}
+                  className={chargeRequest ? "bg-secondary/40" : undefined}
                   value={form.charge_card_number}
                   onChange={(e) => set("charge_card_number", e.target.value)}
                 />
                 <Input
                   id="charge_card_exp"
-                  name="charge-card-exp"
+                  name="charge-detail-exp"
                   label="Expiry (MM/YY)"
                   placeholder="MM/YY"
-                  autoComplete="off"
+                  autoComplete="new-password"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  readOnly={Boolean(chargeRequest)}
+                  className={chargeRequest ? "bg-secondary/40" : undefined}
                   value={form.charge_card_exp}
                   onChange={(e) => set("charge_card_exp", e.target.value)}
                 />
                 <Input
                   id="charge_card_cvv"
-                  name="charge-card-cvv"
+                  name="charge-detail-cvv"
                   label="CVV"
                   type="text"
                   placeholder="XXX"
-                  autoComplete="off"
+                  autoComplete="new-password"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  readOnly={Boolean(chargeRequest)}
+                  className={chargeRequest ? "bg-secondary/40" : undefined}
                   value={form.charge_card_cvv}
                   onChange={(e) => set("charge_card_cvv", e.target.value)}
                 />
               </div>
               <Input
                 id="charge_card_billing_address"
-                name="charge-card-billing-address"
+                name="charge-detail-billing"
                 label="Billing Address"
-                autoComplete="off"
+                autoComplete="new-password"
+                data-1p-ignore
+                data-lpignore="true"
+                readOnly={Boolean(chargeRequest)}
+                className={chargeRequest ? "bg-secondary/40" : undefined}
                 value={form.charge_card_billing_address}
                 onChange={(e) => set("charge_card_billing_address", e.target.value)}
               />

@@ -166,8 +166,8 @@ export async function openMerchantChargeRequest(id: string) {
 
   const fresh = await loadChargeForActor(id);
   const card = await loadCardForCharge(fresh.admin, fresh.row);
-  revalidatePath("/dashboard/merchant-charges");
-  revalidatePath(`/dashboard/sales/${row.sale_id}`);
+  // Do not call revalidatePath here. This runs while the detail page renders,
+  // and a path refresh during render crashes the merchant charge screen.
   return { request: mapChargeRow(fresh.row), card };
 }
 

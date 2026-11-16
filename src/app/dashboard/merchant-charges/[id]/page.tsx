@@ -12,7 +12,7 @@ export default async function MerchantChargeDetailPage({
   const { id } = await params;
   const [{ request, card }, merchantNames] = await Promise.all([
     openMerchantChargeRequest(id),
-    listMerchantNames(),
+    listMerchantNames().catch(() => []),
   ]);
 
   return (
