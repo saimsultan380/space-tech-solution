@@ -147,6 +147,7 @@ export default async function EditSalePage(props: {
     charge_amount: sale.charge_amount != null ? String(sale.charge_amount) : "",
     charge_phone: sale.charge_phone || "",
     charge_email: sale.charge_email || "",
+    charge_merchant_name: sale.charge_merchant_name || "",
     routing_number,
     bank_account_number,
     bank_account_holder_name,

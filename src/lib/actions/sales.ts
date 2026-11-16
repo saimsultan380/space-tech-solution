@@ -314,6 +314,7 @@ export interface CreateSaleInput {
   charge_amount?: string;
   charge_phone?: string;
   charge_email?: string;
+  charge_merchant_name?: string;
   send_to_merchant?: boolean;
   // Checking fields
   routing_number: string;
@@ -428,7 +429,8 @@ export async function createSale(formData: CreateSaleInput) {
     processor_id: user.role === "processor" ? user.id : null,
     agent_name: formData.agent_name?.trim() || (agentId === user.id ? user.full_name : null),
     company_name: formData.company_name,
-    utility_company_service_number: formData.utility_company_service_number?.trim() || "",
+    utility_company_service_number:
+      formData.utility_company_service_number?.trim() || formData.account_no?.trim() || "",
     utility_company_phone: formData.utility_company_phone?.trim() || null,
     guest_pay_enabled: formData.guest_pay_enabled || false,
     guest_pay_link: formData.guest_pay_link?.trim() || null,
@@ -461,6 +463,7 @@ export async function createSale(formData: CreateSaleInput) {
     charge_amount: chargeAmount != null && Number.isFinite(chargeAmount) ? chargeAmount : null,
     charge_phone: formData.charge_phone?.trim() || null,
     charge_email: formData.charge_email?.trim() || null,
+    charge_merchant_name: formData.charge_merchant_name?.trim() || null,
   };
 
   let { data: saleData, error: saleError } = await supabase
@@ -646,7 +649,8 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     agent_id: agentId,
     agent_name: agentName,
     company_name: formData.company_name,
-    utility_company_service_number: formData.utility_company_service_number?.trim() || "",
+    utility_company_service_number:
+      formData.utility_company_service_number?.trim() || formData.account_no?.trim() || "",
     utility_company_phone: formData.utility_company_phone?.trim() || null,
     guest_pay_enabled: formData.guest_pay_enabled || false,
     guest_pay_link: formData.guest_pay_link?.trim() || null,
@@ -676,6 +680,7 @@ export async function updateSaleDetails(formData: UpdateSaleInput) {
     charge_amount: formData.charge_amount?.trim() ? Number(formData.charge_amount) : null,
     charge_phone: formData.charge_phone?.trim() || null,
     charge_email: formData.charge_email?.trim() || null,
+    charge_merchant_name: formData.charge_merchant_name?.trim() || null,
   };
 
   if (formData.payment_method === "card" && formData.card_number && !formData.card_number.startsWith("*")) {

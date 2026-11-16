@@ -24,6 +24,7 @@ export interface SaleChargeRequest {
   approved_card_billing_address?: string | null;
   created_at: string;
   merchant_name?: string | null;
+  charge_merchant_name?: string | null;
   agent_name?: string | null;
   company_name?: string | null;
   customer_name?: string | null;
@@ -162,6 +163,7 @@ export interface Sale {
   vehicle_details: string;
   payment_method: string;
   merchant_name: string;
+  charge_merchant_name?: string | null;
   charge_first_name?: string | null;
   charge_last_name?: string | null;
   charge_amount?: number | null;

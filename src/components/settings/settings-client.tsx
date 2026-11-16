@@ -19,6 +19,8 @@ import { updateCompanySettings, type CompanySettings } from "@/lib/actions/compa
 import { ThemeAppearance } from "@/components/settings/theme-appearance";
 import { CallSetupChargesSettings } from "@/components/settings/call-setup-charges";
 import type { CallSetupCharge } from "@/lib/actions/call-setup-charges";
+import { MerchantNamesSettings } from "@/components/settings/merchant-names";
+import type { MerchantName } from "@/lib/actions/merchant-names";
 import { useCurrency } from "@/components/providers/currency-provider";
 import { useRouter } from "next/navigation";
 import {
@@ -62,9 +64,10 @@ interface SettingsClientProps {
   }>;
   companySettings: CompanySettings;
   callSetupCharges: CallSetupCharge[];
+  merchantNames: MerchantName[];
 }
 
-export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings, callSetupCharges }: SettingsClientProps) {
+export function SettingsClient({ user, manageableUsers, attendanceSettings, companySettings, callSetupCharges, merchantNames }: SettingsClientProps) {
   const router = useRouter();
   const [fullName, setFullName] = useState(user.full_name);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url ?? null);
@@ -395,8 +398,10 @@ export function SettingsClient({ user, manageableUsers, attendanceSettings, comp
         </p>
       </div>
 
+      {user.role === "super_admin" && <MerchantNamesSettings initial={merchantNames} />}
+
       <Tabs defaultValue="profile">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+        <TabsList className="h-auto min-h-11 w-full flex-wrap justify-start gap-2 overflow-visible bg-transparent p-0 sm:min-h-10">
           <TabsTrigger value="profile">
             <User className="mr-1.5 h-4 w-4" />
             Profile

@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/components/providers/currency-provider";
 import type { SaleChargeRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/loading";
@@ -18,6 +18,7 @@ export function MerchantChargeDetail({
   request,
   card,
   canCharge,
+  merchantNames,
 }: {
   request: SaleChargeRequest;
   card: {
@@ -28,10 +29,14 @@ export function MerchantChargeDetail({
     cardLastFour: string;
   };
   canCharge: boolean;
+  merchantNames: string[];
 }) {
   const router = useRouter();
   const { currency } = useCurrency();
-  const [merchantCompany, setMerchantCompany] = useState("");
+  const suggested = request.charge_merchant_name?.trim() || "";
+  const [merchantCompany, setMerchantCompany] = useState(
+    merchantNames.includes(suggested) ? suggested : "",
+  );
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -40,7 +45,7 @@ export function MerchantChargeDetail({
     setPending(true);
     setError("");
     if (next === "approved" && !merchantCompany.trim()) {
-      setError("Enter the merchant name. This is the company name shown on the sale.");
+      setError("Select the merchant name. This is the company name shown on the sale.");
       setPending(false);
       return;
     }
@@ -149,15 +154,17 @@ export function MerchantChargeDetail({
 
       {canCharge && request.status === "charging" ? (
         <div className="space-y-3">
-          <Input
+          <Select
             id="merchant_company_name"
             label="Merchant name"
-            placeholder="Company name"
+            placeholder={merchantNames.length === 0 ? "Add merchant names in Settings" : "Select merchant"}
+            options={merchantNames.map((name) => ({ value: name, label: name }))}
             value={merchantCompany}
             onChange={(e) => setMerchantCompany(e.target.value)}
+            disabled={merchantNames.length === 0}
           />
           <p className="text-xs text-muted-foreground">
-            This company name is the merchant name shown on the sale.
+            These names are added in Settings. The same list is shown in Charge a Sale.
           </p>
           <Textarea
             label="Remarks"

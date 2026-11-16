@@ -65,6 +65,42 @@ import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-inp
 import { getSales } from "@/lib/queries/sales";
 import { getSalesAgentOptions } from "@/lib/queries/users";
 
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function isPhoneNumber(value: string, phone: string): boolean {
+  const compact = value.replace(/[\s().+-]/g, "");
+  if (!/^\d{7,}$/.test(compact)) return false;
+  const phoneDigits = digitsOnly(phone);
+  return !phoneDigits || compact === phoneDigits || phoneDigits.endsWith(compact) || compact.endsWith(phoneDigits);
+}
+
+function customerDisplayName(sale: Sale): string {
+  const phone = sale.customer_phone || sale.customer?.phone || "";
+  const candidates = [
+    sale.customer_name,
+    sale.account_holder_name,
+    sale.policy_holder_name,
+    sale.customer?.name,
+  ];
+  for (const candidate of candidates) {
+    const value = candidate?.trim() || "";
+    if (!value || isPhoneNumber(value, phone)) continue;
+    return value;
+  }
+  return "";
+}
+
+function companyDisplayNumber(sale: Sale): string {
+  return (
+    sale.utility_company_service_number?.trim() ||
+    sale.customer?.account_no?.trim() ||
+    sale.utility_company_phone?.trim() ||
+    ""
+  );
+}
+
 function formatNoteTime(date: string): string {
   return formatInAppZone(date, {
     month: "short",
@@ -903,16 +939,16 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             {sale.customer?.phone || sale.customer_phone || "N/A"}
                           </Link>
                           <span className="text-[11px] text-muted-foreground">
-                            {sale.customer?.name || sale.customer_name || ""}
+                            {customerDisplayName(sale)}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span>{sale.company_name}</span>
-                          {sale.utility_company_phone ? (
+                          {companyDisplayNumber(sale) ? (
                             <span className="text-[11px] text-muted-foreground">
-                              {sale.utility_company_phone}
+                              {companyDisplayNumber(sale)}
                             </span>
                           ) : null}
                         </div>

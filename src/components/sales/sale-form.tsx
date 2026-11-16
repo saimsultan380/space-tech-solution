@@ -13,6 +13,7 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Spinner } from "@/components/ui/loading";
 import { createSale, sendSaleChargeRequest, updateSaleDetails, type CreateSaleInput, type UpdateSaleInput } from "@/lib/actions/sales";
 import { getActiveMerchants, getSaleChargeRequest } from "@/lib/actions/merchant-charges";
+import { listMerchantNames } from "@/lib/actions/merchant-names";
 import { ChargeStatusPill } from "@/components/sales/charge-progress";
 import { SaleAttachmentsSection } from "@/components/sales/sale-attachments-section";
 import { createClient } from "@/lib/supabase/client";
@@ -92,6 +93,7 @@ const emptyForm = {
   charge_amount: "",
   charge_phone: "",
   charge_email: "",
+  charge_merchant_name: "",
   merchant_user_id: "",
   merchant_name: "",
   routing_number: "",
@@ -153,6 +155,11 @@ export function SaleForm({
   const { data: merchants = [] } = useQuery({
     queryKey: ["active-merchants"],
     queryFn: () => getActiveMerchants(),
+    staleTime: 60_000,
+  });
+  const { data: merchantNames = [] } = useQuery({
+    queryKey: ["merchant-names"],
+    queryFn: listMerchantNames,
     staleTime: 60_000,
   });
   const { data: chargeRequest, refetch: refetchCharge } = useQuery({
@@ -285,6 +292,10 @@ export function SaleForm({
       let changed = false;
       if (name && current.merchant_name !== name) {
         next.merchant_name = name;
+        changed = true;
+      }
+      if (name && current.charge_merchant_name !== name) {
+        next.charge_merchant_name = name;
         changed = true;
       }
       if (cardNumber && current.card_number !== cardNumber) {
@@ -1044,6 +1055,23 @@ export function SaleForm({
                 autoComplete="off"
                 value={form.charge_card_billing_address}
                 onChange={(e) => set("charge_card_billing_address", e.target.value)}
+              />
+              <Select
+                id="charge_merchant_name"
+                name="charge-merchant-name"
+                label="Merchant name"
+                placeholder={merchantNames.length === 0 ? "Add merchant names in Settings" : "Select merchant"}
+                options={(() => {
+                  const options = merchantNames.map((row) => ({ value: row.name, label: row.name }));
+                  const saved = form.charge_merchant_name.trim();
+                  if (saved && !options.some((option) => option.value === saved)) {
+                    options.unshift({ value: saved, label: saved });
+                  }
+                  return options;
+                })()}
+                value={form.charge_merchant_name}
+                onChange={(e) => set("charge_merchant_name", e.target.value)}
+                disabled={chargeApproved || merchantNames.length === 0}
               />
               <Input
                 id="charge_assigned_person"

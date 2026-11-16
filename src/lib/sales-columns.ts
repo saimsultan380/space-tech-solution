@@ -11,6 +11,7 @@ export const SALE_ROW_COLUMNS = [
   "card_last_four",
   "charge_amount",
   "charge_email",
+  "charge_merchant_name",
   "charge_first_name",
   "charge_last_name",
   "charge_phone",

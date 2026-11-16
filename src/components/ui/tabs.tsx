@@ -26,7 +26,7 @@ export function Tabs({ defaultValue, children, className }: TabsProps) {
 export function TabsList({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn("flex h-11 w-fit items-center justify-start overflow-x-auto overflow-y-hidden rounded-md border border-border bg-muted/50 p-1 text-muted-foreground no-scrollbar sm:h-10", className)}>
-      <div className="flex items-center gap-1 px-1 sm:gap-0 sm:px-0">
+      <div className="flex w-full flex-wrap items-center gap-1 px-1 sm:gap-0 sm:px-0">
         {children}
       </div>
     </div>

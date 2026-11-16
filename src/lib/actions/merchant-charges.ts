@@ -43,6 +43,7 @@ function mapChargeRow(row: any): SaleChargeRequest {
     charge_amount: row.sale?.charge_amount ?? null,
     charge_phone: row.sale?.charge_phone ?? null,
     charge_email: row.sale?.charge_email ?? null,
+    charge_merchant_name: row.sale?.charge_merchant_name ?? null,
     merchant_name:
       row.status === "approved" && row.sale?.merchant_name
         ? row.sale.merchant_name
@@ -60,7 +61,7 @@ export async function listMerchantChargeRequests(): Promise<SaleChargeRequest[]>
   let query = admin
     .from("sale_charge_requests")
     .select(
-      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email)",
+      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email, charge_merchant_name)",
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -80,7 +81,7 @@ export async function getSaleChargeRequest(saleId: string): Promise<SaleChargeRe
   const { data, error } = await supabase
     .from("sale_charge_requests")
     .select(
-      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(merchant_name)",
+      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(merchant_name, charge_merchant_name)",
     )
     .eq("sale_id", saleId)
     .maybeSingle();
@@ -120,7 +121,7 @@ async function loadChargeForActor(id: string) {
   const { data, error } = await admin
     .from("sale_charge_requests")
     .select(
-      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, customer_phone, status, discount, merchant_name, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email)",
+      "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, customer_phone, status, discount, merchant_name, charge_merchant_name, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -226,7 +227,10 @@ async function applyChargeDecision(
       patch.charged_amount = amount - (Number.isFinite(discount) ? discount : 0);
     }
   }
-  if (merchantName) patch.merchant_name = merchantName;
+  if (merchantName) {
+    patch.merchant_name = merchantName;
+    patch.charge_merchant_name = merchantName;
+  }
   if (Object.keys(patch).length === 0) return;
   const { error } = await admin.from("sales").update(patch).eq("id", row.sale_id);
   if (error) throw new Error(error.message);
@@ -309,9 +313,19 @@ export async function transitionMerchantCharge(
     p_reason: reason ?? null,
   });
   if (error) throw new Error(error.message);
-  const companyName = merchantCompanyName?.trim() || "";
-  if (next === "approved" && !companyName) {
-    throw new Error("Enter the merchant name before approving.");
+  let companyName = merchantCompanyName?.trim() || "";
+  if (next === "approved") {
+    if (!companyName) throw new Error("Select the merchant name before approving.");
+    const admin = createAdminClient() as any;
+    const { data: match, error: matchError } = await admin
+      .from("merchant_names")
+      .select("name")
+      .eq("name", companyName)
+      .limit(1)
+      .maybeSingle();
+    if (matchError) throw new Error(matchError.message);
+    if (!match?.name) throw new Error("Select a merchant name from Settings.");
+    companyName = match.name;
   }
   if (next === "approved" || next === "declined") {
     await applyChargeDecision(row, next, companyName);

@@ -4,6 +4,7 @@ import { getUsers } from "@/lib/actions/users";
 import { getAttendanceSettings } from "@/lib/actions/attendance-settings";
 import { getCompanySettings } from "@/lib/actions/company-settings";
 import { listCallSetupCharges, type CallSetupCharge } from "@/lib/actions/call-setup-charges";
+import { listMerchantNames, type MerchantName } from "@/lib/actions/merchant-names";
 import type { AppUser, UserRole } from "@/lib/types";
 
 export default async function SettingsPage() {
@@ -16,11 +17,12 @@ export default async function SettingsPage() {
     allowed_modules: string[] | null;
   }> = [];
 
-  const [attendanceSettings, companySettings, usersResponse, callSetupCharges] = await Promise.all([
+  const [attendanceSettings, companySettings, usersResponse, callSetupCharges, merchantNames] = await Promise.all([
     getAttendanceSettings(),
     getCompanySettings(),
     user.role === "super_admin" ? getUsers({ pageSize: 500 }) : Promise.resolve(null),
     user.role === "super_admin" ? listCallSetupCharges() : Promise.resolve([] as CallSetupCharge[]),
+    user.role === "super_admin" ? listMerchantNames() : Promise.resolve([] as MerchantName[]),
   ]);
 
   if (user.role === "super_admin" && usersResponse) {
@@ -40,6 +42,7 @@ export default async function SettingsPage() {
       attendanceSettings={attendanceSettings}
       companySettings={companySettings}
       callSetupCharges={callSetupCharges}
+      merchantNames={merchantNames}
     />
   );
 }
