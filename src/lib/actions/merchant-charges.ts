@@ -26,6 +26,15 @@ export async function getActiveMerchants() {
 }
 
 function mapChargeRow(row: any): SaleChargeRequest {
+  const chargeName = [row.sale?.charge_first_name, row.sale?.charge_last_name]
+    .map((part: string | null | undefined) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const chargeAmount =
+    row.sale?.charge_amount != null && row.sale?.charge_amount !== ""
+      ? Number(row.sale.charge_amount)
+      : null;
+
   return {
     id: row.id,
     sale_id: row.sale_id,
@@ -40,18 +49,25 @@ function mapChargeRow(row: any): SaleChargeRequest {
     created_at: row.created_at,
     charge_first_name: row.sale?.charge_first_name ?? null,
     charge_last_name: row.sale?.charge_last_name ?? null,
-    charge_amount: row.sale?.charge_amount ?? null,
+    charge_amount: chargeAmount,
     charge_phone: row.sale?.charge_phone ?? null,
     charge_email: row.sale?.charge_email ?? null,
     charge_merchant_name: row.sale?.charge_merchant_name ?? null,
     merchant_name:
       row.status === "approved" && row.sale?.merchant_name
         ? row.sale.merchant_name
-        : row.merchant?.full_name ?? row.merchant_name ?? null,
+        : row.sale?.charge_merchant_name ??
+          row.merchant?.full_name ??
+          row.merchant_name ??
+          null,
     agent_name: row.agent?.full_name ?? row.agent_name ?? null,
     company_name: row.sale?.company_name ?? row.company_name ?? null,
-    customer_name: row.sale?.customer_name ?? row.customer_name ?? null,
-    charged_amount: row.sale?.charged_amount ?? row.charged_amount ?? null,
+    customer_name:
+      chargeName || row.sale?.customer_name || row.customer_name || null,
+    charged_amount:
+      chargeAmount != null && Number.isFinite(chargeAmount)
+        ? chargeAmount
+        : row.sale?.charged_amount ?? row.charged_amount ?? null,
   };
 }
 
@@ -64,7 +80,7 @@ export async function listMerchantChargeRequests(): Promise<SaleChargeRequest[]>
       "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, agent:users!sale_charge_requests_agent_id_fkey(full_name), merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name), sale:sales(company_name, customer_name, charged_amount, charge_first_name, charge_last_name, charge_amount, charge_phone, charge_email, charge_merchant_name)",
     )
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(500);
 
   if (user.role === "merchant") {
     query = query.or(`merchant_user_id.eq.${user.id},merchant_user_id.is.null`);

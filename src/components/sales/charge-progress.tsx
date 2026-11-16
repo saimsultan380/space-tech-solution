@@ -35,18 +35,22 @@ function stepState(step: (typeof FLOW)[number], status: ChargeRequestStatus) {
 export function ChargeStatusPill({
   status,
   viewedAt,
+  decidedAt,
   declineReason,
   remarks,
 }: {
   status: ChargeRequestStatus;
   viewedAt?: string | null;
+  decidedAt?: string | null;
   declineReason?: string | null;
   remarks?: string | null;
 }) {
   const viewed = appTime(viewedAt);
+  const decided = appTime(decidedAt);
+  const note = (remarks || declineReason || "").trim();
   const detail =
     status === "pending"
-      ? "Not opened"
+      ? "Not opened yet"
       : status === "viewed"
         ? viewed
           ? `Opened ${viewed}`
@@ -54,8 +58,8 @@ export function ChargeStatusPill({
         : status === "charging"
           ? "Card is being charged"
           : status === "approved"
-            ? remarks || "Merchant approved"
-            : remarks || declineReason || "Merchant declined";
+            ? note || (decided ? `Decided ${decided}` : "")
+            : note || (decided ? `Decided ${decided}` : "Declined");
 
   return (
     <div className="flex flex-col items-start gap-1">
@@ -71,7 +75,11 @@ export function ChargeStatusPill({
       >
         {LABEL[status]}
       </span>
-      <span className="max-w-[150px] truncate text-[10px] text-muted-foreground">{detail}</span>
+      {detail ? (
+        <span className="max-w-[160px] truncate text-[10px] text-muted-foreground" title={detail}>
+          {detail}
+        </span>
+      ) : null}
     </div>
   );
 }
