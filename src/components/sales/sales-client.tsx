@@ -53,7 +53,6 @@ import {
   toFilterDates,
 } from "@/components/ui/dropdown-range-date-picker";
 import Link from "next/link";
-import { MessageButton } from "@/components/chat/message-button";
 import {
   Dialog,
   DialogHeader,
@@ -901,14 +900,23 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             href={`/dashboard/sales/${sale.id}`}
                             className="text-foreground hover:underline"
                           >
-                            {sale.customer?.name || sale.customer_name || "N/A"}
+                            {sale.customer?.phone || sale.customer_phone || "N/A"}
                           </Link>
                           <span className="text-[11px] text-muted-foreground">
-                            {sale.customer?.email || sale.customer_email || ""}
+                            {sale.customer?.name || sale.customer_name || ""}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell>{sale.company_name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span>{sale.company_name}</span>
+                          {sale.utility_company_phone ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              {sale.utility_company_phone}
+                            </span>
+                          ) : null}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="capitalize">{sale.sale_type}</span>
@@ -935,20 +943,9 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {sale.agent?.full_name || "N/A"}
-                          </span>
-                          {sale.agent_id && sale.agent_id !== userId && (
-                            <MessageButton
-                              userId={sale.agent_id}
-                              userName={sale.agent?.full_name || "Agent"}
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-primary"
-                            />
-                          )}
-                        </div>
+                        <span className="text-sm font-medium">
+                          {sale.agent?.full_name || "N/A"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <SalesRawDataPopover sale={sale} />
