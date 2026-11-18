@@ -77,12 +77,11 @@ function isPhoneNumber(value: string, phone: string): boolean {
 }
 
 function customerDisplayName(sale: Sale): string {
-  const phone = sale.customer_phone || sale.customer?.phone || "";
+  const phone = sale.customer_phone || "";
   const candidates = [
     sale.customer_name,
     sale.account_holder_name,
     sale.policy_holder_name,
-    sale.customer?.name,
   ];
   for (const candidate of candidates) {
     const value = candidate?.trim() || "";
@@ -92,13 +91,22 @@ function customerDisplayName(sale: Sale): string {
   return "";
 }
 
+function customerDisplayPhone(sale: Sale): string {
+  return sale.customer_phone?.trim() || "";
+}
+
 function companyDisplayNumber(sale: Sale): string {
-  return (
-    sale.utility_company_service_number?.trim() ||
-    sale.customer?.account_no?.trim() ||
-    sale.utility_company_phone?.trim() ||
-    ""
-  );
+  const phone = sale.customer_phone || "";
+  const candidates = [
+    sale.utility_company_service_number,
+    sale.customer?.account_no,
+  ];
+  for (const candidate of candidates) {
+    const value = candidate?.trim() || "";
+    if (!value || isPhoneNumber(value, phone)) continue;
+    return value;
+  }
+  return "";
 }
 
 function formatNoteTime(date: string): string {
@@ -936,11 +944,13 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             href={`/dashboard/sales/${sale.id}`}
                             className="text-foreground hover:underline"
                           >
-                            {sale.customer?.phone || sale.customer_phone || "N/A"}
+                            {customerDisplayName(sale) || "N/A"}
                           </Link>
-                          <span className="text-[11px] text-muted-foreground">
-                            {customerDisplayName(sale)}
-                          </span>
+                          {customerDisplayPhone(sale) ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              {customerDisplayPhone(sale)}
+                            </span>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
