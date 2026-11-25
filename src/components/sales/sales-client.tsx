@@ -937,21 +937,13 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     >
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <span
-                            className={`inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning ${
-                              isChargeback ? "line-through opacity-75" : ""
-                            }`}
-                          >
+                          <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
                             Sale:{" "}
                             {sale.sale_date
                               ? formatDate(sale.sale_date)
                               : "N/A"}
                           </span>
-                          <span
-                            className={`inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success ${
-                              isChargeback ? "line-through opacity-75" : ""
-                            }`}
-                          >
+                          <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
                             Recorded: {formatDate(sale.created_at)}
                           </span>
                         </div>
@@ -969,11 +961,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             {customerDisplayName(sale) || "N/A"}
                           </Link>
                           {customerDisplayPhone(sale) ? (
-                            <span
-                              className={`text-[11px] text-muted-foreground ${
-                                isChargeback ? "line-through" : ""
-                              }`}
-                            >
+                            <span className="text-[11px] text-muted-foreground">
                               {customerDisplayPhone(sale)}
                             </span>
                           ) : null}
@@ -985,34 +973,21 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                                   ? `Chargeback (${sale.chargeback_status || "open"}): ${sale.chargeback_reason}`
                                   : "View in Chargebacks"
                               }
-                              className="mt-1 inline-flex w-fit items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive hover:bg-destructive/20"
+                              className="mt-1 inline-flex w-fit max-w-full items-center gap-1 whitespace-nowrap rounded border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive hover:bg-destructive/20 leading-none"
                             >
-                              <AlertTriangle className="h-3 w-3 shrink-0" />
-                              Chargeback
-                              {sale.chargeback_status
-                                ? ` · ${sale.chargeback_status}`
-                                : ""}
+                              <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                              <span>Chargeback: {sale.chargeback_status || "open"}</span>
                             </Link>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span
-                            className={
-                              isChargeback
-                                ? "text-muted-foreground line-through decoration-destructive/70"
-                                : ""
-                            }
-                          >
+                          <span className="text-foreground">
                             {sale.company_name}
                           </span>
                           {companyDisplayNumber(sale) ? (
-                            <span
-                              className={`text-[11px] text-muted-foreground ${
-                                isChargeback ? "line-through" : ""
-                              }`}
-                            >
+                            <span className="text-[11px] text-muted-foreground">
                               {companyDisplayNumber(sale)}
                             </span>
                           ) : null}
@@ -1020,20 +995,10 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span
-                            className={`capitalize ${
-                              isChargeback
-                                ? "text-muted-foreground line-through decoration-destructive/70"
-                                : ""
-                            }`}
-                          >
+                          <span className="capitalize">
                             {sale.sale_type}
                           </span>
-                          <span
-                            className={`text-[11px] text-muted-foreground uppercase ${
-                              isChargeback ? "line-through" : ""
-                            }`}
-                          >
+                          <span className="text-[11px] text-muted-foreground uppercase">
                             {sale.subtype}
                           </span>
                         </div>
@@ -1050,7 +1015,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                             {formatCurrency(sale.charged_amount, currency)}
                           </span>
                           {isChargeback ? (
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-destructive">
+                            <span className="text-[9px] font-medium uppercase tracking-wide text-destructive whitespace-nowrap">
                               Charged back
                             </span>
                           ) : null}
@@ -1071,13 +1036,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`text-sm font-medium ${
-                            isChargeback
-                              ? "text-muted-foreground line-through decoration-destructive/70"
-                              : ""
-                          }`}
-                        >
+                        <span className="text-sm font-medium">
                           {sale.agent?.full_name || "N/A"}
                         </span>
                       </TableCell>
