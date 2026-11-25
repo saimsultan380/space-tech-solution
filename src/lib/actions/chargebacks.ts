@@ -493,6 +493,7 @@ export async function createChargeback(formData: {
   });
 
   revalidatePath("/dashboard/chargebacks");
+  revalidatePath("/dashboard/sales");
   revalidatePath("/dashboard");
 }
 
@@ -514,6 +515,7 @@ export async function updateChargebackStatus(id: string, status: ChargebackStatu
     details: `Status changed to ${status}.`,
   });
   revalidatePath("/dashboard/chargebacks");
+  revalidatePath("/dashboard/sales");
 }
 
 export async function updateChargebackPriority(id: string, priority: ChargebackPriority) {
@@ -594,4 +596,5 @@ export async function deleteChargeback(id: string) {
   const { error } = await supabase.from("chargebacks").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/chargebacks");
+  revalidatePath("/dashboard/sales");
 }

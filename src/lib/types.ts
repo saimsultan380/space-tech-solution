@@ -177,6 +177,11 @@ export interface Sale {
   expected_next_bill_date?: string | null;
   guest_pay_enabled?: boolean | null;
   guest_pay_link?: string | null;
+  has_chargeback?: boolean;
+  chargeback_id?: string | null;
+  chargeback_status?: ChargebackStatus | null;
+  chargeback_date?: string | null;
+  chargeback_reason?: string | null;
   customer?: Customer;
   agent?: AppUser;
   processor?: AppUser;

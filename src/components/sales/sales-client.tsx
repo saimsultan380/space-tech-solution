@@ -45,6 +45,7 @@ import {
   ChevronDown,
   FileText,
   Loader2,
+  AlertTriangle,
 } from "@/components/ui/icons";
 import { sanitizeRichText } from "@/lib/rich-text";
 import {
@@ -923,17 +924,34 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.map((sale) => (
-                    <TableRow key={sale.id} className="hover:bg-muted/30">
+                  {sales.map((sale) => {
+                    const isChargeback = Boolean(sale.has_chargeback);
+                    return (
+                    <TableRow
+                      key={sale.id}
+                      className={
+                        isChargeback
+                          ? "bg-destructive/5 hover:bg-destructive/10 [&_td:first-child]:border-l-2 [&_td:first-child]:border-l-destructive"
+                          : "hover:bg-muted/30"
+                      }
+                    >
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <span className="inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                          <span
+                            className={`inline-flex w-fit items-center rounded bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning ${
+                              isChargeback ? "line-through opacity-75" : ""
+                            }`}
+                          >
                             Sale:{" "}
                             {sale.sale_date
                               ? formatDate(sale.sale_date)
                               : "N/A"}
                           </span>
-                          <span className="inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
+                          <span
+                            className={`inline-flex w-fit items-center rounded bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success ${
+                              isChargeback ? "line-through opacity-75" : ""
+                            }`}
+                          >
                             Recorded: {formatDate(sale.created_at)}
                           </span>
                         </div>
@@ -942,22 +960,59 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                         <div className="flex flex-col">
                           <Link
                             href={`/dashboard/sales/${sale.id}`}
-                            className="text-foreground hover:underline"
+                            className={
+                              isChargeback
+                                ? "text-muted-foreground line-through decoration-destructive/70 hover:underline"
+                                : "text-foreground hover:underline"
+                            }
                           >
                             {customerDisplayName(sale) || "N/A"}
                           </Link>
                           {customerDisplayPhone(sale) ? (
-                            <span className="text-[11px] text-muted-foreground">
+                            <span
+                              className={`text-[11px] text-muted-foreground ${
+                                isChargeback ? "line-through" : ""
+                              }`}
+                            >
                               {customerDisplayPhone(sale)}
                             </span>
+                          ) : null}
+                          {isChargeback ? (
+                            <Link
+                              href="/dashboard/chargebacks"
+                              title={
+                                sale.chargeback_reason
+                                  ? `Chargeback (${sale.chargeback_status || "open"}): ${sale.chargeback_reason}`
+                                  : "View in Chargebacks"
+                              }
+                              className="mt-1 inline-flex w-fit items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive hover:bg-destructive/20"
+                            >
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              Chargeback
+                              {sale.chargeback_status
+                                ? ` · ${sale.chargeback_status}`
+                                : ""}
+                            </Link>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span>{sale.company_name}</span>
+                          <span
+                            className={
+                              isChargeback
+                                ? "text-muted-foreground line-through decoration-destructive/70"
+                                : ""
+                            }
+                          >
+                            {sale.company_name}
+                          </span>
                           {companyDisplayNumber(sale) ? (
-                            <span className="text-[11px] text-muted-foreground">
+                            <span
+                              className={`text-[11px] text-muted-foreground ${
+                                isChargeback ? "line-through" : ""
+                              }`}
+                            >
                               {companyDisplayNumber(sale)}
                             </span>
                           ) : null}
@@ -965,14 +1020,41 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="capitalize">{sale.sale_type}</span>
-                          <span className="text-[11px] text-muted-foreground uppercase">
+                          <span
+                            className={`capitalize ${
+                              isChargeback
+                                ? "text-muted-foreground line-through decoration-destructive/70"
+                                : ""
+                            }`}
+                          >
+                            {sale.sale_type}
+                          </span>
+                          <span
+                            className={`text-[11px] text-muted-foreground uppercase ${
+                              isChargeback ? "line-through" : ""
+                            }`}
+                          >
                             {sale.subtype}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell className="font-semibold text-foreground">
-                        {formatCurrency(sale.charged_amount, currency)}
+                        <div className="flex flex-col">
+                          <span
+                            className={
+                              isChargeback
+                                ? "text-destructive/80 line-through decoration-destructive"
+                                : ""
+                            }
+                          >
+                            {formatCurrency(sale.charged_amount, currency)}
+                          </span>
+                          {isChargeback ? (
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-destructive">
+                              Charged back
+                            </span>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {sale.charge_request ? (
@@ -989,7 +1071,13 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm font-medium">
+                        <span
+                          className={`text-sm font-medium ${
+                            isChargeback
+                              ? "text-muted-foreground line-through decoration-destructive/70"
+                              : ""
+                          }`}
+                        >
                           {sale.agent?.full_name || "N/A"}
                         </span>
                       </TableCell>
@@ -1043,7 +1131,8 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

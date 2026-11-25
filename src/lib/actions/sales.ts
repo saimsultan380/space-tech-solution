@@ -207,19 +207,33 @@ export async function getSales(filters?: {
   );
 
   let chargebackImpactedAmount = 0;
-  if (rows.length > 0) {
+  const chargebackBySaleId = new Map<
+    string,
+    { id: string; status: string | null; date: string | null; reason: string | null }
+  >();
+  const pageSaleIds = (data || []).map((row: any) => row.id as string);
+  const allSaleIds = Array.from(new Set([...rows.map((row) => row.id), ...pageSaleIds]));
+  if (allSaleIds.length > 0) {
     const chargedBySaleId = new Map(rows.map((row) => [row.id, Number(row.charged_amount || 0)]));
-    const saleIds = rows.map((row) => row.id);
     const { data: chargebackRows, error: chargebackError } = await supabase
       .from("chargebacks")
-      .select("sale_id")
-      .in("sale_id", saleIds);
+      .select("id, sale_id, status, date, reason")
+      .in("sale_id", allSaleIds)
+      .order("created_at", { ascending: false });
 
     if (chargebackError) throw new Error(chargebackError.message);
 
     for (const chargebackRow of chargebackRows || []) {
-      const impacted = chargedBySaleId.get(chargebackRow.sale_id as string) || 0;
-      chargebackImpactedAmount += impacted;
+      const saleId = chargebackRow.sale_id as string;
+      if (!chargebackBySaleId.has(saleId)) {
+        chargebackBySaleId.set(saleId, {
+          id: chargebackRow.id as string,
+          status: (chargebackRow.status as string | null) ?? null,
+          date: (chargebackRow.date as string | null) ?? null,
+          reason: (chargebackRow.reason as string | null) ?? null,
+        });
+        chargebackImpactedAmount += chargedBySaleId.get(saleId) || 0;
+      }
     }
   }
 
@@ -236,8 +250,20 @@ export async function getSales(filters?: {
     insuranceCount: totals.insuranceCount,
   };
 
+  const enrichedData = (data || []).map((row: any) => {
+    const cb = chargebackBySaleId.get(row.id);
+    return {
+      ...row,
+      has_chargeback: Boolean(cb),
+      chargeback_id: cb?.id ?? null,
+      chargeback_status: cb?.status ?? null,
+      chargeback_date: cb?.date ?? null,
+      chargeback_reason: cb?.reason ?? null,
+    };
+  });
+
   return {
-    data: data || [],
+    data: enrichedData,
     count: count || 0,
     page,
     pageSize,
