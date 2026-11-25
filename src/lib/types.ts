@@ -182,6 +182,7 @@ export interface Sale {
   chargeback_status?: ChargebackStatus | null;
   chargeback_date?: string | null;
   chargeback_reason?: string | null;
+  chargebacks?: Array<{ id: string; status: string | null; date: string | null; reason: string | null }>;
   customer?: Customer;
   agent?: AppUser;
   processor?: AppUser;

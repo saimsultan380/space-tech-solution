@@ -167,7 +167,7 @@ export async function getSales(filters?: {
   let query = supabase
     .from("sales")
     .select(
-      `${SALE_ROW_COLUMNS}, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)`,
+      `${SALE_ROW_COLUMNS}, chargebacks!chargebacks_sale_id_fkey(id, status, date, reason), customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)`,
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
@@ -207,33 +207,16 @@ export async function getSales(filters?: {
   );
 
   let chargebackImpactedAmount = 0;
-  const chargebackBySaleId = new Map<
-    string,
-    { id: string; status: string | null; date: string | null; reason: string | null }
-  >();
-  const pageSaleIds = (data || []).map((row: any) => row.id as string);
-  const allSaleIds = Array.from(new Set([...rows.map((row) => row.id), ...pageSaleIds]));
-  if (allSaleIds.length > 0) {
+  if (rows.length > 0) {
     const chargedBySaleId = new Map(rows.map((row) => [row.id, Number(row.charged_amount || 0)]));
-    const { data: chargebackRows, error: chargebackError } = await supabase
-      .from("chargebacks")
-      .select("id, sale_id, status, date, reason")
-      .in("sale_id", allSaleIds)
-      .order("created_at", { ascending: false });
-
-    if (chargebackError) throw new Error(chargebackError.message);
-
-    for (const chargebackRow of chargebackRows || []) {
-      const saleId = chargebackRow.sale_id as string;
-      if (!chargebackBySaleId.has(saleId)) {
-        chargebackBySaleId.set(saleId, {
-          id: chargebackRow.id as string,
-          status: (chargebackRow.status as string | null) ?? null,
-          date: (chargebackRow.date as string | null) ?? null,
-          reason: (chargebackRow.reason as string | null) ?? null,
-        });
-        chargebackImpactedAmount += chargedBySaleId.get(saleId) || 0;
-      }
+    // Collect unique sale_ids that have at least one chargeback from the joined data
+    const chargebackedSaleIds = new Set(
+      (data || [])
+        .filter((row: any) => Array.isArray(row.chargebacks) && row.chargebacks.length > 0)
+        .map((row: any) => row.id as string)
+    );
+    for (const saleId of chargebackedSaleIds) {
+      chargebackImpactedAmount += chargedBySaleId.get(saleId) || 0;
     }
   }
 
@@ -251,10 +234,13 @@ export async function getSales(filters?: {
   };
 
   const enrichedData = (data || []).map((row: any) => {
-    const cb = chargebackBySaleId.get(row.id);
+    const cbs: Array<{ id: string; status: string | null; date: string | null; reason: string | null }> =
+      Array.isArray(row.chargebacks) ? row.chargebacks : [];
+    // Sort to pick the most recent (first after Supabase returns them)
+    const cb = cbs[0] ?? null;
     return {
       ...row,
-      has_chargeback: Boolean(cb),
+      has_chargeback: cbs.length > 0,
       chargeback_id: cb?.id ?? null,
       chargeback_status: cb?.status ?? null,
       chargeback_date: cb?.date ?? null,
