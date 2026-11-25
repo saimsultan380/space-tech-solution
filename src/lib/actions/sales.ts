@@ -167,7 +167,7 @@ export async function getSales(filters?: {
   let query = supabase
     .from("sales")
     .select(
-      `${SALE_ROW_COLUMNS}, chargebacks!chargebacks_sale_id_fkey(id, status, date, reason), customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)`,
+      `${SALE_ROW_COLUMNS}, customer:customers(id, name, email, phone, account_no), agent:users!sales_agent_id_fkey(id, full_name), processor:users!sales_processor_id_fkey(id, full_name)`,
       { count: "exact" }
     )
     .order("created_at", { ascending: false });
@@ -206,18 +206,45 @@ export async function getSales(filters?: {
     { totalAmount: 0, totalChargedAmount: 0, utilityCount: 0, insuranceCount: 0 },
   );
 
+  // --- Chargeback detection ---
+  // Query chargebacks directly for all sale IDs we need (stats + current page)
+  // Using explicit separate query so there is no dependency on FK join syntax or RLS quirks.
+  const statsIds = rows.map((r) => r.id);
+  const pageIds = ((data as any[]) || []).map((r: any) => String(r.id)).filter(Boolean);
+  const allIds = Array.from(new Set([...statsIds, ...pageIds]));
+
+  // Map: sale_id → first (most-recent) chargeback detail
+  const cbDetailMap = new Map<string, { id: string; status: string | null; date: string | null; reason: string | null }>();
   let chargebackImpactedAmount = 0;
-  if (rows.length > 0) {
-    const chargedBySaleId = new Map(rows.map((row) => [row.id, Number(row.charged_amount || 0)]));
-    // Collect unique sale_ids that have at least one chargeback from the joined data
-    const chargebackedSaleIds = new Set(
-      (data || [])
-        .filter((row: any) => Array.isArray(row.chargebacks) && row.chargebacks.length > 0)
-        .map((row: any) => row.id as string)
-    );
-    for (const saleId of chargebackedSaleIds) {
-      chargebackImpactedAmount += chargedBySaleId.get(saleId) || 0;
+
+  if (allIds.length > 0) {
+    const chargedBySaleId = new Map(rows.map((r) => [r.id, Number(r.charged_amount || 0)]));
+
+    const { data: cbRows, error: cbError } = await supabase
+      .from("chargebacks")
+      .select("id, sale_id, status, date, reason")
+      .in("sale_id", allIds)
+      .order("created_at", { ascending: false });
+
+    if (cbError) {
+      console.error("[getSales] chargeback query error:", cbError.message);
     }
+
+    for (const cb of cbRows || []) {
+      const sid = String(cb.sale_id);
+      if (!cbDetailMap.has(sid)) {
+        cbDetailMap.set(sid, {
+          id: String(cb.id),
+          status: (cb.status as string | null) ?? null,
+          date: (cb.date as string | null) ?? null,
+          reason: (cb.reason as string | null) ?? null,
+        });
+        // Only count once per sale for the stats deduction
+        chargebackImpactedAmount += chargedBySaleId.get(sid) || 0;
+      }
+    }
+
+    console.log(`[getSales] found ${cbDetailMap.size} chargebacked sales out of ${allIds.length} total`);
   }
 
   const netTotalChargedAmount = totals.totalChargedAmount - chargebackImpactedAmount;
@@ -233,14 +260,14 @@ export async function getSales(filters?: {
     insuranceCount: totals.insuranceCount,
   };
 
-  const enrichedData = (data || []).map((row: any) => {
-    const cbs: Array<{ id: string; status: string | null; date: string | null; reason: string | null }> =
-      Array.isArray(row.chargebacks) ? row.chargebacks : [];
-    // Sort to pick the most recent (first after Supabase returns them)
-    const cb = cbs[0] ?? null;
+  const enrichedData = ((data as any[]) || []).map((row: any) => {
+    const sid = String(row.id);
+    const cb = cbDetailMap.get(sid) ?? null;
     return {
       ...row,
-      has_chargeback: cbs.length > 0,
+      // Strip any chargebacks join field returned by Supabase to avoid confusion
+      chargebacks: undefined,
+      has_chargeback: Boolean(cb),
       chargeback_id: cb?.id ?? null,
       chargeback_status: cb?.status ?? null,
       chargeback_date: cb?.date ?? null,

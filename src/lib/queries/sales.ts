@@ -247,12 +247,24 @@ export async function getSales(filters?: {
   const salesRows = (data || []) as unknown as Sale[];
   const saleIds = salesRows.map((sale) => sale.id);
   if (saleIds.length > 0) {
-    const { data: charges } = await (supabase as any)
-      .from("sale_charge_requests")
-      .select(
-        "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name)",
-      )
-      .in("sale_id", saleIds);
+    const [{ data: charges }, { data: cbRows, error: cbError }] = await Promise.all([
+      (supabase as any)
+        .from("sale_charge_requests")
+        .select(
+          "id, sale_id, agent_id, merchant_user_id, status, viewed_at, charging_at, decided_at, decline_reason, remarks, created_at, merchant:users!sale_charge_requests_merchant_user_id_fkey(full_name)",
+        )
+        .in("sale_id", saleIds),
+      supabase
+        .from("chargebacks")
+        .select("id, sale_id, status, date, reason")
+        .in("sale_id", saleIds)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (cbError) {
+      console.error("[getSales/queries] chargeback query error:", cbError.message);
+    }
+
     const bySale = new Map<string, Sale["charge_request"]>();
     for (const charge of charges || []) {
       bySale.set(charge.sale_id, {
@@ -270,8 +282,31 @@ export async function getSales(filters?: {
         merchant_name: charge.merchant?.full_name ?? null,
       });
     }
+
+    const cbBySale = new Map<
+      string,
+      { id: string; status: any; date: string | null; reason: string | null }
+    >();
+    for (const cb of cbRows || []) {
+      const sid = String(cb.sale_id);
+      if (!cbBySale.has(sid)) {
+        cbBySale.set(sid, {
+          id: String(cb.id),
+          status: cb.status ?? null,
+          date: cb.date ?? null,
+          reason: cb.reason ?? null,
+        });
+      }
+    }
+
     for (const sale of salesRows) {
       sale.charge_request = bySale.get(sale.id) ?? null;
+      const cb = cbBySale.get(String(sale.id));
+      sale.has_chargeback = Boolean(cb);
+      sale.chargeback_id = cb?.id ?? null;
+      sale.chargeback_status = cb?.status ?? null;
+      sale.chargeback_date = cb?.date ?? null;
+      sale.chargeback_reason = cb?.reason ?? null;
     }
   }
 
