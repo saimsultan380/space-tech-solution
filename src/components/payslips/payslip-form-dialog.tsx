@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,9 +15,12 @@ import { Spinner } from "@/components/ui/loading";
 import {
   createPayslip,
   updatePayslip,
+  getEmployeeRevenueAndChargebacks,
+  getPayslipAttendanceSummary,
 } from "@/lib/actions/payslips";
 import type { Payslip, PayslipStatus } from "@/lib/types";
-import { formatCnic } from "@/lib/utils";
+import { formatCnic, cn } from "@/lib/utils";
+import { RefreshCw, Sparkles, Check } from "@/components/ui/icons";
 
 interface EmployeeOption {
   id: string;
@@ -58,6 +61,11 @@ export function PayslipFormDialog({
 }: PayslipFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [autoCalculating, setAutoCalculating] = useState(false);
+  const [revenueSummary, setRevenueSummary] = useState<{
+    sales_count: number;
+    chargebacks_count: number;
+  } | null>(null);
 
   const initialEmployeeId =
     initialPayslip?.employee_id_display ||
@@ -155,6 +163,75 @@ export function PayslipFormDialog({
     employees.forEach((emp) => map.set(emp.id, emp));
     return map;
   }, [employees]);
+
+  const calculateRevenueAndChargebacks = useCallback(
+    async (
+      userId: string,
+      start: string,
+      end: string,
+      syncCommission = false,
+    ) => {
+      if (!userId || !start || !end) return;
+      setAutoCalculating(true);
+      try {
+        const [revData, attData] = await Promise.all([
+          getEmployeeRevenueAndChargebacks({
+            user_id: userId,
+            period_start: start,
+            period_end: end,
+          }),
+          getPayslipAttendanceSummary({
+            user_id: userId,
+            period_start: start,
+            period_end: end,
+          }),
+        ]);
+
+        setRevenueSummary({
+          sales_count: revData.sales_count,
+          chargebacks_count: revData.chargebacks_count,
+        });
+
+        setForm((prev) => {
+          const remainingStr = String(revData.remaining);
+          return {
+            ...prev,
+            monthly_revenue: String(revData.monthly_revenue),
+            chargeback_amount: String(revData.chargeback_amount),
+            remaining: remainingStr,
+            late_attendance: String(attData.late_attendance),
+            leaves: String(attData.leaves),
+            ...(syncCommission || !prev.commission || prev.commission === "0"
+              ? { commission: remainingStr }
+              : {}),
+          };
+        });
+      } catch (err) {
+        console.error("[calculateRevenueAndChargebacks] error:", err);
+      } finally {
+        setAutoCalculating(false);
+      }
+    },
+    [],
+  );
+
+  const lastAutoKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    if (mode !== "create") return;
+    if (!form.user_id || !form.period_start || !form.period_end) return;
+
+    const key = `${form.user_id}_${form.period_start}_${form.period_end}`;
+    if (lastAutoKeyRef.current === key) return;
+    lastAutoKeyRef.current = key;
+
+    void calculateRevenueAndChargebacks(
+      form.user_id,
+      form.period_start,
+      form.period_end,
+      true,
+    );
+  }, [form.user_id, form.period_start, form.period_end, mode, calculateRevenueAndChargebacks]);
 
   useEffect(() => {
     if (mode === "create" && form.user_id) {
@@ -472,43 +549,137 @@ export function PayslipFormDialog({
 
         {/* Revenue Section */}
         <div className="space-y-4 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Revenue Tracking
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Revenue Tracking
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Auto-deducts agent chargebacks from monthly sales to compute remaining balance.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs font-medium border-border/80 hover:bg-muted/50"
+              onClick={() =>
+                void calculateRevenueAndChargebacks(
+                  form.user_id,
+                  form.period_start,
+                  form.period_end,
+                  false,
+                )
+              }
+              disabled={
+                autoCalculating ||
+                !form.user_id ||
+                !form.period_start ||
+                !form.period_end
+              }
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", autoCalculating && "animate-spin")}
+              />
+              <span>
+                {autoCalculating ? "Fetching..." : "Auto-Fetch from Sales"}
+              </span>
+            </Button>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-3">
             <Input
               id="monthly_revenue"
               label="Monthly Revenue"
               type="number"
+              step="0.01"
               value={form.monthly_revenue}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  monthly_revenue: e.target.value,
-                }))
+                setForm((prev) => {
+                  const rev = Number(e.target.value || 0);
+                  const cb = Number(prev.chargeback_amount || 0);
+                  const diff = Number((rev - cb).toFixed(2));
+                  return {
+                    ...prev,
+                    monthly_revenue: e.target.value,
+                    remaining: String(diff),
+                  };
+                })
               }
             />
             <Input
               id="chargeback_amount"
               label="Chargeback"
               type="number"
+              step="0.01"
               value={form.chargeback_amount}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  chargeback_amount: e.target.value,
-                }))
+                setForm((prev) => {
+                  const cb = Number(e.target.value || 0);
+                  const rev = Number(prev.monthly_revenue || 0);
+                  const diff = Number((rev - cb).toFixed(2));
+                  return {
+                    ...prev,
+                    chargeback_amount: e.target.value,
+                    remaining: String(diff),
+                  };
+                })
               }
             />
             <Input
               id="remaining"
               label="Remaining"
               type="number"
+              step="0.01"
               value={form.remaining}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, remaining: e.target.value }))
               }
             />
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span>Calculation Summary:</span>
+              </div>
+              {form.remaining && form.commission !== form.remaining && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1 px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
+                  onClick={() =>
+                    setForm((prev) => ({ ...prev, commission: prev.remaining }))
+                  }
+                >
+                  <Check className="h-3 w-3" />
+                  Apply Remaining to Commission
+                </Button>
+              )}
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              Sales:{" "}
+              <strong className="text-foreground">
+                ${Number(form.monthly_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </strong>
+              {" − "}
+              Chargeback:{" "}
+              <strong className="text-destructive">
+                ${Number(form.chargeback_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </strong>
+              {" = "}
+              Remaining:{" "}
+              <strong className="text-success">
+                ${Number(form.remaining || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </strong>
+              {revenueSummary ? (
+                <span className="ml-1 text-muted-foreground/80">
+                  (from {revenueSummary.sales_count} sales and {revenueSummary.chargebacks_count} chargebacks)
+                </span>
+              ) : null}
+            </p>
           </div>
         </div>
 

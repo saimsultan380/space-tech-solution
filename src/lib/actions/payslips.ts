@@ -373,6 +373,121 @@ export async function getPayslipAttendanceSummary(input: {
   return computePayslipAttendanceSummary(supabase, input);
 }
 
+export interface EmployeeRevenueSummary {
+  monthly_revenue: number;
+  chargeback_amount: number;
+  remaining: number;
+  sales_count: number;
+  chargebacks_count: number;
+}
+
+export async function getEmployeeRevenueAndChargebacks(input: {
+  user_id: string;
+  period_start: string;
+  period_end: string;
+}): Promise<EmployeeRevenueSummary> {
+  await requireRole(["super_admin"]);
+  const admin = createAdminClient();
+
+  if (!input.user_id || !input.period_start || !input.period_end) {
+    return {
+      monthly_revenue: 0,
+      chargeback_amount: 0,
+      remaining: 0,
+      sales_count: 0,
+      chargebacks_count: 0,
+    };
+  }
+
+  const startDate = input.period_start;
+  const endDate = input.period_end;
+
+  // 1. Fetch sales for this agent
+  const { data: sales, error: salesError } = await admin
+    .from("sales")
+    .select("id, amount, charged_amount, status, sale_date, created_at")
+    .eq("agent_id", input.user_id)
+    .neq("status", "rejected")
+    .is("deleted_at", null);
+
+  if (salesError) {
+    console.error("[getEmployeeRevenueAndChargebacks] sales error:", salesError.message);
+  }
+
+  const periodSales = (sales || []).filter((s: any) => {
+    const d = s.sale_date || (s.created_at ? s.created_at.slice(0, 10) : "");
+    return d >= startDate && d <= endDate;
+  });
+
+  const salesCount = periodSales.length;
+  const monthlyRevenue = periodSales.reduce((acc: number, s: any) => {
+    const val = Number(s.charged_amount ?? s.amount ?? 0);
+    return acc + (Number.isFinite(val) ? val : 0);
+  }, 0);
+
+  // 2. Fetch chargebacks for this agent in this period
+  const allAgentSaleIds = (sales || []).map((s: any) => s.id);
+
+  const { data: cbRows, error: cbError } = await admin
+    .from("chargebacks")
+    .select(`
+      id,
+      sale_id,
+      status,
+      date,
+      created_at,
+      assigned_to,
+      sale:sales!chargebacks_sale_id_fkey(
+        id,
+        agent_id,
+        amount,
+        charged_amount,
+        deleted_at
+      )
+    `);
+
+  if (cbError) {
+    console.error("[getEmployeeRevenueAndChargebacks] chargeback error:", cbError.message);
+  }
+
+  const periodChargebacks = (cbRows || []).filter((cb: any) => {
+    const d = cb.date || (cb.created_at ? cb.created_at.slice(0, 10) : "");
+    const inPeriod = d >= startDate && d <= endDate;
+    if (!inPeriod) return false;
+
+    const sale = Array.isArray(cb.sale) ? cb.sale[0] : cb.sale;
+    const isAgentSale = (sale && sale.agent_id === input.user_id) || allAgentSaleIds.includes(cb.sale_id);
+    const isAssigned = cb.assigned_to === input.user_id;
+
+    return isAgentSale || isAssigned;
+  });
+
+  const seenSaleIds = new Set<string>();
+  let chargebackAmount = 0;
+
+  for (const cb of periodChargebacks) {
+    const sale = Array.isArray(cb.sale) ? cb.sale[0] : cb.sale;
+    const sid = String(cb.sale_id);
+    if (!seenSaleIds.has(sid)) {
+      seenSaleIds.add(sid);
+      const val = Number(sale?.charged_amount ?? sale?.amount ?? 0);
+      chargebackAmount += Number.isFinite(val) ? val : 0;
+    }
+  }
+
+  const roundedRevenue = Number(monthlyRevenue.toFixed(2));
+  const roundedCb = Number(chargebackAmount.toFixed(2));
+  const roundedRemaining = Number((roundedRevenue - roundedCb).toFixed(2));
+
+  return {
+    monthly_revenue: roundedRevenue,
+    chargeback_amount: roundedCb,
+    remaining: roundedRemaining,
+    sales_count: salesCount,
+    chargebacks_count: periodChargebacks.length,
+  };
+}
+
 export async function createPayslip(input: CreatePayslipInput) {
   const admin = await requireRole(["super_admin"]);
   const supabase = await createClient();
