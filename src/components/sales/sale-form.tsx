@@ -120,6 +120,68 @@ export function SaleForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ ...emptyForm, ...initialValues });
+  const [duplicateSaleNotice, setDuplicateSaleNotice] = useState<{
+    id: string;
+    customer_name: string;
+    company_name: string;
+    sale_date: string;
+    amount: number;
+    agent_name?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (mode !== "create") return;
+    const phone = form.customer_phone.replace(/\D/g, "");
+    const acc = form.account_no?.trim();
+
+    if (phone.length < 7 && (!acc || acc.length < 4)) {
+      setDuplicateSaleNotice(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const supabase = createClient();
+        let query = supabase
+          .from("sales")
+          .select(
+            "id, customer_name, company_name, sale_date, created_at, amount, charged_amount, agent:users!sales_agent_id_fkey(full_name)",
+          )
+          .neq("status", "rejected")
+          .is("deleted_at", null)
+          .limit(1);
+
+        const conditions: string[] = [];
+        if (phone.length >= 7) {
+          conditions.push(`customer_phone.ilike.%${phone}%`);
+        }
+        if (acc && acc.length >= 4) {
+          conditions.push(`account_holder_name.ilike.%${acc}%`);
+        }
+
+        query = query.or(conditions.join(","));
+        const { data } = await query;
+        if (data && data.length > 0) {
+          const match = data[0];
+          const agent = Array.isArray(match.agent) ? match.agent[0] : match.agent;
+          setDuplicateSaleNotice({
+            id: match.id,
+            customer_name: match.customer_name || match.company_name || "Customer",
+            company_name: match.company_name || "",
+            sale_date: match.sale_date || match.created_at?.slice(0, 10) || "",
+            amount: Number(match.charged_amount ?? match.amount ?? 0),
+            agent_name: (agent as { full_name?: string })?.full_name,
+          });
+        } else {
+          setDuplicateSaleNotice(null);
+        }
+      } catch {
+        // Ignore check errors
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [form.customer_phone, form.account_no, mode]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [rawFillNote, setRawFillNote] = useState("");
   const formRef = useRef(form);

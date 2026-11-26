@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/loading";
-import { X } from "@/components/ui/icons";
+import { X, AlertTriangle } from "@/components/ui/icons";
 import { createChargeback } from "@/lib/actions/chargebacks";
 import { createClient } from "@/lib/supabase/client";
 import { CHARGEBACK_PRIORITIES } from "@/lib/constants";
@@ -37,6 +37,9 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
   const [error, setError] = useState("");
   const [sales, setSales] = useState<SaleSearchResult[]>([]);
   const [saleCardLastFourById, setSaleCardLastFourById] = useState<Record<string, string>>({});
+  const [existingChargebacksBySaleId, setExistingChargebacksBySaleId] = useState<
+    Record<string, { id: string; status: string; date: string }>
+  >({});
   const [saleSearch, setSaleSearch] = useState("");
   const [salesLoading, setSalesLoading] = useState(false);
   const [showSaleOptions, setShowSaleOptions] = useState(false);
@@ -65,6 +68,7 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     setSaleSearch("");
     setSales([]);
     setSaleCardLastFourById({});
+    setExistingChargebacksBySaleId({});
     setShowSaleOptions(false);
     setSelectedSaleSnapshot(null);
 
@@ -150,15 +154,24 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
       setSales(dedupedSales);
 
       if (dedupedSales.length > 0) {
-        const { data: paymentRows } = await supabase
-          .from("payments")
-          .select("sale_id, card_last_four, created_at")
-          .in(
-            "sale_id",
-            dedupedSales.map((sale) => sale.id),
-          )
-          .not("card_last_four", "is", null)
-          .order("created_at", { ascending: false });
+        const [{ data: paymentRows }, { data: cbRows }] = await Promise.all([
+          supabase
+            .from("payments")
+            .select("sale_id, card_last_four, created_at")
+            .in(
+              "sale_id",
+              dedupedSales.map((sale) => sale.id),
+            )
+            .not("card_last_four", "is", null)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("chargebacks")
+            .select("id, sale_id, status, date, created_at")
+            .in(
+              "sale_id",
+              dedupedSales.map((sale) => sale.id),
+            ),
+        ]);
 
         const lastFourBySaleId: Record<string, string> = {};
         for (const row of paymentRows || []) {
@@ -166,8 +179,21 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
           lastFourBySaleId[row.sale_id] = row.card_last_four;
         }
         setSaleCardLastFourById(lastFourBySaleId);
+
+        const cbsMap: Record<string, { id: string; status: string; date: string }> = {};
+        for (const cb of cbRows || []) {
+          if (!cbsMap[cb.sale_id]) {
+            cbsMap[cb.sale_id] = {
+              id: cb.id,
+              status: cb.status || "open",
+              date: cb.date || (cb.created_at ? cb.created_at.slice(0, 10) : ""),
+            };
+          }
+        }
+        setExistingChargebacksBySaleId(cbsMap);
       } else {
         setSaleCardLastFourById({});
+        setExistingChargebacksBySaleId({});
       }
 
       setSalesLoading(false);
@@ -181,6 +207,10 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     [sales, form.sale_id, selectedSaleSnapshot],
   );
 
+  const selectedSaleExistingCb = form.sale_id
+    ? existingChargebacksBySaleId[form.sale_id]
+    : null;
+
   const customerDisplay = !selectedSale
     ? "Select a sale first"
     : selectedSale.customer_name?.trim() || selectedSale.company_name || "—";
@@ -193,6 +223,11 @@ export function ChargebackFormDialog({ open, onClose }: ChargebackFormDialogProp
     try {
       if (!form.sale_id) {
         throw new Error("Please select a sale.");
+      }
+      if (selectedSaleExistingCb) {
+        throw new Error(
+          `Duplicate chargeback error: A chargeback already exists for this sale (Status: ${selectedSaleExistingCb.status}). Duplicate chargebacks for the same sale are not allowed.`
+        );
       }
       await createChargeback(form);
       onClose();

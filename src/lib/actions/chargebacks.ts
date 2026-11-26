@@ -460,10 +460,33 @@ export async function createChargeback(formData: {
 
   const { data: saleRow, error: saleErr } = await supabase
     .from("sales")
-    .select("company_name")
+    .select("id, company_name, customer_name")
     .eq("id", formData.sale_id)
     .single();
   if (saleErr || !saleRow) throw new Error(saleErr?.message || "Sale not found");
+
+  // Prevent duplicate chargebacks for the same sale
+  const { data: existingCb, error: cbCheckErr } = await supabase
+    .from("chargebacks")
+    .select("id, status, date, reason, created_at")
+    .eq("sale_id", formData.sale_id)
+    .order("created_at", { ascending: false });
+
+  if (cbCheckErr) {
+    console.error("[createChargeback] check error:", cbCheckErr.message);
+  }
+
+  if (existingCb && existingCb.length > 0) {
+    const first = existingCb[0];
+    const cbDate = first.date || (first.created_at ? first.created_at.slice(0, 10) : "");
+    const custLabel =
+      (saleRow as { customer_name?: string })?.customer_name?.trim() ||
+      (saleRow as { company_name?: string })?.company_name ||
+      "";
+    throw new Error(
+      `Duplicate chargeback: A chargeback already exists for this sale${custLabel ? ` (${custLabel})` : ""} recorded on ${cbDate || "earlier"} (Status: ${first.status || "open"}). You cannot add duplicate chargebacks for the same sale.`
+    );
+  }
 
   const { data: inserted, error } = await supabase.from("chargebacks").insert({
     sale_id: formData.sale_id,
