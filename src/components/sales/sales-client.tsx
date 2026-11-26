@@ -65,6 +65,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-input";
 import { getSales } from "@/lib/queries/sales";
 import { getSalesAgentOptions } from "@/lib/queries/users";
+import { SalesExportDropdown } from "./sales-export-dropdown";
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
@@ -753,7 +754,16 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
               : "Track your sales pipeline"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <SalesExportDropdown
+            filters={{
+              sale_type: typeFilter,
+              agent_id: agentFilter,
+              from_date: fromDateFilter,
+              to_date: toDateFilter,
+              search: urlSearch,
+            }}
+          />
           {canCreate && (
             <Link href="/dashboard/sales/new">
               <Button>

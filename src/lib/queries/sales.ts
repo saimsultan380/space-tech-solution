@@ -322,3 +322,64 @@ export async function getSales(filters?: {
     stats,
   };
 }
+
+export async function getAllSalesForExport(filters?: {
+  status?: string;
+  sale_type?: string;
+  agent_id?: string;
+  from_date?: string;
+  to_date?: string;
+  search?: string;
+}): Promise<Sale[]> {
+  const supabase = createClient();
+  let query = supabase
+    .from("sales")
+    .select(SALE_LIST_SELECT)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
+  query = applySalesFilters(query, filters);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const salesRows = (data || []) as unknown as Sale[];
+  const saleIds = salesRows.map((sale) => sale.id);
+  if (saleIds.length > 0) {
+    const { data: cbRows, error: cbError } = await supabase
+      .from("chargebacks")
+      .select("id, sale_id, status, date, reason")
+      .in("sale_id", saleIds)
+      .order("created_at", { ascending: false });
+
+    if (cbError) {
+      console.error("[getAllSalesForExport] chargeback query error:", cbError.message);
+    }
+
+    const cbBySale = new Map<
+      string,
+      { id: string; status: any; date: string | null; reason: string | null }
+    >();
+    for (const cb of cbRows || []) {
+      const sid = String(cb.sale_id);
+      if (!cbBySale.has(sid)) {
+        cbBySale.set(sid, {
+          id: String(cb.id),
+          status: cb.status ?? null,
+          date: cb.date ?? null,
+          reason: cb.reason ?? null,
+        });
+      }
+    }
+
+    for (const sale of salesRows) {
+      const cb = cbBySale.get(String(sale.id));
+      sale.has_chargeback = Boolean(cb);
+      sale.chargeback_id = cb?.id ?? null;
+      sale.chargeback_status = cb?.status ?? null;
+      sale.chargeback_date = cb?.date ?? null;
+      sale.chargeback_reason = cb?.reason ?? null;
+    }
+  }
+
+  return salesRows;
+}

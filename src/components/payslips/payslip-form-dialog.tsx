@@ -604,7 +604,7 @@ export function PayslipFormDialog({
                   const rev = Number(e.target.value || 0);
                   const cb = Number(prev.chargeback_amount || 0);
                   const diff = Number((rev - cb).toFixed(2));
-                  const commPkr = Math.max(0, Math.round(diff * 10));
+                  const commPkr = diff >= 100 ? Math.floor(diff / 100) * 1000 : 0;
                   return {
                     ...prev,
                     monthly_revenue: e.target.value,
@@ -625,7 +625,7 @@ export function PayslipFormDialog({
                   const cb = Number(e.target.value || 0);
                   const rev = Number(prev.monthly_revenue || 0);
                   const diff = Number((rev - cb).toFixed(2));
-                  const commPkr = Math.max(0, Math.round(diff * 10));
+                  const commPkr = diff >= 100 ? Math.floor(diff / 100) * 1000 : 0;
                   return {
                     ...prev,
                     chargeback_amount: e.target.value,
@@ -644,7 +644,7 @@ export function PayslipFormDialog({
               onChange={(e) =>
                 setForm((prev) => {
                   const rem = Number(e.target.value || 0);
-                  const commPkr = Math.max(0, Math.round(rem * 10));
+                  const commPkr = rem >= 100 ? Math.floor(rem / 100) * 1000 : 0;
                   return {
                     ...prev,
                     remaining: e.target.value,
@@ -662,7 +662,7 @@ export function PayslipFormDialog({
                 <span>Auto Commission & Net Pay Summary</span>
               </div>
               <span className="text-[11px] text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded border border-border/50">
-                Rate: $1,000 USD = 10,000 PKR ($1 = 10 PKR)
+                Rate: $100 USD = 1,000 PKR (under $100 excluded)
               </span>
             </div>
 
@@ -701,7 +701,7 @@ export function PayslipFormDialog({
                   Salary & Net Pay (PKR)
                 </p>
                 <p className="text-muted-foreground">
-                  Commission ($1 = 10 PKR):{" "}
+                  Commission ($100 USD = 1,000 PKR):{" "}
                   <strong className="text-primary text-sm font-semibold">
                     PKR {Number(form.commission || 0).toLocaleString()}
                   </strong>

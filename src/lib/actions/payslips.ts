@@ -502,8 +502,9 @@ export async function getEmployeeRevenueAndChargebacks(input: {
   const roundedCb = Number(chargebackAmount.toFixed(2));
   const roundedRemaining = Number((roundedRevenue - roundedCb).toFixed(2));
 
-  // Commission rate: $1,000 USD = 10,000 PKR ($1 USD = 10 PKR)
-  const commissionPkr = Math.max(0, Math.round(roundedRemaining * 10));
+  // Commission rate: $100 USD = 1,000 PKR ($1,000 USD = 10,000 PKR). Amounts under $100 do not count.
+  const commissionPkr =
+    roundedRemaining >= 100 ? Math.floor(roundedRemaining / 100) * 1000 : 0;
 
   return {
     monthly_revenue: roundedRevenue,
