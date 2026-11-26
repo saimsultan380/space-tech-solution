@@ -13,6 +13,20 @@ export interface ProcessorDailySummary {
   processors: ProcessorDailyStat[];
 }
 
+export interface ProcessorNote {
+  id: string;
+  content: string;
+  created_at: string;
+  sale_id: string | null;
+  user_id: string | null;
+  sale?: {
+    id: string;
+    customer_name?: string | null;
+    company?: string | null;
+    amount?: number | null;
+  } | null;
+}
+
 export async function getDailyProcessorNotes(
   targetDate?: string,
 ): Promise<ProcessorDailySummary> {
@@ -83,4 +97,40 @@ export async function getDailyProcessorNotes(
     totalNotes: (notes || []).length,
     processors: processorList,
   };
+}
+
+/** Fetch full notes for a specific processor on a date, with sale context */
+export async function getProcessorNoteDetail(
+  processorId: string,
+  targetDate: string,
+): Promise<ProcessorNote[]> {
+  const supabase = createClient();
+  const startIso = `${targetDate}T00:00:00.000Z`;
+  const endIso = `${targetDate}T23:59:59.999Z`;
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select(
+      `id, content, created_at, sale_id, user_id,
+       sale:sales(id, customer_name, company, amount)`,
+    )
+    .eq("type", "processing")
+    .eq("user_id", processorId)
+    .gte("created_at", startIso)
+    .lte("created_at", endIso)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[getProcessorNoteDetail] error:", error.message);
+    return [];
+  }
+
+  return (data || []).map((n: any) => ({
+    id: n.id,
+    content: n.content ?? "",
+    created_at: n.created_at,
+    sale_id: n.sale_id,
+    user_id: n.user_id,
+    sale: Array.isArray(n.sale) ? n.sale[0] ?? null : n.sale ?? null,
+  }));
 }

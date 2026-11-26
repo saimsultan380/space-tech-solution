@@ -2,16 +2,23 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getDailyProcessorNotes, type ProcessorDailyStat } from "@/lib/queries/processor-notes";
+import {
+  getDailyProcessorNotes,
+  getProcessorNoteDetail,
+  type ProcessorDailyStat,
+  type ProcessorNote,
+} from "@/lib/queries/processor-notes";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   FileText,
-  UserCheck,
-  Calendar,
   ChevronDown,
   ChevronUp,
   Loader2,
-  Sparkles,
+  X,
+  Clock,
+  User,
+  FileText as NoteIcon,
+  ExternalLink,
 } from "@/components/ui/icons";
 
 interface DailyProcessorActivityProps {
@@ -29,12 +36,174 @@ function getYesterdayIso(): string {
   return d.toISOString().slice(0, 10);
 }
 
+function formatTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+  } catch {
+    return "";
+  }
+}
+
+function formatDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/* ─── Notes Detail Modal ─── */
+function ProcessorNotesModal({
+  processor,
+  date,
+  onClose,
+}: {
+  processor: ProcessorDailyStat;
+  date: string;
+  onClose: () => void;
+}) {
+  const { data: notes, isLoading } = useQuery<ProcessorNote[]>({
+    queryKey: ["processor-note-detail", processor.id, date],
+    queryFn: () => getProcessorNoteDetail(processor.id, date),
+    staleTime: 30000,
+  });
+
+  // Close on backdrop click
+  const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={handleBackdrop}
+      aria-modal="true"
+      role="dialog"
+      aria-label={`Notes by ${processor.name}`}
+    >
+      <div className="relative flex w-full max-w-2xl flex-col rounded-2xl border border-border bg-background shadow-2xl max-h-[90vh]">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
+              {processor.name.charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-foreground truncate">
+                {processor.name}
+              </h2>
+              <p className="text-xs text-muted-foreground capitalize flex items-center gap-1.5">
+                <Clock className="h-3 w-3" />
+                {date} &mdash; {processor.count} processing note{processor.count !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="text-sm">Loading notes…</span>
+            </div>
+          ) : !notes || notes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+              <NoteIcon className="h-10 w-10 opacity-30" />
+              <p className="text-sm">No notes found for this date.</p>
+            </div>
+          ) : (
+            notes.map((note, idx) => (
+              <div
+                key={note.id}
+                className="rounded-xl border border-border bg-muted/30 p-4 space-y-2 hover:border-primary/30 hover:bg-primary/5 transition-colors"
+              >
+                {/* Note meta row */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                    <NoteIcon className="h-3 w-3" />
+                    Note #{idx + 1}
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {formatDateTime(note.created_at)}
+                  </span>
+                </div>
+
+                {/* Note content */}
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+                  {note.content || <span className="italic text-muted-foreground">No content</span>}
+                </p>
+
+                {/* Sale context */}
+                {note.sale && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">
+                      Sale:
+                    </span>
+                    {note.sale.customer_name && (
+                      <span className="text-xs font-medium text-foreground">
+                        {note.sale.customer_name}
+                      </span>
+                    )}
+                    {note.sale.company && (
+                      <span className="text-[11px] text-muted-foreground">
+                        — {note.sale.company}
+                      </span>
+                    )}
+                    {note.sale.amount != null && (
+                      <span className="ml-auto inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        ${note.sale.amount.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="border-t border-border px-5 py-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {notes ? `${notes.length} note${notes.length !== 1 ? "s" : ""} loaded` : ""}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Widget ─── */
 export function DailyProcessorActivity({
   onSelectProcessor,
   className,
 }: DailyProcessorActivityProps) {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayIso());
   const [collapsed, setCollapsed] = useState(false);
+  const [openProcessor, setOpenProcessor] = useState<ProcessorDailyStat | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["daily-processor-notes", selectedDate],
@@ -47,151 +216,169 @@ export function DailyProcessorActivity({
   const isYesterday = selectedDate === getYesterdayIso();
 
   return (
-    <Card className={`border-border/70 bg-gradient-to-br from-card via-card to-muted/20 shadow-sm ${className || ""}`}>
-      <CardContent className="p-3.5 sm:p-4">
-        {/* Header row */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <FileText className="h-4 w-4" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Daily Processor Activity
-                </h3>
-                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  {isLoading ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    `${data?.totalNotes || 0} Bills Noted`
-                  )}
-                </span>
+    <>
+      <Card
+        className={`border-border/70 bg-gradient-to-br from-card via-card to-muted/20 shadow-sm ${className || ""}`}
+      >
+        <CardContent className="p-3.5 sm:p-4">
+          {/* Header row */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <FileText className="h-4 w-4" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Daily Processor Activity
+                  </h3>
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    {isLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      `${data?.totalNotes || 0} Bills Noted`
+                    )}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Click a processor to view their detailed notes
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Individual processing notes updated by processors daily
-              </p>
+            </div>
+
+            {/* Date Selector & Toggle */}
+            <div className="flex items-center gap-1.5">
+              <div className="inline-flex items-center rounded-md border border-border bg-background p-0.5 text-xs">
+                <button
+                  type="button"
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                    isToday
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setSelectedDate(getTodayIso())}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                    isYesterday
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setSelectedDate(getYesterdayIso())}
+                >
+                  Yesterday
+                </button>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  className="rounded bg-transparent px-1.5 py-0.5 text-xs text-foreground focus:outline-hidden"
+                  title="Select custom date"
+                />
+              </div>
+
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title={collapsed ? "Expand" : "Collapse"}
+                onClick={() => setCollapsed(!collapsed)}
+              >
+                {collapsed ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronUp className="h-4 w-4" />
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Date Selector & Toggle */}
-          <div className="flex items-center gap-1.5">
-            <div className="inline-flex items-center rounded-md border border-border bg-background p-0.5 text-xs">
-              <button
-                type="button"
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                  isToday
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSelectedDate(getTodayIso())}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                  isYesterday
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSelectedDate(getYesterdayIso())}
-              >
-                Yesterday
-              </button>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  if (e.target.value) setSelectedDate(e.target.value);
-                }}
-                className="rounded bg-transparent px-1.5 py-0.5 text-xs text-foreground focus:outline-hidden"
-                title="Select custom date"
-              />
-            </div>
-
-            <button
-              type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              title={collapsed ? "Expand" : "Collapse"}
-              onClick={() => setCollapsed(!collapsed)}
-            >
-              {collapsed ? (
-                <ChevronDown className="h-4 w-4" />
+          {/* Processor Cards */}
+          {!collapsed && (
+            <div className="mt-3">
+              {isLoading ? (
+                <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span>Loading daily processor activity…</span>
+                </div>
+              ) : !data || data.processors.length === 0 ? (
+                <p className="py-2 text-xs text-muted-foreground">
+                  No processing notes recorded on {selectedDate}.
+                </p>
               ) : (
-                <ChevronUp className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Processors Count Badges */}
-        {!collapsed ? (
-          <div className="mt-3">
-            {isLoading ? (
-              <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span>Loading daily processor activity…</span>
-              </div>
-            ) : !data || data.processors.length === 0 ? (
-              <p className="py-2 text-xs text-muted-foreground">
-                No processing notes recorded on {selectedDate}.
-              </p>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {data.processors.map((proc) => {
-                  const hasActivity = proc.count > 0;
-                  return (
-                    <div
-                      key={proc.id}
-                      className={`flex items-center justify-between gap-2 rounded-lg border p-2.5 transition-all ${
-                        hasActivity
-                          ? "border-primary/25 bg-primary/5 hover:border-primary/40 hover:bg-primary/10"
-                          : "border-border/50 bg-background/50 opacity-60"
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                            hasActivity
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {proc.name.charAt(0).toUpperCase()}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-foreground">
-                            {proc.name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground capitalize">
-                            {proc.role || "Processor"}
-                          </p>
+                <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {data.processors.map((proc) => {
+                    const hasActivity = proc.count > 0;
+                    return (
+                      <button
+                        key={proc.id}
+                        type="button"
+                        disabled={!hasActivity}
+                        onClick={() => {
+                          if (hasActivity) setOpenProcessor(proc);
+                          if (onSelectProcessor) onSelectProcessor(proc.name);
+                        }}
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition-all ${
+                          hasActivity
+                            ? "border-primary/25 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 hover:shadow-sm cursor-pointer"
+                            : "border-border/50 bg-background/50 opacity-60 cursor-not-allowed"
+                        }`}
+                        title={hasActivity ? `View ${proc.count} notes by ${proc.name}` : "No notes"}
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                              hasActivity
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {proc.name.charAt(0).toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-foreground">
+                              {proc.name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground capitalize">
+                              {proc.role || "Processor"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="text-right">
-                        <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold ${
-                            hasActivity
-                              ? "bg-primary/15 text-primary"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {proc.count}
-                        </span>
-                        <p className="text-[9px] text-muted-foreground uppercase">
-                          notes
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold ${
+                              hasActivity
+                                ? "bg-primary/15 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {proc.count}
+                          </span>
+                          <p className="text-[9px] text-muted-foreground uppercase">notes</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Notes Detail Modal */}
+      {openProcessor && (
+        <ProcessorNotesModal
+          processor={openProcessor}
+          date={selectedDate}
+          onClose={() => setOpenProcessor(null)}
+        />
+      )}
+    </>
   );
 }

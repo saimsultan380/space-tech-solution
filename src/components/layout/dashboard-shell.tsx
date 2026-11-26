@@ -41,13 +41,17 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const pathname = usePathname();
   const isChat = pathname === "/dashboard/chat" || pathname.startsWith("/dashboard/chat/");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // sidebarCollapsed: user explicit state; null = auto (follows viewport)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const isCompactDesktop = useMediaQuery("(max-width: 1279px)");
+  // Auto-collapse on compact desktop ONLY when user has not explicitly expanded it
   const effectiveSidebarCollapsed = isMobile
-    ? sidebarCollapsed
-    : isCompactDesktop || sidebarCollapsed;
+    ? (sidebarCollapsed ?? false)
+    : sidebarCollapsed !== null
+      ? sidebarCollapsed
+      : isCompactDesktop;
 
   const { data: liveTheme } = useQuery({
     queryKey: ["company-settings-theme"],
@@ -66,10 +70,12 @@ export function DashboardShell({
   const handleToggleSidebar = () => {
     if (isMobile) {
       setMobileMenuOpen((v) => !v);
-    } else if (isCompactDesktop) {
-      return;
     } else {
-      setSidebarCollapsed((v) => !v);
+      // Toggle explicitly; this overrides the auto-compact logic
+      setSidebarCollapsed((prev) => {
+        const current = prev !== null ? prev : isCompactDesktop;
+        return !current;
+      });
     }
   };
 
