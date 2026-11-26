@@ -66,6 +66,7 @@ import { useDebouncedUrlSearchInput } from "@/hooks/use-debounced-url-search-inp
 import { getSales } from "@/lib/queries/sales";
 import { getSalesAgentOptions } from "@/lib/queries/users";
 import { SalesExportDropdown } from "./sales-export-dropdown";
+import { DailyProcessorActivity } from "./daily-processor-activity";
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
@@ -427,6 +428,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
   const agentFilter = userRole === "sales_agent" ? userId : agentFilterParam;
   const fromDateFilter = searchParams.get("from_date") || "";
   const toDateFilter = searchParams.get("to_date") || "";
+  const duplicatesFilter = searchParams.get("duplicates") || "";
 
   const updateFilters = (
     updates: Record<string, string | number | undefined>,
@@ -467,6 +469,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
       fromDateFilter,
       toDateFilter,
       urlSearch,
+      duplicatesFilter,
     ],
     queryFn: () =>
       getSales({
@@ -477,6 +480,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         from_date: fromDateFilter,
         to_date: toDateFilter,
         search: urlSearch,
+        duplicates_only: duplicatesFilter === "true",
       }),
     staleTime: 15000,
     refetchInterval: 15000,
@@ -504,6 +508,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
       avgChargedAmount: 0,
       utilityCount: 0,
       insuranceCount: 0,
+      duplicateCount: 0,
     },
   } = salesResponse || {};
 
@@ -774,7 +779,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         <Card className="bg-gradient-to-br from-blue-500/[0.12] to-indigo-500/[0.06]">
           <CardContent className="pt-5">
             <div className="mb-2 flex items-center justify-between">
@@ -847,7 +852,51 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
             <p className="text-2xl font-semibold">{stats.insuranceCount}</p>
           </CardContent>
         </Card>
+        <Card
+          className={`cursor-pointer transition-all ${
+            duplicatesFilter === "true"
+              ? "ring-2 ring-amber-500 bg-amber-500/10"
+              : "bg-gradient-to-br from-amber-500/[0.15] to-rose-500/[0.06] hover:border-amber-500/50"
+          }`}
+          onClick={() =>
+            updateFilters({
+              duplicates: duplicatesFilter === "true" ? undefined : "true",
+              page: 1,
+            })
+          }
+          title={
+            duplicatesFilter === "true"
+              ? "Showing only duplicate sales (click to reset)"
+              : "Click to filter duplicate sales"
+          }
+        >
+          <CardContent className="pt-5">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                Duplicate sales
+              </p>
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+              {stats.duplicateCount || 0}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {duplicatesFilter === "true" ? (
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  Active filter (click to reset)
+                </span>
+              ) : (
+                "Shares phone / account"
+              )}
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Daily Processor Notes Activity */}
+      <DailyProcessorActivity />
 
       <Card>
         <CardHeader>
@@ -901,6 +950,7 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                     agent_id: "all",
                     from_date: "",
                     to_date: "",
+                    duplicates: undefined,
                   })
                 }
               >
@@ -973,6 +1023,18 @@ export function SalesClient({ userRole, userId }: SalesClientProps) {
                           {customerDisplayPhone(sale) ? (
                             <span className="text-[11px] text-muted-foreground">
                               {customerDisplayPhone(sale)}
+                            </span>
+                          ) : null}
+                          {sale.is_duplicate ? (
+                            <span
+                              className="mt-1 inline-flex w-fit max-w-full items-center gap-1 whitespace-nowrap rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 leading-none"
+                              title={
+                                sale.duplicate_reason ||
+                                "Shares phone number or utility account with another sale"
+                              }
+                            >
+                              <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                              <span>Duplicate Sale</span>
                             </span>
                           ) : null}
                           {isChargeback ? (

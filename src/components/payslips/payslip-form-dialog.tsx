@@ -20,7 +20,7 @@ import {
 } from "@/lib/actions/payslips";
 import type { Payslip, PayslipStatus } from "@/lib/types";
 import { formatCnic, cn } from "@/lib/utils";
-import { RefreshCw, Sparkles, Check } from "@/components/ui/icons";
+import { RefreshCw, Sparkles, Check, AlertTriangle } from "@/components/ui/icons";
 
 interface EmployeeOption {
   id: string;
@@ -68,6 +68,9 @@ export function PayslipFormDialog({
     commission_pkr?: number;
     cb_start_date?: string;
     cb_end_date?: string;
+    prior_negative_balance?: number;
+    prior_month_label?: string;
+    has_negative_trail?: boolean;
   } | null>(null);
 
   const initialEmployeeId =
@@ -196,6 +199,9 @@ export function PayslipFormDialog({
           commission_pkr: revData.commission_pkr,
           cb_start_date: revData.cb_start_date,
           cb_end_date: revData.cb_end_date,
+          prior_negative_balance: revData.prior_negative_balance,
+          prior_month_label: revData.prior_month_label,
+          has_negative_trail: revData.has_negative_trail,
         });
 
         setForm((prev) => {
@@ -603,7 +609,8 @@ export function PayslipFormDialog({
                 setForm((prev) => {
                   const rev = Number(e.target.value || 0);
                   const cb = Number(prev.chargeback_amount || 0);
-                  const diff = Number((rev - cb).toFixed(2));
+                  const priorNeg = Number(revenueSummary?.prior_negative_balance || 0);
+                  const diff = Number((rev - cb - priorNeg).toFixed(2));
                   const commPkr = diff >= 100 ? Math.floor(diff / 100) * 1000 : 0;
                   return {
                     ...prev,
@@ -624,7 +631,8 @@ export function PayslipFormDialog({
                 setForm((prev) => {
                   const cb = Number(e.target.value || 0);
                   const rev = Number(prev.monthly_revenue || 0);
-                  const diff = Number((rev - cb).toFixed(2));
+                  const priorNeg = Number(revenueSummary?.prior_negative_balance || 0);
+                  const diff = Number((rev - cb - priorNeg).toFixed(2));
                   const commPkr = diff >= 100 ? Math.floor(diff / 100) * 1000 : 0;
                   return {
                     ...prev,
@@ -666,6 +674,18 @@ export function PayslipFormDialog({
               </span>
             </div>
 
+            {revenueSummary?.has_negative_trail && (revenueSummary.prior_negative_balance || 0) > 0 ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Prior Month Negative Balance Carryover ({revenueSummary.prior_month_label})</span>
+                </div>
+                <p className="mt-1 text-[11px] text-destructive/90">
+                  This agent carried over a negative balance of <strong>-${revenueSummary.prior_negative_balance?.toFixed(2)} USD</strong> from {revenueSummary.prior_month_label || "the previous month"}. This trail has been automatically deducted from this month&apos;s net remaining.
+                </p>
+              </div>
+            ) : null}
+
             <div className="grid gap-2 sm:grid-cols-2 pt-1">
               <div className="rounded border border-border/50 bg-background/60 p-2.5 space-y-1">
                 <p className="font-semibold text-foreground text-[11px] uppercase tracking-wide">
@@ -683,6 +703,14 @@ export function PayslipFormDialog({
                     -${Number(form.chargeback_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </strong>
                 </p>
+                {revenueSummary?.prior_negative_balance ? (
+                  <p className="text-muted-foreground">
+                    Prior Negative Carryover ({revenueSummary.prior_month_label}):{" "}
+                    <strong className="text-destructive">
+                      -${Number(revenueSummary.prior_negative_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                  </p>
+                ) : null}
                 <p className="border-t border-border/40 pt-1 text-foreground font-medium">
                   Net Remaining:{" "}
                   <strong className="text-success">

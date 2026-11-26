@@ -113,6 +113,7 @@ export function SalesExportDropdown({
           "Chargeback Reason",
           "Agent Name",
           "Bill Payment Status",
+          "Duplicate Status",
         ];
 
         const rows: TableExportCell[][] = sales.map((s) => [
@@ -131,6 +132,7 @@ export function SalesExportDropdown({
           s.chargeback_reason || "—",
           s.agent?.full_name || "N/A",
           s.bill_payment_status || "—",
+          s.is_duplicate ? "Yes (Duplicate)" : "No",
         ]);
 
         if (format === "xlsx") {

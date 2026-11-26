@@ -12,6 +12,7 @@ export interface SalesStats {
   avgChargedAmount: number;
   utilityCount: number;
   insuranceCount: number;
+  duplicateCount: number;
 }
 
 const SALE_LIST_SELECT =
@@ -75,6 +76,7 @@ function emptyStats(): SalesStats {
     avgChargedAmount: 0,
     utilityCount: 0,
     insuranceCount: 0,
+    duplicateCount: 0,
   };
 }
 
@@ -135,6 +137,7 @@ async function fetchSalesStatsRpc(
       totalRecords > 0 ? netTotalChargedAmount / totalRecords : 0,
     utilityCount: Number(row.utility_count || 0),
     insuranceCount: Number(row.insurance_count || 0),
+    duplicateCount: 0,
   };
 }
 
@@ -205,7 +208,44 @@ async function fetchSalesStatsFallback(
       totalRecords > 0 ? netTotalChargedAmount / totalRecords : 0,
     utilityCount: totals.utilityCount,
     insuranceCount: totals.insuranceCount,
+    duplicateCount: 0,
   };
+}
+
+export async function getDuplicateSaleIds(
+  supabase: ReturnType<typeof createClient>,
+): Promise<Set<string>> {
+  const { data: sales } = await supabase
+    .from("sales")
+    .select("id, customer_phone, utility_company_service_number")
+    .is("deleted_at", null)
+    .limit(3000);
+
+  const phoneMap = new Map<string, string[]>();
+  const servMap = new Map<string, string[]>();
+  const dupSaleIds = new Set<string>();
+
+  for (const s of sales || []) {
+    const p = (s.customer_phone || "").replace(/\D/g, "").slice(-10);
+    const acc = (s.utility_company_service_number || "").trim();
+    if (p && p.length >= 7) {
+      if (!phoneMap.has(p)) phoneMap.set(p, []);
+      phoneMap.get(p)!.push(s.id);
+    }
+    if (acc && acc.length >= 4) {
+      if (!servMap.has(acc)) servMap.set(acc, []);
+      servMap.get(acc)!.push(s.id);
+    }
+  }
+
+  for (const [, ids] of phoneMap) {
+    if (ids.length > 1) ids.forEach((id) => dupSaleIds.add(id));
+  }
+  for (const [, ids] of servMap) {
+    if (ids.length > 1) ids.forEach((id) => dupSaleIds.add(id));
+  }
+
+  return dupSaleIds;
 }
 
 export async function getSales(filters?: {
@@ -217,6 +257,7 @@ export async function getSales(filters?: {
   page?: number;
   pageSize?: number;
   search?: string;
+  duplicates_only?: string | boolean;
 }): Promise<{
   data: Sale[];
   count: number;
@@ -230,6 +271,8 @@ export async function getSales(filters?: {
   const pageSize = parsePageSize(filters?.pageSize);
   const offset = (page - 1) * pageSize;
 
+  const dupSaleIdsPromise = getDuplicateSaleIds(supabase);
+
   let query = supabase
     .from("sales")
     .select(SALE_LIST_SELECT, { count: "exact" })
@@ -237,9 +280,21 @@ export async function getSales(filters?: {
 
   query = applySalesFilters(query, filters);
 
-  const [{ data, error, count }, rpcStats] = await Promise.all([
+  const isDuplicatesOnly =
+    filters?.duplicates_only === "true" || filters?.duplicates_only === true;
+
+  if (isDuplicatesOnly) {
+    const dupIds = Array.from(await dupSaleIdsPromise);
+    query = query.in(
+      "id",
+      dupIds.length > 0 ? dupIds : ["00000000-0000-0000-0000-000000000000"],
+    );
+  }
+
+  const [{ data, error, count }, rpcStats, dupSaleIds] = await Promise.all([
     query.range(offset, offset + pageSize - 1),
     fetchSalesStatsRpc(supabase, filters),
+    dupSaleIdsPromise,
   ]);
 
   if (error) throw new Error(error.message);
@@ -307,11 +362,16 @@ export async function getSales(filters?: {
       sale.chargeback_status = cb?.status ?? null;
       sale.chargeback_date = cb?.date ?? null;
       sale.chargeback_reason = cb?.reason ?? null;
+      sale.is_duplicate = dupSaleIds.has(sale.id);
+      sale.duplicate_reason = sale.is_duplicate
+        ? "Shares phone number or utility account with another sale"
+        : null;
     }
   }
 
   const stats =
     rpcStats ?? (await fetchSalesStatsFallback(supabase, filters)) ?? emptyStats();
+  stats.duplicateCount = dupSaleIds.size;
 
   return {
     data: salesRows,
@@ -371,6 +431,7 @@ export async function getAllSalesForExport(filters?: {
       }
     }
 
+    const dupSaleIds = await getDuplicateSaleIds(supabase);
     for (const sale of salesRows) {
       const cb = cbBySale.get(String(sale.id));
       sale.has_chargeback = Boolean(cb);
@@ -378,6 +439,10 @@ export async function getAllSalesForExport(filters?: {
       sale.chargeback_status = cb?.status ?? null;
       sale.chargeback_date = cb?.date ?? null;
       sale.chargeback_reason = cb?.reason ?? null;
+      sale.is_duplicate = dupSaleIds.has(sale.id);
+      sale.duplicate_reason = sale.is_duplicate
+        ? "Shares phone number or utility account with another sale"
+        : null;
     }
   }
 

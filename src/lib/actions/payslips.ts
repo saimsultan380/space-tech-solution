@@ -382,6 +382,9 @@ export interface EmployeeRevenueSummary {
   commission_pkr: number;
   cb_start_date: string;
   cb_end_date: string;
+  prior_negative_balance?: number;
+  prior_month_label?: string;
+  has_negative_trail?: boolean;
 }
 
 export async function getEmployeeRevenueAndChargebacks(input: {
@@ -402,6 +405,9 @@ export async function getEmployeeRevenueAndChargebacks(input: {
       commission_pkr: 0,
       cb_start_date: "",
       cb_end_date: "",
+      prior_negative_balance: 0,
+      prior_month_label: "",
+      has_negative_trail: false,
     };
   }
 
@@ -500,7 +506,88 @@ export async function getEmployeeRevenueAndChargebacks(input: {
 
   const roundedRevenue = Number(monthlyRevenue.toFixed(2));
   const roundedCb = Number(chargebackAmount.toFixed(2));
-  const roundedRemaining = Number((roundedRevenue - roundedCb).toFixed(2));
+
+  // 3. Check for previous month's negative balance carryover (Negative Trail)
+  let priorNegativeBalance = 0;
+  let priorMonthLabel = "";
+  let hasNegativeTrail = false;
+
+  if (pYear && pMonth) {
+    const prevMonth = pMonth === 1 ? 12 : pMonth - 1;
+    const prevYear = pMonth === 1 ? pYear - 1 : pYear;
+    const prevPeriodStart = `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    priorMonthLabel = `${monthNames[prevMonth - 1]} ${prevYear}`;
+
+    // A. Check if a payslip was saved for prior month with negative remaining
+    const { data: prevSlip } = await admin
+      .from("payslips")
+      .select("remaining")
+      .eq("user_id", input.user_id)
+      .eq("period_start", prevPeriodStart)
+      .maybeSingle();
+
+    if (prevSlip && prevSlip.remaining != null && Number(prevSlip.remaining) < 0) {
+      priorNegativeBalance = Math.abs(Number(prevSlip.remaining));
+      hasNegativeTrail = true;
+    } else if (!prevSlip) {
+      // B. If no saved payslip exists, calculate prior month sales vs chargebacks
+      const prevStartDate = prevPeriodStart;
+      const lastDayPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
+      const prevEndDate = `${prevYear}-${String(prevMonth).padStart(2, "0")}-${String(lastDayPrevMonth).padStart(2, "0")}`;
+
+      const prevCbStart = `${prevYear}-${String(prevMonth).padStart(2, "0")}-10`;
+      const prevCbNextMonth = prevMonth === 12 ? 1 : prevMonth + 1;
+      const prevCbNextYear = prevMonth === 12 ? prevYear + 1 : prevYear;
+      const prevCbEnd = `${prevCbNextYear}-${String(prevCbNextMonth).padStart(2, "0")}-10`;
+
+      const prevPeriodSales = (sales || []).filter((s: any) => {
+        const d = s.sale_date || (s.created_at ? s.created_at.slice(0, 10) : "");
+        return d >= prevStartDate && d <= prevEndDate;
+      });
+      const prevRev = prevPeriodSales.reduce((acc: number, s: any) => {
+        const val = Number(s.charged_amount ?? s.amount ?? 0);
+        return acc + (Number.isFinite(val) ? val : 0);
+      }, 0);
+
+      const prevPeriodChargebacks = (cbRows || []).filter((cb: any) => {
+        const d = cb.date || (cb.created_at ? cb.created_at.slice(0, 10) : "");
+        const inPeriod = d >= prevCbStart && d <= prevCbEnd;
+        if (!inPeriod) return false;
+        const sale = Array.isArray(cb.sale) ? cb.sale[0] : cb.sale;
+        const isAgentSale = (sale && sale.agent_id === input.user_id) || allAgentSaleIds.includes(cb.sale_id);
+        const isAssigned = cb.assigned_to === input.user_id;
+        return isAgentSale || isAssigned;
+      });
+
+      const prevSeenCbSaleIds = new Set<string>();
+      let prevCb = 0;
+      for (const cb of prevPeriodChargebacks) {
+        const sale = Array.isArray(cb.sale) ? cb.sale[0] : cb.sale;
+        const sid = String(cb.sale_id);
+        if (!prevSeenCbSaleIds.has(sid)) {
+          prevSeenCbSaleIds.add(sid);
+          const val = Number(sale?.charged_amount ?? sale?.amount ?? 0);
+          prevCb += Number.isFinite(val) ? val : 0;
+        }
+      }
+
+      const prevNet = prevRev - prevCb;
+      if (prevNet < 0) {
+        priorNegativeBalance = Math.abs(Number(prevNet.toFixed(2)));
+        hasNegativeTrail = true;
+      }
+    }
+  }
+
+  const roundedPriorNegative = Number(priorNegativeBalance.toFixed(2));
+  // Net remaining deducts current chargebacks AND prior carried-over negative balance
+  const roundedRemaining = Number(
+    (roundedRevenue - roundedCb - roundedPriorNegative).toFixed(2),
+  );
 
   // Commission rate: $100 USD = 1,000 PKR ($1,000 USD = 10,000 PKR). Amounts under $100 do not count.
   const commissionPkr =
@@ -515,6 +602,9 @@ export async function getEmployeeRevenueAndChargebacks(input: {
     commission_pkr: commissionPkr,
     cb_start_date: cbStartDate,
     cb_end_date: cbEndDate,
+    prior_negative_balance: roundedPriorNegative,
+    prior_month_label: priorMonthLabel,
+    has_negative_trail: hasNegativeTrail,
   };
 }
 
