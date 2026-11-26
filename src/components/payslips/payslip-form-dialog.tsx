@@ -65,6 +65,9 @@ export function PayslipFormDialog({
   const [revenueSummary, setRevenueSummary] = useState<{
     sales_count: number;
     chargebacks_count: number;
+    commission_pkr?: number;
+    cb_start_date?: string;
+    cb_end_date?: string;
   } | null>(null);
 
   const initialEmployeeId =
@@ -190,20 +193,22 @@ export function PayslipFormDialog({
         setRevenueSummary({
           sales_count: revData.sales_count,
           chargebacks_count: revData.chargebacks_count,
+          commission_pkr: revData.commission_pkr,
+          cb_start_date: revData.cb_start_date,
+          cb_end_date: revData.cb_end_date,
         });
 
         setForm((prev) => {
           const remainingStr = String(revData.remaining);
+          const commissionStr = String(revData.commission_pkr);
           return {
             ...prev,
             monthly_revenue: String(revData.monthly_revenue),
             chargeback_amount: String(revData.chargeback_amount),
             remaining: remainingStr,
+            commission: commissionStr,
             late_attendance: String(attData.late_attendance),
             leaves: String(attData.leaves),
-            ...(syncCommission || !prev.commission || prev.commission === "0"
-              ? { commission: remainingStr }
-              : {}),
           };
         });
       } catch (err) {
@@ -590,7 +595,7 @@ export function PayslipFormDialog({
           <div className="grid gap-4 sm:grid-cols-3">
             <Input
               id="monthly_revenue"
-              label="Monthly Revenue"
+              label="Monthly Revenue (USD $)"
               type="number"
               step="0.01"
               value={form.monthly_revenue}
@@ -599,17 +604,19 @@ export function PayslipFormDialog({
                   const rev = Number(e.target.value || 0);
                   const cb = Number(prev.chargeback_amount || 0);
                   const diff = Number((rev - cb).toFixed(2));
+                  const commPkr = Math.max(0, Math.round(diff * 10));
                   return {
                     ...prev,
                     monthly_revenue: e.target.value,
                     remaining: String(diff),
+                    commission: String(commPkr),
                   };
                 })
               }
             />
             <Input
               id="chargeback_amount"
-              label="Chargeback"
+              label="Chargeback Amount (USD $)"
               type="number"
               step="0.01"
               value={form.chargeback_amount}
@@ -618,68 +625,101 @@ export function PayslipFormDialog({
                   const cb = Number(e.target.value || 0);
                   const rev = Number(prev.monthly_revenue || 0);
                   const diff = Number((rev - cb).toFixed(2));
+                  const commPkr = Math.max(0, Math.round(diff * 10));
                   return {
                     ...prev,
                     chargeback_amount: e.target.value,
                     remaining: String(diff),
+                    commission: String(commPkr),
                   };
                 })
               }
             />
             <Input
               id="remaining"
-              label="Remaining"
+              label="Remaining Net (USD $)"
               type="number"
               step="0.01"
               value={form.remaining}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, remaining: e.target.value }))
+                setForm((prev) => {
+                  const rem = Number(e.target.value || 0);
+                  const commPkr = Math.max(0, Math.round(rem * 10));
+                  return {
+                    ...prev,
+                    remaining: e.target.value,
+                    commission: String(commPkr),
+                  };
+                })
               }
             />
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs space-y-2">
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-3.5 text-xs space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 font-medium text-foreground">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span>Calculation Summary:</span>
+                <span>Auto Commission & Net Pay Summary</span>
               </div>
-              {form.remaining && form.commission !== form.remaining && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 gap-1 px-2 text-[11px] font-medium text-primary hover:bg-primary/10"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, commission: prev.remaining }))
-                  }
-                >
-                  <Check className="h-3 w-3" />
-                  Apply Remaining to Commission
-                </Button>
-              )}
+              <span className="text-[11px] text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded border border-border/50">
+                Rate: $1,000 USD = 10,000 PKR ($1 = 10 PKR)
+              </span>
             </div>
-            <p className="text-muted-foreground leading-relaxed">
-              Sales:{" "}
-              <strong className="text-foreground">
-                ${Number(form.monthly_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </strong>
-              {" − "}
-              Chargeback:{" "}
-              <strong className="text-destructive">
-                ${Number(form.chargeback_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </strong>
-              {" = "}
-              Remaining:{" "}
-              <strong className="text-success">
-                ${Number(form.remaining || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </strong>
-              {revenueSummary ? (
-                <span className="ml-1 text-muted-foreground/80">
-                  (from {revenueSummary.sales_count} sales and {revenueSummary.chargebacks_count} chargebacks)
-                </span>
-              ) : null}
-            </p>
+
+            <div className="grid gap-2 sm:grid-cols-2 pt-1">
+              <div className="rounded border border-border/50 bg-background/60 p-2.5 space-y-1">
+                <p className="font-semibold text-foreground text-[11px] uppercase tracking-wide">
+                  Revenue Tracking (USD)
+                </p>
+                <p className="text-muted-foreground">
+                  Sales ({form.period_start || "Start"} to {form.period_end || "End"}):{" "}
+                  <strong className="text-foreground">
+                    ${Number(form.monthly_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </strong>
+                </p>
+                <p className="text-muted-foreground">
+                  Chargebacks ({revenueSummary?.cb_start_date || "10th"} to {revenueSummary?.cb_end_date || "10th"}):{" "}
+                  <strong className="text-destructive">
+                    -${Number(form.chargeback_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </strong>
+                </p>
+                <p className="border-t border-border/40 pt-1 text-foreground font-medium">
+                  Net Remaining:{" "}
+                  <strong className="text-success">
+                    ${Number(form.remaining || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </strong>
+                  {revenueSummary ? (
+                    <span className="ml-1 text-[11px] text-muted-foreground/80 font-normal">
+                      ({revenueSummary.sales_count} sales, {revenueSummary.chargebacks_count} chargebacks)
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+
+              <div className="rounded border border-primary/30 bg-primary/5 p-2.5 space-y-1">
+                <p className="font-semibold text-primary text-[11px] uppercase tracking-wide">
+                  Salary & Net Pay (PKR)
+                </p>
+                <p className="text-muted-foreground">
+                  Commission ($1 = 10 PKR):{" "}
+                  <strong className="text-primary text-sm font-semibold">
+                    PKR {Number(form.commission || 0).toLocaleString()}
+                  </strong>
+                </p>
+                <p className="text-muted-foreground">
+                  Basic Salary:{" "}
+                  <strong className="text-foreground">
+                    PKR {Number(form.basic_salary || 0).toLocaleString()}
+                  </strong>
+                </p>
+                <p className="border-t border-primary/20 pt-1 text-foreground font-medium">
+                  Total Net Pay:{" "}
+                  <strong className="text-base text-foreground font-bold">
+                    PKR {Number(netPay).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </strong>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

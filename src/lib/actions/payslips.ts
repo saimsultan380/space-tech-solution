@@ -379,6 +379,9 @@ export interface EmployeeRevenueSummary {
   remaining: number;
   sales_count: number;
   chargebacks_count: number;
+  commission_pkr: number;
+  cb_start_date: string;
+  cb_end_date: string;
 }
 
 export async function getEmployeeRevenueAndChargebacks(input: {
@@ -396,13 +399,32 @@ export async function getEmployeeRevenueAndChargebacks(input: {
       remaining: 0,
       sales_count: 0,
       chargebacks_count: 0,
+      commission_pkr: 0,
+      cb_start_date: "",
+      cb_end_date: "",
     };
   }
 
   const startDate = input.period_start;
   const endDate = input.period_end;
 
-  // 1. Fetch sales for this agent
+  // Chargeback calculation window: 10th of the salary month to 10th of the following month
+  // E.g., if salary period is Nov 2026 (2026-11-01 to 2026-11-30), chargebacks are counted from 2026-11-10 to 2026-12-10
+  const [pYear, pMonth] = input.period_start.split("-").map(Number);
+  let cbStartDate = "";
+  let cbEndDate = "";
+
+  if (pYear && pMonth) {
+    const nextMonth = pMonth === 12 ? 1 : pMonth + 1;
+    const nextYear = pMonth === 12 ? pYear + 1 : pYear;
+    cbStartDate = `${pYear}-${String(pMonth).padStart(2, "0")}-10`;
+    cbEndDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-10`;
+  } else {
+    cbStartDate = startDate;
+    cbEndDate = endDate;
+  }
+
+  // 1. Fetch sales for this agent in the salary period
   const { data: sales, error: salesError } = await admin
     .from("sales")
     .select("id, amount, charged_amount, status, sale_date, created_at")
@@ -425,7 +447,8 @@ export async function getEmployeeRevenueAndChargebacks(input: {
     return acc + (Number.isFinite(val) ? val : 0);
   }, 0);
 
-  // 2. Fetch chargebacks for this agent in this period
+  // 2. Fetch chargebacks for this agent recorded in the 10th-to-10th pay cycle
+  // (regardless of when original sale was made, as prior chargebacks were deducted in prior month)
   const allAgentSaleIds = (sales || []).map((s: any) => s.id);
 
   const { data: cbRows, error: cbError } = await admin
@@ -452,7 +475,7 @@ export async function getEmployeeRevenueAndChargebacks(input: {
 
   const periodChargebacks = (cbRows || []).filter((cb: any) => {
     const d = cb.date || (cb.created_at ? cb.created_at.slice(0, 10) : "");
-    const inPeriod = d >= startDate && d <= endDate;
+    const inPeriod = d >= cbStartDate && d <= cbEndDate;
     if (!inPeriod) return false;
 
     const sale = Array.isArray(cb.sale) ? cb.sale[0] : cb.sale;
@@ -479,12 +502,18 @@ export async function getEmployeeRevenueAndChargebacks(input: {
   const roundedCb = Number(chargebackAmount.toFixed(2));
   const roundedRemaining = Number((roundedRevenue - roundedCb).toFixed(2));
 
+  // Commission rate: $1,000 USD = 10,000 PKR ($1 USD = 10 PKR)
+  const commissionPkr = Math.max(0, Math.round(roundedRemaining * 10));
+
   return {
     monthly_revenue: roundedRevenue,
     chargeback_amount: roundedCb,
     remaining: roundedRemaining,
     sales_count: salesCount,
     chargebacks_count: periodChargebacks.length,
+    commission_pkr: commissionPkr,
+    cb_start_date: cbStartDate,
+    cb_end_date: cbEndDate,
   };
 }
 
