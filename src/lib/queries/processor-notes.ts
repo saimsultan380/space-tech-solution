@@ -22,8 +22,14 @@ export interface ProcessorNote {
   sale?: {
     id: string;
     customer_name?: string | null;
-    company?: string | null;
+    company_name?: string | null;
     amount?: number | null;
+    charged_amount?: number | null;
+    customer_phone?: string | null;
+    utility_company_service_number?: string | null;
+    sales_notes?: string | null;
+    agent_name?: string | null;
+    sale_type?: string | null;
   } | null;
 }
 
@@ -112,7 +118,18 @@ export async function getProcessorNoteDetail(
     .from("notes")
     .select(
       `id, content, created_at, sale_id, user_id,
-       sale:sales(id, customer_name, company, amount)`,
+       sale:sales(
+         id,
+         customer_name,
+         company_name,
+         amount,
+         charged_amount,
+         customer_phone,
+         utility_company_service_number,
+         sales_notes,
+         agent_name,
+         sale_type
+       )`,
     )
     .eq("type", "processing")
     .eq("user_id", processorId)
