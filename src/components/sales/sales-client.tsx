@@ -30,6 +30,11 @@ import {
   updateSaleBillPaymentStatus,
 } from "@/lib/actions/sales";
 import { createNote, deleteNote, getNotes, updateNote } from "@/lib/actions/notes";
+import {
+  formatBillCheckNote,
+  parseBillCheckNote,
+  isGenericNoteBanned,
+} from "@/lib/bill-check-note";
 import type { Note, UserRole, Sale } from "@/lib/types";
 import {
   Plus,
@@ -129,6 +134,11 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [draft, setDraft] = useState("");
+  const [dueAmount, setDueAmount] = useState("");
+  const [lastPayment, setLastPayment] = useState("");
+  const [isReversed, setIsReversed] = useState(false);
+  const [remarks, setRemarks] = useState("");
+  const [isStructuredMode, setIsStructuredMode] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -166,6 +176,10 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
     } else {
       setEditingId(null);
       setDraft("");
+      setDueAmount("");
+      setLastPayment("");
+      setIsReversed(false);
+      setRemarks("");
       setError("");
     }
   };
@@ -192,7 +206,27 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
   };
 
   const handleAdd = async () => {
-    const content = draft.trim();
+    let content = "";
+    if (isStructuredMode) {
+      if (!dueAmount.trim() || !lastPayment.trim()) {
+        setError("Both Due Amount and Last Payment are required to verify the bill.");
+        return;
+      }
+      content = formatBillCheckNote({
+        dueAmount,
+        lastPayment,
+        isReversed,
+        remarks,
+      });
+    } else {
+      content = draft.trim();
+      if (!content) return;
+      if (isGenericNoteBanned(content)) {
+        setError("Generic notes like 'checked' or 'paid' are not allowed. Please enter the actual Due Amount and Last Payment.");
+        return;
+      }
+    }
+
     if (!content || saving) return;
     setSaving(true);
     setError("");
@@ -203,6 +237,10 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
         type: "processing",
       });
       setDraft("");
+      setDueAmount("");
+      setLastPayment("");
+      setIsReversed(false);
+      setRemarks("");
       await loadNotes();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add the note");
@@ -290,113 +328,236 @@ function SalesRawDataPopover({ sale }: { sale: Sale }) {
             <p className="mt-1.5 text-[11px] text-muted-foreground">Saving status…</p>
           ) : null}
 
-          <p className="mt-3 text-xs font-semibold text-foreground">Add processing note</p>
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">Processing Notes</p>
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {notes.length} note{notes.length !== 1 ? "s" : ""}
+            </span>
+          </div>
           <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
             {loadingNotes && notes.length === 0 ? (
               <p className="text-xs text-muted-foreground">Loading notes…</p>
             ) : notes.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No processing notes yet.</p>
+              <p className="text-xs text-muted-foreground italic">No processing notes yet.</p>
             ) : (
-              notes.map((note) => (
-                <div key={note.id} className="rounded-md border border-border bg-background px-2.5 py-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 text-[11px] text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        {note.user?.full_name || "Staff"}
-                      </span>
-                      {" · "}
-                      {formatNoteTime(note.created_at)}
-                    </p>
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      <button
-                        type="button"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-primary"
-                        title="Edit note"
-                        onClick={() => {
-                          setEditingId(note.id);
-                          setEditDraft(note.content);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
-                        title="Delete note"
-                        disabled={saving}
-                        onClick={() => void handleDelete(note.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                  {editingId === note.id ? (
-                    <div className="mt-2 space-y-2">
-                      <Textarea
-                        value={editDraft}
-                        onChange={(e) => setEditDraft(e.target.value)}
-                        className="min-h-[64px] text-xs"
-                        disabled={saving}
-                      />
-                      <div className="flex justify-end gap-1.5">
-                        <Button
+              notes.map((note) => {
+                const parsed = parseBillCheckNote(note.content);
+                return (
+                  <div key={note.id} className="rounded-md border border-border bg-background px-2.5 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 text-[11px] text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {note.user?.full_name || "Staff"}
+                        </span>
+                        {" · "}
+                        {formatNoteTime(note.created_at)}
+                      </p>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
                           type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => setEditingId(null)}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-primary"
+                          title="Edit note"
+                          onClick={() => {
+                            setEditingId(note.id);
+                            setEditDraft(note.content);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-destructive"
+                          title="Delete note"
                           disabled={saving}
+                          onClick={() => void handleDelete(note.id)}
                         >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => void handleUpdate(note.id)}
-                          disabled={saving || !editDraft.trim()}
-                        >
-                          Save
-                        </Button>
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
-                  ) : (
-                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
-                      {note.content}
-                    </p>
-                  )}
-                </div>
-              ))
+                    {editingId === note.id ? (
+                      <div className="mt-2 space-y-2">
+                        <Textarea
+                          value={editDraft}
+                          onChange={(e) => setEditDraft(e.target.value)}
+                          className="min-h-[64px] text-xs"
+                          disabled={saving}
+                        />
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setEditingId(null)}
+                            disabled={saving}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => void handleUpdate(note.id)}
+                            disabled={saving || !editDraft.trim()}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : parsed.isStructured ? (
+                      <div className="mt-1.5 space-y-1 text-xs">
+                        <div className="flex flex-wrap items-center gap-1.5 font-medium">
+                          <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                            Due: {parsed.dueAmount}
+                          </span>
+                          <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                            Last: {parsed.lastPayment}
+                          </span>
+                          {parsed.isReversed ? (
+                            <span className="inline-flex items-center gap-0.5 rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                              ⚠️ Reversed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                              Normal
+                            </span>
+                          )}
+                        </div>
+                        {parsed.remarks && (
+                          <p className="text-[11px] text-muted-foreground italic pl-0.5">
+                            {parsed.remarks}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                        {note.content}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
 
-          <Textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Processing notes…"
-            className="mt-2 min-h-[68px] text-xs"
-            disabled={saving}
-          />
-          <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+            <p className="text-xs font-semibold text-foreground">Add Verification Check</p>
             <button
               type="button"
-              className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
-              onClick={stampDraft}
-              disabled={saving}
+              onClick={() => {
+                setIsStructuredMode(!isStructuredMode);
+                setError("");
+              }}
+              className="text-[11px] font-medium text-primary hover:underline"
             >
-              Add timestamp
+              {isStructuredMode ? "Switch to Text" : "Switch to Bill Check"}
             </button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-7 gap-1 px-2.5 text-xs"
-              onClick={() => void handleAdd()}
-              disabled={saving || !draft.trim()}
-            >
-              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-              Add
-            </Button>
           </div>
+
+          {isStructuredMode ? (
+            <div className="mt-2 space-y-2 rounded-lg border border-border/80 bg-background/60 p-2.5 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Due Amount ($) *
+                  </label>
+                  <input
+                    type="text"
+                    value={dueAmount}
+                    onChange={(e) => setDueAmount(e.target.value)}
+                    placeholder="e.g. 150.00"
+                    className="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-hidden"
+                    disabled={saving}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Last Payment *
+                  </label>
+                  <input
+                    type="text"
+                    value={lastPayment}
+                    onChange={(e) => setLastPayment(e.target.value)}
+                    placeholder="e.g. 120.00 or date"
+                    className="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-hidden"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                <span className="text-[11px] font-medium text-foreground">
+                  Payment Reversed / Alert?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsReversed(!isReversed)}
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    isReversed
+                      ? "bg-rose-500 text-white shadow-xs"
+                      : "border border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {isReversed ? "⚠️ Alert: Reversed" : "Off (Normal)"}
+                </button>
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Additional remarks (optional)…"
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-hidden"
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="flex items-center justify-end pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 gap-1 px-3 text-xs"
+                  onClick={() => void handleAdd()}
+                  disabled={saving || !dueAmount.trim() || !lastPayment.trim()}
+                >
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  Save Bill Check
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Processing notes (generic words like 'checked' or 'paid' are blocked)…"
+                className="min-h-[64px] text-xs"
+                disabled={saving}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  onClick={stampDraft}
+                  disabled={saving}
+                >
+                  Add timestamp
+                </button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 gap-1 px-2.5 text-xs"
+                  onClick={() => void handleAdd()}
+                  disabled={saving || !draft.trim()}
+                >
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  Add Note
+                </Button>
+              </div>
+            </div>
+          )}
           {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
         </div>
       </PopoverContent>

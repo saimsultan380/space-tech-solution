@@ -24,7 +24,9 @@ import {
   FileText as NoteIcon,
   ExternalLink,
   CheckCircle2,
+  AlertTriangle,
 } from "@/components/ui/icons";
+import { parseBillCheckNote } from "@/lib/bill-check-note";
 
 interface DailyProcessorActivityProps {
   onSelectProcessor?: (processorName: string) => void;
@@ -235,41 +237,154 @@ function ProcessorNotesModal({
                   ) : null}
 
                   {/* Notes Comparison (Agent vs Processor) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    {/* Agent End Note */}
-                    <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-1 mb-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400 flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            Agent Note (Sales End)
-                          </span>
-                        </div>
-                        <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words leading-relaxed">
-                          {hasAgentNote ? sale?.sales_notes : (
-                            <span className="italic text-muted-foreground">No agent notes on this bill.</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
+                  {(() => {
+                    const parsedAgent = parseBillCheckNote(sale?.sales_notes || "");
+                    const parsedProc = parseBillCheckNote(note.content || "");
 
-                    {/* Processor End Note */}
-                    <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.05] p-3 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-1 mb-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Processor Note (Updated)
-                          </span>
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        {/* Agent End Note */}
+                        <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.04] p-3 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between gap-1 mb-2">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400 flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                Agent Note (Sales End)
+                              </span>
+                              {parsedAgent.isStructured && (
+                                <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sky-700 dark:text-sky-300">
+                                  Verified Check
+                                </span>
+                              )}
+                            </div>
+
+                            {hasAgentNote ? (
+                              parsedAgent.isStructured ? (
+                                <div className="space-y-2 text-xs">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="rounded border border-sky-500/20 bg-background/80 p-2">
+                                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                                        Due Amount
+                                      </span>
+                                      <span className="text-sm font-bold text-foreground">
+                                        {parsedAgent.dueAmount}
+                                      </span>
+                                    </div>
+                                    <div className="rounded border border-sky-500/20 bg-background/80 p-2">
+                                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                                        Last Payment
+                                      </span>
+                                      <span className="text-sm font-bold text-foreground">
+                                        {parsedAgent.lastPayment}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    {parsedAgent.isReversed ? (
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        ⚠️ Payment Reversed / Alert
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Normal (Not Reversed)
+                                      </span>
+                                    )}
+                                  </div>
+                                  {parsedAgent.remarks && (
+                                    <p className="text-xs text-foreground/80 italic pt-1 border-t border-sky-500/15">
+                                      &ldquo;{parsedAgent.remarks}&rdquo;
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words leading-relaxed">
+                                  {sale?.sales_notes}
+                                </p>
+                              )
+                            ) : (
+                              <p className="text-xs italic text-muted-foreground">
+                                No agent notes on this bill.
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words leading-relaxed font-medium">
-                          {hasProcessorNote ? note.content : (
-                            <span className="italic text-muted-foreground">No processor note recorded.</span>
-                          )}
-                        </p>
+
+                        {/* Processor End Note */}
+                        <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.05] p-3 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between gap-1 mb-2">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Processor Note (Updated)
+                              </span>
+                              {parsedProc.isStructured ? (
+                                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
+                                  Verified Check
+                                </span>
+                              ) : (
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                                  Free Text
+                                </span>
+                              )}
+                            </div>
+
+                            {hasProcessorNote ? (
+                              parsedProc.isStructured ? (
+                                <div className="space-y-2 text-xs">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="rounded border border-emerald-500/25 bg-background/80 p-2">
+                                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                                        Due Amount
+                                      </span>
+                                      <span className="text-sm font-bold text-foreground">
+                                        {parsedProc.dueAmount}
+                                      </span>
+                                    </div>
+                                    <div className="rounded border border-emerald-500/25 bg-background/80 p-2">
+                                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                                        Last Payment
+                                      </span>
+                                      <span className="text-sm font-bold text-foreground">
+                                        {parsedProc.lastPayment}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    {parsedProc.isReversed ? (
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        ⚠️ Payment Reversed / Alert
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Normal (Not Reversed)
+                                      </span>
+                                    )}
+                                  </div>
+                                  {parsedProc.remarks && (
+                                    <p className="text-xs text-foreground/80 italic pt-1 border-t border-emerald-500/20">
+                                      &ldquo;{parsedProc.remarks}&rdquo;
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-foreground/90 whitespace-pre-wrap break-words leading-relaxed font-medium">
+                                  {note.content}
+                                </p>
+                              )
+                            ) : (
+                              <p className="text-xs italic text-muted-foreground">
+                                No processor note recorded.
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               );
             })
